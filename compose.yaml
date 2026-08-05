@@ -1,0 +1,77 @@
+name: family-dashboard
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-family_dashboard}
+      POSTGRES_USER: ${POSTGRES_USER:-family_dashboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  migrate:
+    build:
+      context: .
+      dockerfile: src/backend/FamilyDashboard.Api/Dockerfile
+      target: development
+    command: ["dotnet", "run", "--project", "src/backend/FamilyDashboard.Api", "--", "--migrate"]
+    environment:
+      ConnectionStrings__FamilyDashboard: Host=db;Port=5432;Database=${POSTGRES_DB:-family_dashboard};Username=${POSTGRES_USER:-family_dashboard};Password=${POSTGRES_PASSWORD}
+    volumes:
+      - .:/workspace
+      - api-nuget:/root/.nuget/packages
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: src/backend/FamilyDashboard.Api/Dockerfile
+      target: development
+    command: ["dotnet", "watch", "--project", "src/backend/FamilyDashboard.Api", "run", "--no-launch-profile"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__FamilyDashboard: Host=db;Port=5432;Database=${POSTGRES_DB:-family_dashboard};Username=${POSTGRES_USER:-family_dashboard};Password=${POSTGRES_PASSWORD}
+      Cors__AllowedOrigins__0: http://localhost:${FRONTEND_PORT:-5173}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - .:/workspace
+      - api-nuget:/root/.nuget/packages
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: src/frontend
+      target: development
+    environment:
+      VITE_API_BASE_URL: http://localhost:${API_PORT:-8080}
+      VITE_APP_NAME: Family Dashboard
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./src/frontend:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  api-nuget:
+  frontend-node-modules:
+  postgres-data:

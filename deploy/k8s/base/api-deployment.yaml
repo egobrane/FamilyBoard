@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: family-dashboard-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: family-dashboard-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: family-dashboard-api
+        app.kubernetes.io/part-of: family-dashboard
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: ghcr.io/egobrane/familyboard-backend:replace-with-immutable-tag
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: family-dashboard-api
+          env:
+            - name: ConnectionStrings__FamilyDashboard
+              valueFrom:
+                secretKeyRef:
+                  name: family-dashboard-secrets
+                  key: connection-string
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: temporary-files
+              mountPath: /tmp
+      volumes:
+        - name: temporary-files
+          emptyDir: {}

@@ -1,0 +1,21 @@
+:root {
+  color-scheme: light;
+  --color-canvas: #f6f4ee;
+  --color-surface: #fffdf8;
+  --color-ink: #26312f;
+  --color-muted: #5d6864;
+  --color-line: #e2e2d9;
+  --color-mint: #b8dccd;
+  --color-mint-strong: #4d8d76;
+  --color-coral: #ef9b83;
+  --color-sky: #98c6dc;
+  --color-sun: #f2cd74;
+  --shadow-card: 0 18px 50px rgb(60 70 64 / 8%);
+  --radius-large: 2rem;
+  --radius-medium: 1.25rem;
+  --touch-target: 3rem;
+  --page-gutter: clamp(1rem, 2.4vw, 3rem);
+  font-family: Inter, ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}

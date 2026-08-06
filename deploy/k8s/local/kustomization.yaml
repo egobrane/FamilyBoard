@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+images:
+  - name: ghcr.io/egobrane/familyboard-backend
+    newName: family-dashboard-api
+    newTag: local-staging
+patches:
+  - target:
+      kind: ConfigMap
+      name: family-dashboard-api
+    patch: |-
+      - op: replace
+        path: /data/Cors__AllowedOrigins__0
+        value: https://effortless-bubblegum-ad0643.netlify.app
+  - target:
+      kind: Ingress
+      name: family-dashboard-api
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.family-dashboard.localhost

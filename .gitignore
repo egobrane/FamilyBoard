@@ -25,3 +25,10 @@
 # Local tooling
 .netlify/
 artifacts/
+
+# Local Kubernetes credentials and populated Secret manifests
+deploy/k8s/**/kubeconfig*
+deploy/k8s/**/secret.yaml
+deploy/k8s/**/secrets.yaml
+deploy/k8s/**/*-secret.yaml
+deploy/k8s/**/*-secrets.yaml

@@ -29,9 +29,12 @@ The migration service runs once before the development API starts. See [developm
 - [Database and migrations](docs/database.md)
 - [Testing](docs/testing.md)
 - [Authentication boundary](docs/authentication.md)
+- [Identity and household milestone](docs/identity-household-milestone.md)
 - [Netlify deployment](docs/deployment/netlify.md)
 - [Backend container publication](docs/deployment/backend-container.md)
 - [K3s deployment](docs/deployment/k3s.md)
+- [Local K3s staging](docs/deployment/local-k3s.md)
+- [Staging deployment proof](docs/deployment/staging.md)
 - [Roadmap](ROADMAP.md)
 
 ## Current scope

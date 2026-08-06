@@ -95,4 +95,6 @@ jobs:
       - name: Build frontend production image
         run: docker build --build-arg VITE_API_BASE_URL=https://api.example.invalid --file src/frontend/Dockerfile --target production --tag family-dashboard-web:ci src/frontend
       - name: Render K3s manifests
-        run: kubectl kustomize deploy/k8s/k3s > /tmp/family-dashboard-k3s.yaml
+        run: |
+          kubectl kustomize deploy/k8s/k3s > /tmp/family-dashboard-k3s.yaml
+          kubectl kustomize deploy/k8s/local > /tmp/family-dashboard-local-k3s.yaml

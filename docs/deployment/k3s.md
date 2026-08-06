@@ -2,6 +2,8 @@
 
 The manifests use standard Kubernetes resources plus Kustomize syntax supported by `kubectl`. They assume K3s provides a default persistent storage class and ingress controller, but they do not name Traefik or use a K3s-specific API.
 
+For Docker-backed local K3s on macOS, use the [local k3d staging runbook](local-k3s.md) and `deploy/k8s/local` overlay.
+
 ## Before deployment
 
 Decide and document:

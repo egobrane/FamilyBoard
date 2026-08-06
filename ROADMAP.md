@@ -2,18 +2,19 @@
 
 ## Now
 
-- Establish the React/Vite PWA and touch-first dashboard shell.
-- Establish the ASP.NET Core API, PostgreSQL model, and EF Core migrations.
-- Establish local containers, CI, GHCR publication, Netlify, and K3s manifests.
-- Validate responsive, accessibility, backend, migration, and container foundations.
+- Foundation milestone complete: React/Vite PWA, ASP.NET Core API, PostgreSQL model, EF Core migration, local containers, automated tests, and portable deployment configuration.
+- Prove one full staging release across GitHub Actions, Netlify, GHCR, K3s, PostgreSQL migration, and public API health checks.
+- Begin the accepted identity and household-access vertical slice incrementally.
+- Validate the wall-display interaction model on physical hardware.
 
 ## Next
 
-- Design authentication identities separately from household-member profiles.
-- Add household and member management with backend authorization.
-- Implement secure server-side Google OAuth 2.0.
+- Implement authentication identities separately from household-member profiles.
+- Add secure server-side Google sign-in, revocable application sessions, and CSRF protection.
+- Add household bootstrap, member management, adult invitations, and backend authorization.
+- Add shared-display mode with a backend-enforced parent access PIN for administrative actions.
 - Add a read-only Google Calendar adapter and disposable cache strategy.
-- Validate the wall-display interaction model on physical hardware.
+- Validate routine child-accessible actions and parent-only administration on the physical wall display.
 
 ## Later
 

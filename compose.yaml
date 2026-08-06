@@ -29,6 +29,8 @@ services:
       ConnectionStrings__FamilyDashboard: Host=db;Port=5432;Database=${POSTGRES_DB:-family_dashboard};Username=${POSTGRES_USER:-family_dashboard};Password=${POSTGRES_PASSWORD}
     volumes:
       - .:/workspace
+      - api-bin:/workspace/src/backend/FamilyDashboard.Api/bin
+      - api-obj:/workspace/src/backend/FamilyDashboard.Api/obj
       - api-nuget:/root/.nuget/packages
     depends_on:
       db:
@@ -49,6 +51,8 @@ services:
       - "${API_PORT:-8080}:8080"
     volumes:
       - .:/workspace
+      - api-bin:/workspace/src/backend/FamilyDashboard.Api/bin
+      - api-obj:/workspace/src/backend/FamilyDashboard.Api/obj
       - api-nuget:/root/.nuget/packages
     depends_on:
       migrate:
@@ -72,6 +76,8 @@ services:
         condition: service_started
 
 volumes:
+  api-bin:
+  api-obj:
   api-nuget:
   frontend-node-modules:
   postgres-data:

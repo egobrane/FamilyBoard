@@ -4,9 +4,11 @@ import { expect, test } from '@playwright/test'
 test('dashboard shell is readable and fits the viewport', async ({ page }) => {
   await page.goto('/')
 
+  await expect(page.getByRole('heading', { level: 1, name: 'Bamford-Fahie-Waltz Family' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
   await expect(page.getByText('School drop-off')).toBeVisible()
+  await expect(page.getByText('Feed Milo')).toBeVisible()
 
   const horizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

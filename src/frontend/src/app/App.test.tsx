@@ -10,8 +10,12 @@ describe('App', () => {
     expect(screen.getByRole('banner')).toBeInTheDocument()
     expect(screen.getByRole('main')).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /primary/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Bamford-Fahie-Waltz Family' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
     expect(screen.getByText('Dentist appointment')).toBeInTheDocument()
+    expect(screen.getAllByText('Oliver').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Zoey').length).toBeGreaterThan(0)
+    expect(screen.getByText('Feed Milo')).toBeInTheDocument()
     expect(screen.getByText(/chore actions arrive/i)).toBeInTheDocument()
   })
 

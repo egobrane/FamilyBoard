@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavigationBar } from '../components/NavigationBar'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { demoHousehold } from '../features/dashboard/mockDashboardData'
 import { configuration } from '../lib/configuration'
 
 function formattedTime(date: Date) {
@@ -33,6 +34,7 @@ export function App() {
           <span className="brand__mark" aria-hidden="true"><i /><i /><i /></span>
           <span className="brand__text">Family<span>Dashboard</span></span>
         </div>
+        <h1 className="household-name">{demoHousehold.name}</h1>
         <div className="topbar__right">
           <time className="current-time" dateTime={now.toISOString()}>{formattedTime(now)}</time>
           <span className="avatar" aria-label="Household profile">RB</span>

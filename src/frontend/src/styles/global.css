@@ -70,9 +70,9 @@ a:focus-visible {
 }
 
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   min-height: 6.5rem;
   padding: max(1.25rem, env(safe-area-inset-top)) var(--page-gutter) 1rem;
 }
@@ -85,6 +85,7 @@ a:focus-visible {
 
 .brand {
   gap: 0.9rem;
+  justify-self: start;
 }
 
 .brand__mark {
@@ -127,8 +128,19 @@ a:focus-visible {
   color: var(--color-mint-strong);
 }
 
+.household-name {
+  max-width: min(42rem, 48vw);
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.15rem, 2vw, 2rem);
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: -0.035em;
+}
+
 .topbar__right {
   gap: clamp(0.75rem, 2vw, 1.5rem);
+  justify-self: end;
 }
 
 .current-time {
@@ -508,7 +520,16 @@ a:focus-visible {
   }
 
   .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.65rem;
     min-height: 5.2rem;
+  }
+
+  .household-name {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    max-width: 100%;
+    font-size: clamp(1.15rem, 5vw, 1.5rem);
   }
 
   .brand__mark {

@@ -24,4 +24,20 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: /skip to dashboard/i })).toHaveFocus()
     expect(screen.getByRole('link', { name: /skip to dashboard/i })).toHaveAttribute('href', '#main-content')
   })
+
+  it('provides mouse and keyboard-accessible links to each dashboard preview', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const calendarLink = screen.getByRole('link', { name: 'Calendar' })
+
+    expect(calendarLink).toHaveAttribute('href', '#calendar-preview')
+    expect(screen.getByRole('link', { name: 'Chores' })).toHaveAttribute('href', '#chores-preview')
+    expect(screen.getByRole('link', { name: 'Rewards' })).toHaveAttribute('href', '#rewards-preview')
+
+    await user.click(calendarLink)
+
+    expect(calendarLink).toHaveAttribute('aria-current', 'location')
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
+  })
 })

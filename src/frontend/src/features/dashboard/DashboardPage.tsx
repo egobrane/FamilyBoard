@@ -7,6 +7,7 @@ export function DashboardPage() {
       <DashboardCard
         className="schedule-card"
         eyebrow="Wednesday, August 5"
+        id="calendar-preview"
         title="Today"
         action={<span className="status-pill">4 plans</span>}
       >
@@ -35,6 +36,7 @@ export function DashboardPage() {
       <DashboardCard
         className="chores-card"
         eyebrow="A little progress"
+        id="chores-preview"
         title="Chores"
         action={<span className="status-pill status-pill--mint">1 of 3</span>}
       >
@@ -53,7 +55,7 @@ export function DashboardPage() {
         <p className="preview-note">Chore actions arrive in a later milestone.</p>
       </DashboardCard>
 
-      <DashboardCard className="family-card" eyebrow="Keep it going" title="Family points">
+      <DashboardCard className="family-card" eyebrow="Keep it going" id="rewards-preview" title="Family points">
         <div className="member-grid">
           {familyMembers.map((member) => (
             <div className="member" key={member.name}>

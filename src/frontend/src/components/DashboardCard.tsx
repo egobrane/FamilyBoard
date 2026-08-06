@@ -5,13 +5,14 @@ interface DashboardCardProps extends PropsWithChildren {
   eyebrow?: string
   action?: ReactNode
   className?: string
+  id?: string
 }
 
-export function DashboardCard({ title, eyebrow, action, className = '', children }: DashboardCardProps) {
+export function DashboardCard({ title, eyebrow, action, className = '', id, children }: DashboardCardProps) {
   const titleId = useId()
 
   return (
-    <section className={`dashboard-card ${className}`.trim()} aria-labelledby={titleId}>
+    <section className={`dashboard-card ${className}`.trim()} aria-labelledby={titleId} id={id}>
       <div className="dashboard-card__header">
         <div>
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}

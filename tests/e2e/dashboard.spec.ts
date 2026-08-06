@@ -22,3 +22,14 @@ test('dashboard shell has no automatically detectable serious accessibility issu
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
 })
+
+test('primary navigation responds to pointer clicks', async ({ page }) => {
+  await page.goto('/')
+
+  const rewardsLink = page.getByRole('link', { name: 'Rewards' })
+  await rewardsLink.click()
+
+  await expect(page).toHaveURL(/#rewards-preview$/)
+  await expect(rewardsLink).toHaveAttribute('aria-current', 'location')
+  await expect(page.locator('#rewards-preview')).toBeVisible()
+})

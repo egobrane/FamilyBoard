@@ -6,6 +6,7 @@ html {
   min-width: 20rem;
   min-height: 100%;
   background: var(--color-canvas);
+  scroll-behavior: smooth;
 }
 
 body {
@@ -188,6 +189,7 @@ a:focus-visible {
   border: 1px solid rgb(255 255 255 / 75%);
   border-radius: var(--radius-large);
   box-shadow: var(--shadow-card);
+  scroll-margin-top: 1rem;
 }
 
 .dashboard-card__header {
@@ -453,10 +455,8 @@ a:focus-visible {
   font-size: 0.85rem;
   font-weight: 750;
   border-radius: 1rem;
-}
-
-.navigation__item[aria-disabled="true"] {
-  opacity: 0.72;
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .navigation__item--current {
@@ -467,6 +467,13 @@ a:focus-visible {
 .navigation__icon {
   font-size: 1.2rem;
   line-height: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navigation__item:hover:not(.navigation__item--current) {
+    color: white;
+    background: rgb(255 255 255 / 10%);
+  }
 }
 
 @media (min-width: 100rem) {

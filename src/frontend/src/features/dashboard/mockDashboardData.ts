@@ -16,6 +16,7 @@ export interface ChorePreview {
 
 export const demoHousehold = {
   name: 'Bamford-Fahie-Waltz Family',
+  photoUrl: '/images/demo-family-photo.jpg',
 } as const
 
 export const scheduleItems: ScheduleItem[] = [

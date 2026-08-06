@@ -117,6 +117,7 @@ Exit criterion: the staging API completes Google login without exposing codes, s
 - Implement household bootstrap and responsive member management.
 - Replace the mock avatar identity with authenticated profile data.
 - Replace the demo household heading with the name of the household selected from the authenticated adult's memberships.
+- Replace the bundled demo photo with a household setting after image storage, resizing, deletion, access control, and privacy behavior are approved.
 - Keep the existing dashboard cards on mock feature data until their own integrations ship.
 
 Exit criterion: Playwright covers mouse, keyboard, touch-sized controls, phone layout, adult setup, validation errors, and forbidden states.

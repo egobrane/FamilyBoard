@@ -1,5 +1,6 @@
+import type { CSSProperties } from 'react'
 import { DashboardCard } from '../../components/DashboardCard'
-import { chorePreviews, familyMembers, scheduleItems } from './mockDashboardData'
+import { chorePreviews, demoHousehold, familyMembers, scheduleItems } from './mockDashboardData'
 
 export function DashboardPage() {
   return (
@@ -25,7 +26,12 @@ export function DashboardPage() {
         </ol>
       </DashboardCard>
 
-      <DashboardCard className="welcome-card" eyebrow="Good morning" title="Ready for a smooth day?">
+      <DashboardCard
+        className="welcome-card"
+        eyebrow="Good morning"
+        title="Ready for a smooth day?"
+        style={{ '--household-photo': `url("${demoHousehold.photoUrl}")` } as CSSProperties}
+      >
         <p>Everything your family needs is gathering here—clear, calm, and easy to reach.</p>
         <div className="weather-preview" aria-label="Weather placeholder">
           <span className="weather-preview__icon" aria-hidden="true">☀</span>

@@ -313,9 +313,14 @@ a:focus-visible {
 
 .welcome-card {
   color: #f8fbf9;
-  background:
-    linear-gradient(145deg, rgb(38 49 47 / 12%), transparent 60%),
-    #557e70;
+  background-color: #557e70;
+  background-image:
+    linear-gradient(100deg, rgb(25 36 33 / 78%) 0%, rgb(25 36 33 / 64%) 52%, rgb(25 36 33 / 58%) 100%),
+    var(--household-photo);
+  background-position: center, center 40%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  text-shadow: 0 0.1rem 0.4rem rgb(0 0 0 / 55%);
 }
 
 .welcome-card .eyebrow {
@@ -335,7 +340,7 @@ a:focus-visible {
   gap: 0.8rem;
   margin-top: 1.5rem;
   padding: 1rem;
-  background: rgb(255 255 255 / 12%);
+  background: rgb(18 27 25 / 58%);
   border: 1px solid rgb(255 255 255 / 18%);
   border-radius: var(--radius-medium);
 }

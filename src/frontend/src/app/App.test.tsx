@@ -17,6 +17,9 @@ describe('App', () => {
     expect(screen.getAllByText('Zoey').length).toBeGreaterThan(0)
     expect(screen.getByText('Feed Milo')).toBeInTheDocument()
     expect(screen.getByText(/chore actions arrive/i)).toBeInTheDocument()
+
+    const welcomeCard = screen.getByRole('region', { name: 'Ready for a smooth day?' })
+    expect(welcomeCard.style.getPropertyValue('--household-photo')).toContain('/images/demo-family-photo.jpg')
   })
 
   it('offers a keyboard-accessible skip link', async () => {

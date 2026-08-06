@@ -29,10 +29,10 @@ export function DashboardPage() {
       <DashboardCard
         className="welcome-card"
         eyebrow="Good morning"
-        title="Ready for a smooth day?"
+        title="Ready for a good day?"
         style={{ '--household-photo': `url("${demoHousehold.photoUrl}")` } as CSSProperties}
       >
-        <p>Everything your family needs is gathering here—clear, calm, and easy to reach.</p>
+        <p>FamilyBoard is in active development. Annie is beautiful.</p>
         <div className="weather-preview" aria-label="Weather placeholder">
           <span className="weather-preview__icon" aria-hidden="true">☀</span>
           <span><strong>74°</strong> Sunny</span>

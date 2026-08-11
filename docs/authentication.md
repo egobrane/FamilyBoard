@@ -1,6 +1,8 @@
 # Authentication Boundary
 
-Authentication is deliberately not implemented in the first milestone.
+Real authentication is deliberately not implemented yet. Identity Increment 1 adds API contracts and a resource-authorization seam, but it does not register an authentication scheme, create sessions, map identity endpoints, or trust a client-supplied identity.
+
+Production household authorization currently uses a deny-all access evaluator. Increment 2 must replace it with persistence-backed household membership lookup before protected household endpoints are activated. Backend tests use a test-assembly-only header scheme to exercise authorization deterministically; that scheme is not available in the running application.
 
 The accepted identity, session, household-membership, invitation, Google sign-in, shared-display, and parent-PIN design is recorded in [ADR 0002](decisions/0002-identity-and-household-access.md).
 

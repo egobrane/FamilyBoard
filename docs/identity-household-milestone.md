@@ -82,12 +82,14 @@ No general identity framework, object mapper, validation framework, mediator, or
 
 ### Increment 1: contracts and authorization seam
 
-- Confirm the initial DTO names and route contracts from accepted ADR 0002.
-- Define DTOs, endpoint groups, resource authorization policies, and error contracts.
-- Add a test-only authentication scheme through the backend test host, never through production configuration.
-- Add authorization tests proving unauthenticated and cross-household access is rejected.
+- **Implemented 2026-08-11.** The authentication, household, household-member, and access DTOs now establish the JSON contract without exposing persistence entities.
+- The accepted routes remain documented in ADR 0002 but are intentionally not mapped yet; inactive stub endpoints would imply functionality that does not exist.
+- `HouseholdMember` and `HouseholdAdult` resource policies use the authenticated internal user-account identifier plus the route household identifier. The production access evaluator denies every request until Increment 2 supplies persistence-backed membership lookup.
+- API errors use RFC 7807 `ProblemDetails` with a stable `code`, request `traceId`, and field errors when validation fails.
+- A header-based authentication handler exists only in the backend test assembly. Production registers neither that scheme nor a caller-controlled identity header.
+- Automated tests prove unauthenticated, malformed-identity, insufficient-role, and cross-household access is rejected; adults satisfy both household policies.
 
-Exit criterion: contract and authorization tests fail for the intended reasons before real persistence behavior is added.
+Exit criterion: complete. Contract and authorization tests pass while production access remains deny-by-default and no identity route is activated.
 
 ### Increment 2: identity and household persistence
 

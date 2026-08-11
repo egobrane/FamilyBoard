@@ -1,5 +1,6 @@
 using FamilyDashboard.Api.Configuration;
 using FamilyDashboard.Api.Persistence;
+using FamilyDashboard.Api.Security;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
+builder.Services.AddFamilyDashboardAuthorization();
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)

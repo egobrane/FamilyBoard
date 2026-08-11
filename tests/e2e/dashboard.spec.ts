@@ -9,7 +9,7 @@ test('dashboard shell is readable and fits the viewport', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
   await expect(page.getByText('School drop-off')).toBeVisible()
   await expect(page.getByText('Feed Milo')).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Ready for a smooth day?' }))
+  await expect(page.getByRole('region', { name: 'Ready for a good day?' }))
     .toHaveCSS('background-image', /demo-family-photo\.jpg/)
 
   const horizontalOverflow = await page.evaluate(

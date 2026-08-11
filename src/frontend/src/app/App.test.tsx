@@ -18,7 +18,7 @@ describe('App', () => {
     expect(screen.getByText('Feed Milo')).toBeInTheDocument()
     expect(screen.getByText(/chore actions arrive/i)).toBeInTheDocument()
 
-    const welcomeCard = screen.getByRole('region', { name: 'Ready for a smooth day?' })
+    const welcomeCard = screen.getByRole('region', { name: 'Ready for a good day?' })
     expect(welcomeCard.style.getPropertyValue('--household-photo')).toContain('/images/demo-family-photo.jpg')
   })
 

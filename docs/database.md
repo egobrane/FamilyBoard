@@ -7,6 +7,9 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 ## Model
 
 - A household has one configuration and many members.
+- A user account can belong to multiple households through `HouseholdMembership`; each membership links exactly one adult account to a profile in the same household.
+- Children remain profile-only and have no user account or membership link.
+- `ExternalIdentity` reserves the unique provider-subject mapping used by future Google sign-in without storing OAuth tokens.
 - Chore definitions belong to a household; assignments connect one definition to one member.
 - A completion is a unique reviewable record for one assignment.
 - Point transactions form an append-only signed ledger for each member.
@@ -14,6 +17,8 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 - Preferences can be household- or member-scoped and store validated JSON values.
 
 Identifiers are UUIDs. Instants are `timestamptz` and interpreted as UTC. Household display uses its IANA time-zone identifier. Historical records use restrictive foreign keys; members, chores, and rewards should be deactivated instead of deleting history.
+
+Migration `AddIdentityAndHouseholdPersistence` is additive. Its composite foreign key prevents linking an account to a profile from a different household, and its provider/subject uniqueness constraint prevents two accounts from claiming the same external identity.
 
 ## Creating a migration
 

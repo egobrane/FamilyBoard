@@ -1,8 +1,8 @@
 # Authentication Boundary
 
-Real authentication is deliberately not implemented yet. Identity Increment 1 adds API contracts and a resource-authorization seam, but it does not register an authentication scheme, create sessions, map identity endpoints, or trust a client-supplied identity.
+Real authentication is deliberately not implemented yet. Identity Increment 2 maps the identity and household endpoints and persists accounts, external identity references, household profiles, and account-to-household memberships. Production registers an unavailable authentication handler so protected endpoints fail closed with a stable `401 ProblemDetails` response until Google sign-in replaces that seam. It never trusts a client-supplied identity.
 
-Production household authorization currently uses a deny-all access evaluator. Increment 2 must replace it with persistence-backed household membership lookup before protected household endpoints are activated. Backend tests use a test-assembly-only header scheme to exercise authorization deterministically; that scheme is not available in the running application.
+Household authorization now uses persistence-backed membership lookup and requires an active account, household, and linked member profile. Backend tests use a test-assembly-only header scheme to exercise the protected endpoints deterministically; that scheme is not available in the running application. Consequently, the deployed API exposes the contracts but no production caller can use them until Increment 3 introduces Google sign-in and revocable sessions.
 
 The accepted identity, session, household-membership, invitation, Google sign-in, shared-display, and parent-PIN design is recorded in [ADR 0002](decisions/0002-identity-and-household-access.md).
 

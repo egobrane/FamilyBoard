@@ -16,6 +16,7 @@ public sealed class HouseholdMemberEntityConfiguration : IEntityTypeConfiguratio
         builder.Property(member => member.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(member => member.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.HasIndex(member => new { member.HouseholdId, member.DisplayName });
+        builder.HasAlternateKey(member => new { member.HouseholdId, member.Id });
         builder.HasOne(member => member.Household)
             .WithMany(household => household.Members)
             .HasForeignKey(member => member.HouseholdId)

@@ -15,6 +15,7 @@ public sealed class HouseholdMember
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public Household Household { get; set; } = null!;
+    public HouseholdMembership? Membership { get; set; }
     public ICollection<ApplicationPreference> Preferences { get; set; } = [];
     public ICollection<ChoreAssignment> ChoreAssignments { get; set; } = [];
     public ICollection<PointTransaction> PointTransactions { get; set; } = [];

@@ -1,4 +1,7 @@
 using FamilyDashboard.Api.Configuration;
+using FamilyDashboard.Api.Features.Authentication;
+using FamilyDashboard.Api.Features.HouseholdMembers;
+using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Persistence;
 using FamilyDashboard.Api.Security;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -8,7 +11,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = UnavailableAuthenticationHandler.SchemeName;
+        options.DefaultChallengeScheme = UnavailableAuthenticationHandler.SchemeName;
+        options.DefaultForbidScheme = UnavailableAuthenticationHandler.SchemeName;
+    })
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+        UnavailableAuthenticationHandler>(
+        UnavailableAuthenticationHandler.SchemeName,
+        _ => { });
 builder.Services.AddFamilyDashboardAuthorization();
+builder.Services.AddScoped<HouseholdService>();
+builder.Services.AddScoped<HouseholdMemberService>();
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)
@@ -45,7 +61,30 @@ if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
 }
 
 app.UseExceptionHandler();
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    var httpContext = statusCodeContext.HttpContext;
+    var (code, title) = httpContext.Response.StatusCode switch
+    {
+        StatusCodes.Status401Unauthorized =>
+            (FamilyDashboard.Api.Features.Common.ApiProblemCodes.AuthenticationRequired,
+                "Authentication is required."),
+        StatusCodes.Status403Forbidden =>
+            (FamilyDashboard.Api.Features.Common.ApiProblemCodes.AdultAccessRequired,
+                "Adult household access is required."),
+        _ => (FamilyDashboard.Api.Features.Common.ApiProblemCodes.UnexpectedError,
+            "The request could not be completed."),
+    };
+    var problem = FamilyDashboard.Api.Features.Common.ApiProblems.Create(
+        httpContext,
+        httpContext.Response.StatusCode,
+        code,
+        title);
+    await Results.Problem(problem).ExecuteAsync(httpContext);
+});
 app.UseCors(CorsOptions.PolicyName);
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
@@ -60,6 +99,9 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready"),
 });
+app.MapAuthenticationEndpoints();
+app.MapHouseholdEndpoints();
+app.MapHouseholdMemberEndpoints();
 
 await app.RunAsync();
 

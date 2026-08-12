@@ -1,9 +1,21 @@
+using FamilyDashboard.Api.Domain.Households;
+
 namespace FamilyDashboard.Api.Features.Households;
 
 public static class HouseholdContractRoles
 {
     public const string Adult = "adult";
     public const string Child = "child";
+
+    public static string FromDomain(HouseholdMemberRole role)
+    {
+        return role switch
+        {
+            HouseholdMemberRole.Adult => Adult,
+            HouseholdMemberRole.Child => Child,
+            _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unsupported household role."),
+        };
+    }
 }
 
 public sealed record HouseholdSummaryResponse(

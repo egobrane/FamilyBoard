@@ -53,15 +53,14 @@ Not yet proven:
 
 - a real Netlify pull-request Deploy Preview;
 - independent confirmation from the Netlify dashboard that its deploy metadata names the target commit SHA; deployed content matches the target features;
-- a public HTTPS staging API; the deployed frontend still embeds the fallback `http://localhost:8080` API origin and must be rebuilt with an HTTPS API URL before real API calls are introduced;
 - durable Data Protection keys and a tested database restore;
 - removal or explicit acceptance of the non-fatal missing `libgssapi_krb5.so.2` warning emitted by the migration image when PostgreSQL GSS authentication is not in use;
 
 ## Current blockers
 
-1. Trigger a new Netlify production build with `VITE_API_BASE_URL=https://api.egobrane.net` and verify the deployed bundle no longer embeds localhost.
-2. Perform a PostgreSQL point-in-time restore drill before data becomes irreplaceable.
-3. Verify a real Netlify pull-request Deploy Preview.
+1. Perform a PostgreSQL point-in-time restore drill before data becomes irreplaceable.
+2. Verify a real Netlify pull-request Deploy Preview.
+3. Provision durable ASP.NET Data Protection key storage before persistent browser sessions are introduced.
 
 Update this record when each item is independently verified. Do not relabel a frontend-only deployment as full-stack staging.
 
@@ -90,7 +89,7 @@ Update this record when each item is independently verified. Do not relabel a fr
 - The database administrator credential is stored in the project owner's macOS Keychain and was not written to source control or command output.
 - Cloudflare CNAME/TXT validation records resolve publicly. Azure managed TLS is active for `api.egobrane.net`; its liveness/readiness checks return HTTP 200, the certificate SAN matches the hostname, and insecure ingress is disabled.
 - Azure requires the validated hostname to be attached to the Container App before managed-certificate creation. The documented bootstrap sequence now includes this platform requirement.
-- The Netlify production variable was entered, but the publicly served bundle still embeds `http://localhost:8080`; a new production build and verification remain pending, along with a restore drill.
+- After the production variable was entered, Netlify initially skipped a content-unchanged build. The owner then forced a cleared-cache production rebuild, and the deployed bundle was independently verified to contain `https://api.egobrane.net` with no localhost API origin.
 - The first manual Azure deploy run proved the image-digest guard but failed OIDC login because GitHub emitted its immutable owner/repository-ID subject while Azure trusted the legacy name-only form. The Bicep trust definition now uses the exact immutable subject reported by GitHub.
 - Azure's live federated credential was updated to that immutable subject on 2026-08-12.
 - The second attempt authenticated with OIDC but exposed that Azure's Container Apps Contributor role contains no `Microsoft.App/jobs` permissions.
@@ -98,3 +97,19 @@ Update this record when each item is independently verified. Do not relabel a fr
 - The corrected design uses job-scoped Container Apps Jobs Contributor, the narrowest suitable built-in role for updating the existing migration job image while preserving its complete template, then starts the job normally.
 - Azure's live assignments now match Bicep: Container Apps Contributor only on the API and Container Apps Jobs Contributor only on the migration job. A local validation updated the migration job to digest `sha256:111d3f3d7a80b2a4ab39b0e3a30967ef3b471869ef86d4468dc8b08193ffbb6b`, preserved `--migrate` and its secret-backed environment, and completed execution `family-dashboard-staging-mig-qwe3ot3` successfully.
 - The third GitHub workflow attempt authenticated through OIDC, completed migration execution `family-dashboard-staging-mig-atvyjwk`, deployed digest `sha256:111d3f3d7a80b2a4ab39b0e3a30967ef3b471869ef86d4468dc8b08193ffbb6b` to the API, and passed both public health checks. Live Azure inspection independently confirmed the digest, successful migration, ready revision, and HTTP 200 liveness/readiness responses.
+
+## Full-stack staging verification: 2026-08-12
+
+Target commit: `7a4798c88b62f8aa838102c05a80bb1684292c3e` (`Testing complete GitHub to Azure deployment path for backend updates`).
+
+- The local `main` branch is clean and matches `origin/main` at the target commit.
+- [Continuous Integration run 31627987919](https://github.com/egobrane/FamilyBoard/actions/runs/31627987919) and [Publish Backend Image run 31627987813](https://github.com/egobrane/FamilyBoard/actions/runs/31627987813) both completed successfully for the target commit.
+- [Azure staging deployment run 31615282299](https://github.com/egobrane/FamilyBoard/actions/runs/31615282299) completed successfully on its third attempt. It used the protected `staging` environment and deployed the immutable backend digest after a successful migration.
+- `https://family.egobrane.net` returns HTTPS 200 with the configured security headers and serves the rebuilt production bundle. The compiled bundle contains `https://api.egobrane.net` and no `http://localhost:8080` API origin.
+- The in-app browser control surface was unavailable during this verification, so the frontend check covered public HTTP responses and compiled assets rather than a new visual interaction pass.
+- Azure reports `family-dashboard-staging-api` provisioned and running with insecure ingress disabled, `minReplicas` zero, the custom domain attached, and digest `sha256:111d3f3d7a80b2a4ab39b0e3a30967ef3b471869ef86d4468dc8b08193ffbb6b` active on the latest ready revision.
+- The latest migration execution, `family-dashboard-staging-mig-atvyjwk`, succeeded. The earlier deliberately stopped validation execution remains visible in history and is not an active failure.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is `Ready` on version 18 with public access disabled, seven-day backup retention, and the UTF-8 `family_dashboard` database present.
+- Public API liveness and database-backed readiness both return HTTP 200 `Healthy` at `https://api.egobrane.net`.
+
+This proves the first end-to-end staging delivery path. Netlify deploy metadata for the exact commit, a Deploy Preview, and a PostgreSQL restore remain separate operational checks.

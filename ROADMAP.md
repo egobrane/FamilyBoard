@@ -3,18 +3,19 @@
 ## Now
 
 - Foundation and delivery baseline verified: React/Vite PWA, ASP.NET Core API, PostgreSQL/EF Core migration, automated tests, Docker Compose, Netlify, current-commit CI/GHCR publication, and local K3s.
-- Complete full-stack staging with a public HTTPS API, exact Netlify API configuration, durable secrets/Data Protection keys, and a tested PostgreSQL backup/restore path.
+- Full-stack staging is operational: the Netlify production bundle uses the public HTTPS Azure API, the API uses private PostgreSQL 18, and digest-pinned GitHub OIDC migration/deployment is proven.
 - Azure Central US staging is provisioned: private PostgreSQL 18, scale-to-zero Container Apps API, successful migration job, healthy default HTTPS endpoint, monitoring, and narrowly scoped GitHub OIDC identity.
-- `api.egobrane.net` is bound with Cloudflare DNS and Azure managed TLS, and the first GitHub OIDC migration/API deployment is proven; rebuild and verify Netlify with the HTTPS API origin.
+- `api.egobrane.net` is bound with Cloudflare DNS and Azure managed TLS; `family.egobrane.net` is rebuilt and verified with that HTTPS API origin.
 - Identity and Household Management Increment 1 is implemented: explicit API contracts, stable problem responses, and a deny-by-default backend household authorization seam.
-- Review and implement Increment 2: identity and household persistence, atomic household bootstrap, member management, and PostgreSQL household-isolation tests.
+- Refresh staging operations with a PostgreSQL restore drill, a real Netlify Deploy Preview, and durable Data Protection key storage before browser sessions are introduced.
+- Review and deploy the locally completed Increment 2: identity and household persistence, atomic household bootstrap, member management, and PostgreSQL household-isolation tests.
 - Validate the wall-display interaction model on physical hardware.
 
 ## Next
 
-- Rehearse application rollback and PostgreSQL point-in-time restore.
+- Rehearse application rollback and PostgreSQL point-in-time restore before staging stores irreplaceable household data.
 - Decide when authentication requires durable ASP.NET Data Protection storage and a stronger database secret lifecycle.
-- Add identity and household persistence, atomic household bootstrap, member management, and household-isolation tests.
+- Verify Increment 2 migration and protected endpoint behavior through the staging deployment pipeline.
 - Add secure server-side Google sign-in, revocable application sessions, exact credentialed CORS, and CSRF protection.
 - Add authenticated onboarding, household selection/settings, member administration, and copyable adult invitations.
 - Add shared-display mode with a backend-enforced parent access PIN for administrative actions.

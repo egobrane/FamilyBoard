@@ -9,9 +9,9 @@ namespace FamilyDashboard.Api.Tests.Authorization;
 public sealed class HouseholdAuthorizationTests
 {
     [Fact]
-    public async Task ProductionDefaultDeniesAccessEvenForAnAuthenticatedUser()
+    public async Task AuthenticatedUserWithoutPersistedHouseholdAccessIsDenied()
     {
-        await using var services = CreateServices();
+        await using var services = CreateServices(new FakeHouseholdAccessEvaluator());
         using var scope = services.CreateScope();
         var authorization = scope.ServiceProvider.GetRequiredService<IAuthorizationService>();
 

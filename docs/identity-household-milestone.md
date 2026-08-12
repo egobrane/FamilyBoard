@@ -93,13 +93,16 @@ Exit criterion: complete. Contract and authorization tests pass while production
 
 ### Increment 2: identity and household persistence
 
-- Add the six proposed entities and EF configurations.
-- Generate and review one additive migration.
-- Implement atomic household bootstrap.
-- Implement household/member read and adult-only mutation endpoints.
-- Prevent deactivation of the last active adult.
+- **Implemented locally on 2026-08-12; deployment pending review.** `UserAccount`, `ExternalIdentity`, and `HouseholdMembership` plus their EF configurations establish persistent identity and household access. Session, invitation, and PIN tables remain deferred until their behavior is implemented.
+- The additive `AddIdentityAndHouseholdPersistence` migration adds the three tables, unique provider-subject identity, unique account-household membership, and a composite foreign key requiring the linked profile to belong to the same household.
+- `GET /api/auth/me`, household list/bootstrap/read/update, and household-member list/create/update endpoints are mapped with explicit DTOs and stable problems.
+- Household bootstrap atomically creates the household, configuration, initial adult profile, and account link.
+- The EF-backed authorization evaluator requires an active account, household, profile, and membership; cross-household access returns not found.
+- Child creation produces only a profile. Adult creation remains reserved for the invitation increment.
+- Adult deactivation uses a serializable transaction and rejects removal of the last active linked adult.
+- Production uses a no-identity authentication scheme that always fails closed. The client-controlled header scheme remains compiled only into the test assembly.
 
-Exit criterion: a PostgreSQL integration test creates two households and proves their data cannot cross authorization boundaries.
+Exit criterion: met locally. All 29 backend tests pass against PostgreSQL 18, including migration, atomic bootstrap, multiple-household membership, child profile ownership, cross-household isolation, relational constraints, last-adult protection, and concurrent deactivation safety. Staging deployment remains pending review.
 
 ### Increment 3: backend Google sign-in and sessions
 

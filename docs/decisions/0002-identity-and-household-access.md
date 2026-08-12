@@ -1,6 +1,6 @@
 # ADR 0002: Identity and Household Access
 
-Status: Accepted for implementation on 2026-08-06; production domains remain pending
+Status: Accepted for implementation on 2026-08-06; sibling staging domains approved and operational
 
 ## Context
 
@@ -123,7 +123,7 @@ Initial routes are:
 4. An adult may leave a shared wall-display session signed in. Routine child-accessible actions remain available; backend-enforced parent-PIN elevation gates administrative actions.
 5. Google login and Calendar authorization remain separate consent flows.
 
-Production sibling frontend and API domains remain unresolved and must be approved before production OAuth configuration.
+The approved staging sibling domains are `family.egobrane.net` and `api.egobrane.net`. Final production OAuth origins and redirect URIs must still be reviewed when Google sign-in is configured.
 
 ## References
 

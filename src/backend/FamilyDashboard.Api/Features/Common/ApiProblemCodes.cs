@@ -5,8 +5,11 @@ namespace FamilyDashboard.Api.Features.Common;
 public static class ApiProblemCodes
 {
     public const string AuthenticationRequired = "authentication_required";
+    public const string AccountUnavailable = "account_unavailable";
     public const string HouseholdNotFound = "household_not_found";
+    public const string HouseholdMemberNotFound = "household_member_not_found";
     public const string AdultAccessRequired = "adult_access_required";
+    public const string LastActiveAdult = "last_active_adult";
     public const string ValidationFailed = "validation_failed";
     public const string Conflict = "conflict";
     public const string UnexpectedError = "unexpected_error";

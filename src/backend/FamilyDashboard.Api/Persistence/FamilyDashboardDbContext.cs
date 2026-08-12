@@ -1,5 +1,6 @@
 using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Domain.Households;
+using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Domain.Rewards;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,9 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<Household> Households => Set<Household>();
     public DbSet<HouseholdConfiguration> HouseholdConfigurations => Set<HouseholdConfiguration>();
     public DbSet<HouseholdMember> HouseholdMembers => Set<HouseholdMember>();
+    public DbSet<HouseholdMembership> HouseholdMemberships => Set<HouseholdMembership>();
+    public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<ApplicationPreference> ApplicationPreferences => Set<ApplicationPreference>();
     public DbSet<ChoreDefinition> ChoreDefinitions => Set<ChoreDefinition>();
     public DbSet<ChoreAssignment> ChoreAssignments => Set<ChoreAssignment>();

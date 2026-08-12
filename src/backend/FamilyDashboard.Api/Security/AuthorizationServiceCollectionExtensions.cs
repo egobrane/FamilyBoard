@@ -22,10 +22,9 @@ public static class AuthorizationServiceCollectionExtensions
             });
         });
 
-        services.TryAddScoped<IHouseholdAccessEvaluator, DenyAllHouseholdAccessEvaluator>();
+        services.TryAddScoped<IHouseholdAccessEvaluator, EfHouseholdAccessEvaluator>();
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAuthorizationHandler, HouseholdAuthorizationHandler>());
-
         return services;
     }
 }

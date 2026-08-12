@@ -9,9 +9,9 @@ flowchart LR
     API --> PostgreSQL[(PostgreSQL)]
     API -. future server-side access .-> Google[Google APIs]
     Netlify[Netlify static hosting] --> Browser
-    GHCR[GHCR backend image] --> K3s[K3s]
-    K3s --> API
-    K3s --> PostgreSQL
+    GHCR[GHCR backend image] --> Containers[Azure Container Apps or K3s]
+    Containers --> API
+    Containers --> PostgreSQL
 ```
 
 The frontend and backend are independent deployables. The production frontend is static content and calls a configured API origin directly. Netlify is a deployment choice, not an application runtime dependency; the same output can be served by the supplied frontend container or another static host.
@@ -41,5 +41,6 @@ The initial UI uses semantic React components and plain CSS design tokens. It ta
 - Netlify builds only `src/frontend`.
 - GHCR receives only the backend production image in the first milestone.
 - K3s runs the backend, migration job, and optionally PostgreSQL.
+- Azure staging runs the backend and migration job on Container Apps Consumption and uses private PostgreSQL Flexible Server. This provider-specific infrastructure stays in `deploy/azure`.
 - Secrets enter the backend and K3s at runtime; they never enter frontend builds.
 - The frontend container is a portable static-hosting fallback.

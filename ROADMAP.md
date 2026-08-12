@@ -4,12 +4,16 @@
 
 - Foundation and delivery baseline verified: React/Vite PWA, ASP.NET Core API, PostgreSQL/EF Core migration, automated tests, Docker Compose, Netlify, current-commit CI/GHCR publication, and local K3s.
 - Complete full-stack staging with a public HTTPS API, exact Netlify API configuration, durable secrets/Data Protection keys, and a tested PostgreSQL backup/restore path.
+- Azure Central US staging is provisioned: private PostgreSQL 18, scale-to-zero Container Apps API, successful migration job, healthy default HTTPS endpoint, monitoring, and narrowly scoped GitHub OIDC identity.
+- `api.egobrane.net` is bound with Cloudflare DNS and Azure managed TLS; configure Netlify with the HTTPS API origin and prove the first GitHub OIDC deployment.
 - Identity and Household Management Increment 1 is implemented: explicit API contracts, stable problem responses, and a deny-by-default backend household authorization seam.
 - Review and implement Increment 2: identity and household persistence, atomic household bootstrap, member management, and PostgreSQL household-isolation tests.
 - Validate the wall-display interaction model on physical hardware.
 
 ## Next
 
+- Prove GitHub OIDC staging deployment and rehearse application rollback plus PostgreSQL point-in-time restore.
+- Decide when authentication requires durable ASP.NET Data Protection storage and a stronger database secret lifecycle.
 - Add identity and household persistence, atomic household bootstrap, member management, and household-isolation tests.
 - Add secure server-side Google sign-in, revocable application sessions, exact credentialed CORS, and CSRF protection.
 - Add authenticated onboarding, household selection/settings, member administration, and copyable adult invitations.

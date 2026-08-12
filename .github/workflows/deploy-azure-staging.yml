@@ -1,0 +1,106 @@
+name: Deploy backend to Azure staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Immutable public GHCR backend image (digest strongly preferred)
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-azure-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and deploy
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      RESOURCE_GROUP: ryan-dev
+      API_NAME: family-dashboard-staging-api
+      MIGRATION_JOB_NAME: family-dashboard-staging-mig
+      API_ORIGIN: https://api.egobrane.net
+      DEPLOY_IMAGE: ${{ inputs.image }}
+    steps:
+      - name: Require an immutable image digest
+        shell: bash
+        run: |
+          if [[ "$DEPLOY_IMAGE" != ghcr.io/egobrane/familyboard-backend@sha256:* ]]; then
+            echo "The staging image must be the public Family Dashboard GHCR image pinned by sha256 digest." >&2
+            exit 1
+          fi
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Container Apps CLI extension
+        run: az extension add --name containerapp --version 1.3.0b4 --allow-preview true
+
+      - name: Update and run the migration job
+        shell: bash
+        run: |
+          az containerapp job update \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$MIGRATION_JOB_NAME" \
+            --image "$DEPLOY_IMAGE"
+
+          execution_name="$(az containerapp job start \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$MIGRATION_JOB_NAME" \
+            --query name \
+            --output tsv)"
+
+          for attempt in {1..60}; do
+            status="$(az containerapp job execution show \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$MIGRATION_JOB_NAME" \
+              --job-execution-name "$execution_name" \
+              --query properties.status \
+              --output tsv)"
+
+            if [[ "$status" == "Succeeded" ]]; then
+              break
+            fi
+
+            if [[ "$status" == "Failed" ]]; then
+              echo "Migration execution $execution_name failed." >&2
+              exit 1
+            fi
+
+            if [[ "$attempt" == "60" ]]; then
+              echo "Migration execution $execution_name timed out." >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+      - name: Deploy the API revision
+        run: |
+          az containerapp update \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$API_NAME" \
+            --image "$DEPLOY_IMAGE"
+
+      - name: Verify public health endpoints
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error "$API_ORIGIN/health/live" && \
+               curl --fail --silent --show-error "$API_ORIGIN/health/ready"; then
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "Azure staging health verification timed out." >&2
+          exit 1

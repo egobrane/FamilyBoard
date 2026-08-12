@@ -10,6 +10,7 @@ The first milestone provides a responsive PWA shell, an ASP.NET Core API with Po
 - `src/backend/FamilyDashboard.Api` — ASP.NET Core API and EF Core persistence
 - `tests` — backend integration and browser-level tests
 - `deploy/k8s` — portable Kubernetes/K3s manifests
+- `deploy/azure` — scoped Bicep for Azure staging
 - `docs` — architecture, development, security, and deployment guidance
 
 ## Quick start with Docker Compose
@@ -35,8 +36,9 @@ The migration service runs once before the development API starts. See [developm
 - [K3s deployment](docs/deployment/k3s.md)
 - [Local K3s staging](docs/deployment/local-k3s.md)
 - [Staging deployment proof](docs/deployment/staging.md)
+- [Azure staging deployment](docs/deployment/azure.md)
 - [Roadmap](ROADMAP.md)
 
 ## Current scope
 
-Only health endpoints are public. Dashboard content is mock data. External services remain their own sources of truth and no Google credentials or data are stored.
+Only health endpoints are intended to be public. Dashboard content is mock data. External services remain their own sources of truth and no Google credentials or data are stored. Azure staging is provisioned in Central US and available at `https://api.egobrane.net`; Netlify API configuration and the first GitHub OIDC deployment remain pending.

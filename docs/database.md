@@ -45,3 +45,5 @@ Application replicas do not migrate automatically. Before a production migration
 3. run one migration job;
 4. verify completion before deploying code that requires the schema;
 5. retain an application rollback plan, noting that database rollback may require a forward-fix.
+
+Azure staging uses PostgreSQL Flexible Server 18 with private VNet access, TLS-required application connections, seven-day automated backup retention, and a Container Apps migration job. The job must succeed before the API is updated. A point-in-time restore drill to a separate server is required before storing irreplaceable data.

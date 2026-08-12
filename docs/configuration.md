@@ -29,5 +29,8 @@ Future OAuth client secrets, token-encryption keys, and signing keys belong only
 - Netlify: public build variables in deploy-context configuration.
 - GitHub Actions: repository-scoped `GITHUB_TOKEN` for GHCR; no personal token.
 - K3s: Kubernetes Secret created out of band. No Secret manifest with values is committed.
+- Azure staging: secure Bicep input creates Container Apps secrets; GitHub uses OIDC variables and no client secret. PostgreSQL remains private.
+
+Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. It is never a frontend or GitHub Actions value.
 
 CORS is an origin boundary, not authentication. When authenticated APIs arrive, the backend must validate sessions and permissions regardless of the requesting frontend route.

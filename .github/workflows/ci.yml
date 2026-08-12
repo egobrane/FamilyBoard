@@ -88,6 +88,14 @@ jobs:
       POSTGRES_PASSWORD: ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v6
+      - name: Validate Azure Bicep templates
+        uses: azure/cli@v2
+        env:
+          FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD: validation-only-placeholder-NotASecret1!
+        with:
+          inlineScript: |
+            az bicep build --file deploy/azure/main.bicep --outfile /tmp/family-dashboard-main.json
+            az bicep build-params --file deploy/azure/staging.bicepparam --outfile /tmp/family-dashboard-staging-parameters.json
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
       - name: Build backend production image

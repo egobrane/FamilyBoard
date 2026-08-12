@@ -61,10 +61,36 @@ Not yet proven:
 
 ## Current blockers
 
-1. Choose a public HTTPS staging API hostname or an explicitly approved secure tunnel before Netlify-to-API or Google OAuth testing.
-2. Choose in-cluster PostgreSQL with off-cluster backups or an external PostgreSQL service before data becomes irreplaceable.
-3. Configure Netlify's staging `VITE_API_BASE_URL` after the HTTPS API origin exists.
-4. Verify a real pull-request Deploy Preview.
-5. Supply deployment secrets only through Netlify, GitHub, and Kubernetes secret boundaries; never through repository files or chat.
+1. Deploy and review the scoped Azure Bicep in the explicitly approved Central US region, then create the `api.egobrane.net` CNAME and `asuid.api.egobrane.net` TXT validation records.
+2. Enable Azure managed TLS and prove both public health endpoints before setting Netlify production `VITE_API_BASE_URL=https://api.egobrane.net`.
+3. Configure the protected GitHub `staging` environment with the Bicep OIDC outputs and prove a digest-pinned migration/API deployment.
+4. Perform a PostgreSQL point-in-time restore drill before data becomes irreplaceable, and verify a real Netlify pull-request Deploy Preview.
 
 Update this record when each item is independently verified. Do not relabel a frontend-only deployment as full-stack staging.
+
+## Azure preparation evidence: 2026-08-11
+
+- Azure CLI `2.89.0` is authenticated to the approved `PAYG-Sponsorship` subscription and the signed-in user is Owner on the existing `ryan-dev` resource group.
+- On 2026-08-12, both required resource providers were registered. The owner explicitly approved Central US after Azure continued to restrict PostgreSQL 18 in East US and Central US advertised PostgreSQL 18 with `Standard_B1ms`.
+- Bicep CLI `0.46.1` is installed; `main.bicep` and `staging.bicepparam` compile without diagnostics.
+- Azure server-side deployment validation succeeded.
+- Incremental Azure `what-if` succeeded with 13 creations, 114 existing resources ignored, and no modifications or deletions. Every planned resource is prefixed `family-dashboard-staging` except child resources beneath those prefixed parents.
+- No Azure application resources were provisioned because the PostgreSQL capacity prerequisite is unresolved; this avoids leaving a partial billable environment.
+- Frontend lint, four component tests, production PWA build, six wall-display/phone Playwright tests, backend Release build, all 17 backend tests including PostgreSQL 18 migration, Docker Compose validation, and both K3s renders passed.
+- The existing Compose PostgreSQL service is healthy; the existing local K3s PostgreSQL/API pods are ready, its migration job is complete, its PVC is bound, and local live/readiness endpoints return `Healthy`.
+
+## Azure provisioning evidence: 2026-08-12
+
+- The owner explicitly approved Central US after Azure continued to restrict PostgreSQL 18 in East US.
+- Final Central US Bicep compilation, server-side validation, and incremental `what-if` succeeded. The preview contained only the 13 planned creations and no shared-resource modification or deletion.
+- Deployment `family-dashboard-staging-bootstrap` succeeded in the existing `ryan-dev` resource group.
+- PostgreSQL Flexible Server is ready on version 18 with `Standard_B1ms`, 32 GiB storage, seven-day backup retention, no HA/geo backup, and public network access disabled.
+- The migration execution `family-dashboard-staging-mig-iqo0fom` succeeded.
+- The scale-to-zero API runs immutable image digest `sha256:ddcae5448e13448b70ff9d81fd1f3dcf5e2ca832fa5de69c3b71a3c304558b56`; its default Azure HTTPS liveness and readiness endpoints return HTTP 200 `Healthy`.
+- A request from origin `https://family.egobrane.net` receives that exact `Access-Control-Allow-Origin` value; insecure ingress is disabled.
+- The GitHub OIDC identity has Container Apps Contributor only on `family-dashboard-staging-api` and `family-dashboard-staging-mig`.
+- Azure created managed infrastructure group `ME_family-dashboard-staging-env_ryan-dev_centralus`; it must not be managed or deleted directly.
+- The database administrator credential is stored in the project owner's macOS Keychain and was not written to source control or command output.
+- Cloudflare CNAME/TXT validation records resolve publicly. Azure managed TLS is active for `api.egobrane.net`; its liveness/readiness checks return HTTP 200, the certificate SAN matches the hostname, and insecure ingress is disabled.
+- Azure requires the validated hostname to be attached to the Container App before managed-certificate creation. The documented bootstrap sequence now includes this platform requirement.
+- Netlify `VITE_API_BASE_URL`, GitHub environment variables, the first pushed CI/publish/deploy run, and a restore drill remain pending.

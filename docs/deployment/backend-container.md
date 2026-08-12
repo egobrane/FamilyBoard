@@ -13,4 +13,6 @@ docker build \
 
 Production deployments should select an immutable digest or SHA tag. Do not deploy `latest` when reproducibility matters.
 
+Azure staging accepts only the public `ghcr.io/egobrane/familyboard-backend` image pinned by SHA-256 digest. The protected manual workflow runs the migration job before updating the API and uses GitHub OIDC rather than an Azure client secret.
+
 If the GHCR package is private, K3s needs a narrowly scoped image-pull secret. That credential belongs in the cluster, not in manifests or frontend configuration.

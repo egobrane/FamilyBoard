@@ -41,4 +41,4 @@ The migration service runs once before the development API starts. See [developm
 
 ## Current scope
 
-Only health endpoints are intended to be public. Dashboard content is mock data. External services remain their own sources of truth and no Google credentials or data are stored. Azure staging is provisioned in Central US and available at `https://api.egobrane.net`; Netlify API configuration and the first GitHub OIDC deployment remain pending.
+Only health endpoints are intended to be public. Dashboard content is mock data. External services remain their own sources of truth and no Google credentials or data are stored. Azure staging is provisioned in Central US at `https://api.egobrane.net`, and its digest-pinned GitHub OIDC deployment is proven. The published Netlify bundle still needs to be rebuilt with the production API origin.

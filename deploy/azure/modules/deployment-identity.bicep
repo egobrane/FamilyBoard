@@ -1,7 +1,7 @@
 param location string
 param nameStem string
 param tags object
-param githubRepository string
+param githubOidcSubject string
 param apiName string
 param migrationJobName string
 
@@ -16,7 +16,7 @@ resource githubFederation 'Microsoft.ManagedIdentity/userAssignedIdentities/fede
   name: 'github-staging-environment'
   properties: {
     issuer: 'https://token.actions.githubusercontent.com'
-    subject: 'repo:${githubRepository}:environment:staging'
+    subject: githubOidcSubject
     audiences: [
       'api://AzureADTokenExchange'
     ]
@@ -32,6 +32,7 @@ resource migrationJob 'Microsoft.App/jobs@2025-01-01' existing = {
 }
 
 var containerAppsContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '358470bc-b998-42bd-ab17-a7e34c199c0f')
+var containerAppsJobsContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4e3d2b60-56ae-4dc6-a233-09c8e5a82e68')
 
 resource apiDeploymentRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(api.id, identity.id, containerAppsContributorRoleId)
@@ -44,10 +45,10 @@ resource apiDeploymentRole 'Microsoft.Authorization/roleAssignments@2022-04-01' 
 }
 
 resource migrationDeploymentRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(migrationJob.id, identity.id, containerAppsContributorRoleId)
+  name: guid(migrationJob.id, identity.id, containerAppsJobsContributorRoleId)
   scope: migrationJob
   properties: {
-    roleDefinitionId: containerAppsContributorRoleId
+    roleDefinitionId: containerAppsJobsContributorRoleId
     principalId: identity.properties.principalId
     principalType: 'ServicePrincipal'
   }

@@ -52,6 +52,8 @@ Custom-domain activation is deliberately staged. First deploy without the bindin
 
 The initial infrastructure deployment is manual under the developer identity. Routine backend deployments use the protected GitHub `staging` environment and OIDC, accept only the approved GHCR repository pinned by digest, run migrations first, then update the API and verify both health endpoints.
 
+GitHub issues immutable OIDC subjects for this repository. Azure must trust the exact subject `repo:egobrane@23132912/FamilyBoard@1324023581:environment:staging`; the earlier name-only subject is intentionally not accepted. The identity has Container Apps Contributor on the API and Container Apps Jobs Contributor only on the migration job. Azure's start-time image override replaces the container template and loses the migration arguments/environment, so the workflow updates the existing job image before starting it. The job-specific Contributor role is the narrowest suitable Azure built-in role for that operation.
+
 The workflow pins Azure Container Apps CLI extension `1.3.0b4` because the required job commands are currently delivered through that preview extension. Review and deliberately update the pin when Azure publishes a suitable stable version.
 
 For an application rollback, reactivate a healthy previous Container Apps revision or redeploy its prior digest. Database migrations are forward-only: use a forward fix when possible. If a migration irreversibly damages data, restore PostgreSQL point-in-time backup to a new server, validate it, then redirect the application through a reviewed infrastructure update. Never overwrite the original server during a restore drill.

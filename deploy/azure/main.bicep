@@ -23,6 +23,9 @@ param apiHostname string = 'api.egobrane.net'
 param frontendOrigin string = 'https://family.egobrane.net'
 param githubRepository string = 'egobrane/FamilyBoard'
 
+@description('Exact immutable GitHub Actions OIDC subject for the protected staging environment.')
+param githubOidcSubject string
+
 var prefix = 'family-dashboard'
 var nameStem = '${prefix}-${environmentName}'
 var resourceTags = {
@@ -86,7 +89,7 @@ module deploymentIdentity 'modules/deployment-identity.bicep' = {
     location: location
     nameStem: nameStem
     tags: resourceTags
-    githubRepository: githubRepository
+    githubOidcSubject: githubOidcSubject
     apiName: containerApps.outputs.apiName
     migrationJobName: containerApps.outputs.migrationJobName
   }

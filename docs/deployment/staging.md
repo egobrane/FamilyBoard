@@ -53,18 +53,15 @@ Not yet proven:
 
 - a real Netlify pull-request Deploy Preview;
 - independent confirmation from the Netlify dashboard that its deploy metadata names the target commit SHA; deployed content matches the target features;
-- a public staging API hostname and remotely reachable Kubernetes environment;
-- replacement of `dashboard.example.com`, `api.family-dashboard.example`, and `replace-with-immutable-tag` placeholders;
-- trusted TLS, public health checks, production-grade secret delivery, durable Data Protection keys, or database backup and restore;
 - a public HTTPS staging API; the deployed frontend still embeds the fallback `http://localhost:8080` API origin and must be rebuilt with an HTTPS API URL before real API calls are introduced;
+- durable Data Protection keys and a tested database restore;
 - removal or explicit acceptance of the non-fatal missing `libgssapi_krb5.so.2` warning emitted by the migration image when PostgreSQL GSS authentication is not in use;
 
 ## Current blockers
 
-1. Deploy and review the scoped Azure Bicep in the explicitly approved Central US region, then create the `api.egobrane.net` CNAME and `asuid.api.egobrane.net` TXT validation records.
-2. Enable Azure managed TLS and prove both public health endpoints before setting Netlify production `VITE_API_BASE_URL=https://api.egobrane.net`.
-3. Configure the protected GitHub `staging` environment with the Bicep OIDC outputs and prove a digest-pinned migration/API deployment.
-4. Perform a PostgreSQL point-in-time restore drill before data becomes irreplaceable, and verify a real Netlify pull-request Deploy Preview.
+1. Trigger a new Netlify production build with `VITE_API_BASE_URL=https://api.egobrane.net` and verify the deployed bundle no longer embeds localhost.
+2. Perform a PostgreSQL point-in-time restore drill before data becomes irreplaceable.
+3. Verify a real Netlify pull-request Deploy Preview.
 
 Update this record when each item is independently verified. Do not relabel a frontend-only deployment as full-stack staging.
 
@@ -75,7 +72,7 @@ Update this record when each item is independently verified. Do not relabel a fr
 - Bicep CLI `0.46.1` is installed; `main.bicep` and `staging.bicepparam` compile without diagnostics.
 - Azure server-side deployment validation succeeded.
 - Incremental Azure `what-if` succeeded with 13 creations, 114 existing resources ignored, and no modifications or deletions. Every planned resource is prefixed `family-dashboard-staging` except child resources beneath those prefixed parents.
-- No Azure application resources were provisioned because the PostgreSQL capacity prerequisite is unresolved; this avoids leaving a partial billable environment.
+- No Azure application resources had been provisioned at the time of this preparation check; provisioning evidence follows below.
 - Frontend lint, four component tests, production PWA build, six wall-display/phone Playwright tests, backend Release build, all 17 backend tests including PostgreSQL 18 migration, Docker Compose validation, and both K3s renders passed.
 - The existing Compose PostgreSQL service is healthy; the existing local K3s PostgreSQL/API pods are ready, its migration job is complete, its PVC is bound, and local live/readiness endpoints return `Healthy`.
 
@@ -88,9 +85,16 @@ Update this record when each item is independently verified. Do not relabel a fr
 - The migration execution `family-dashboard-staging-mig-iqo0fom` succeeded.
 - The scale-to-zero API runs immutable image digest `sha256:ddcae5448e13448b70ff9d81fd1f3dcf5e2ca832fa5de69c3b71a3c304558b56`; its default Azure HTTPS liveness and readiness endpoints return HTTP 200 `Healthy`.
 - A request from origin `https://family.egobrane.net` receives that exact `Access-Control-Allow-Origin` value; insecure ingress is disabled.
-- The GitHub OIDC identity has Container Apps Contributor only on `family-dashboard-staging-api` and `family-dashboard-staging-mig`.
+- The GitHub OIDC identity has Container Apps Contributor only on `family-dashboard-staging-api` and Container Apps Jobs Contributor only on `family-dashboard-staging-mig`.
 - Azure created managed infrastructure group `ME_family-dashboard-staging-env_ryan-dev_centralus`; it must not be managed or deleted directly.
 - The database administrator credential is stored in the project owner's macOS Keychain and was not written to source control or command output.
 - Cloudflare CNAME/TXT validation records resolve publicly. Azure managed TLS is active for `api.egobrane.net`; its liveness/readiness checks return HTTP 200, the certificate SAN matches the hostname, and insecure ingress is disabled.
 - Azure requires the validated hostname to be attached to the Container App before managed-certificate creation. The documented bootstrap sequence now includes this platform requirement.
-- Netlify `VITE_API_BASE_URL`, GitHub environment variables, the first pushed CI/publish/deploy run, and a restore drill remain pending.
+- The Netlify production variable was entered, but the publicly served bundle still embeds `http://localhost:8080`; a new production build and verification remain pending, along with a restore drill.
+- The first manual Azure deploy run proved the image-digest guard but failed OIDC login because GitHub emitted its immutable owner/repository-ID subject while Azure trusted the legacy name-only form. The Bicep trust definition now uses the exact immutable subject reported by GitHub.
+- Azure's live federated credential was updated to that immutable subject on 2026-08-12.
+- The second attempt authenticated with OIDC but exposed that Azure's Container Apps Contributor role contains no `Microsoft.App/jobs` permissions.
+- A validation execution then proved that Azure's start-time `--image` override replaces the job's container template and drops the `--migrate` arguments/environment. That execution launched the API instead of migrating and was stopped without a schema or API deployment change.
+- The corrected design uses job-scoped Container Apps Jobs Contributor, the narrowest suitable built-in role for updating the existing migration job image while preserving its complete template, then starts the job normally.
+- Azure's live assignments now match Bicep: Container Apps Contributor only on the API and Container Apps Jobs Contributor only on the migration job. A local validation updated the migration job to digest `sha256:111d3f3d7a80b2a4ab39b0e3a30967ef3b471869ef86d4468dc8b08193ffbb6b`, preserved `--migrate` and its secret-backed environment, and completed execution `family-dashboard-staging-mig-qwe3ot3` successfully.
+- The third GitHub workflow attempt authenticated through OIDC, completed migration execution `family-dashboard-staging-mig-atvyjwk`, deployed digest `sha256:111d3f3d7a80b2a4ab39b0e3a30967ef3b471869ef86d4468dc8b08193ffbb6b` to the API, and passed both public health checks. Live Azure inspection independently confirmed the digest, successful migration, ready revision, and HTTP 200 liveness/readiness responses.

@@ -85,4 +85,4 @@ Create a protected GitHub environment named `staging`, require an approver if av
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
 
-OIDC uses `repo:egobrane/FamilyBoard:environment:staging`; no client secret is created. The identity receives Container Apps Contributor only on the staging API and migration job.
+OIDC uses GitHub's immutable subject `repo:egobrane@23132912/FamilyBoard@1324023581:environment:staging`; no client secret is created. The owner and repository IDs prevent a renamed or recycled repository name from inheriting this trust. The identity receives Container Apps Contributor only on the staging API and Container Apps Jobs Contributor only on the migration job. Azure's CLI cannot safely override only the image at job start—it replaces the container template—so the workflow must update the existing job image before starting it. Job Contributor is the narrowest suitable Azure built-in role for that operation and remains scoped to this one migration job.

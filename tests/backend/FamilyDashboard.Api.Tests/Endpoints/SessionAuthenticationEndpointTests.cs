@@ -232,6 +232,7 @@ public sealed class SessionAuthenticationEndpointTests
         };
         database.DbContext.AddRange(account, session);
         await database.DbContext.SaveChangesAsync();
+        await database.DbContext.Entry(session).ReloadAsync();
         return (account, session);
     }
 

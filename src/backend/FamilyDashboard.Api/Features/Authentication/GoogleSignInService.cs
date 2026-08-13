@@ -24,6 +24,9 @@ public sealed class GoogleSignInService(
     UserSessionService sessionService,
     TimeProvider timeProvider)
 {
+    private const int MaximumSignInAttempts = 4;
+    private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(25);
+
     public const string Provider = "google";
     public const string EmailVerifiedClaim = "family_dashboard:google:email_verified";
 
@@ -46,7 +49,7 @@ public sealed class GoogleSignInService(
             return new GoogleSignInResult(GoogleSignInStatus.InvalidIdentity);
         }
 
-        for (var attempt = 0; attempt < 2; attempt++)
+        for (var attempt = 0; attempt < MaximumSignInAttempts; attempt++)
         {
             try
             {
@@ -56,9 +59,14 @@ public sealed class GoogleSignInService(
                     displayName,
                     cancellationToken);
             }
-            catch (Exception exception) when (attempt == 0 && IsConcurrencyConflict(exception))
+            catch (Exception exception) when (
+                attempt < MaximumSignInAttempts - 1 && IsConcurrencyConflict(exception))
             {
                 dbContext.ChangeTracker.Clear();
+                await Task.Delay(
+                    InitialRetryDelay * (attempt + 1),
+                    timeProvider,
+                    cancellationToken);
             }
         }
 

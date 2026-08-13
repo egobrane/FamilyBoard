@@ -1,3 +1,4 @@
+using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Features.Common;
 using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Security;
@@ -12,11 +13,13 @@ public static class HouseholdMemberEndpoints
         endpoints.MapGet("/api/households/{householdId:guid}/members", ListMembersAsync)
             .RequireAuthorization();
         endpoints.MapPost("/api/households/{householdId:guid}/members", CreateChildAsync)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireFamilyDashboardAntiforgery();
         endpoints.MapPatch(
                 "/api/households/{householdId:guid}/members/{memberId:guid}",
                 UpdateMemberAsync)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireFamilyDashboardAntiforgery();
         return endpoints;
     }
 

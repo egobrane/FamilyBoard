@@ -2,7 +2,7 @@
 
 Family Dashboard is a touch-first household organization platform designed for wall displays, phones, tablets, and desktop browsers.
 
-The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Calendar, task, chore, reward, and authentication workflows are intentionally not implemented yet.
+The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household backend increments now add persistent households, backend Google sign-in, and revocable application sessions; calendar, task, chore, reward, and authentication UI workflows remain intentionally deferred.
 
 ## Repository
 
@@ -41,4 +41,4 @@ The migration service runs once before the development API starts. See [developm
 
 ## Current scope
 
-Only health endpoints are anonymously usable. Dashboard content is mock data. External services remain their own sources of truth and no Google credentials or data are stored. Full-stack staging is operational: Netlify serves the frontend at `https://family.egobrane.net`, its production bundle targets `https://api.egobrane.net`, and the Azure backend uses a private PostgreSQL 18 server plus a digest-pinned GitHub OIDC deployment and migration workflow. Identity and Household Management Increment 2 is implemented locally with persistent identity and household models, atomic bootstrap, member administration, and backend household isolation; its migration and protected endpoints await review and deployment. Production authentication remains deliberately unavailable and fail-closed until the Google sign-in increment.
+Only health and Google-login initiation endpoints are anonymously usable. Dashboard content is mock data. External services remain their own sources of truth. Full-stack staging is operational: Netlify serves the frontend at `https://family.egobrane.net`, its production bundle targets `https://api.egobrane.net`, and the Azure backend uses private PostgreSQL 18 plus digest-pinned GitHub OIDC deployment and migration workflows. Identity and Household Management Increment 2 is deployed. Increment 3 is implemented and locally verified but remains disabled in Azure until a real Google web OAuth client secret is stored in Key Vault and the resulting immutable backend image is deployed. No Google provider tokens are stored.

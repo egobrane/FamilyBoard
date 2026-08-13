@@ -53,14 +53,14 @@ Not yet proven:
 
 - a real Netlify pull-request Deploy Preview;
 - independent confirmation from the Netlify dashboard that its deploy metadata names the target commit SHA; deployed content matches the target features;
-- durable Data Protection keys and a tested database restore;
+- real Google sign-in and durable session continuity across a deployed API revision;
 - removal or explicit acceptance of the non-fatal missing `libgssapi_krb5.so.2` warning emitted by the migration image when PostgreSQL GSS authentication is not in use;
 
 ## Current blockers
 
-1. Perform a PostgreSQL point-in-time restore drill before data becomes irreplaceable.
-2. Verify a real Netlify pull-request Deploy Preview.
-3. Provision durable ASP.NET Data Protection key storage before persistent browser sessions are introduced.
+1. Create and configure the external Google web OAuth client without exposing its secret.
+2. Publish and deploy the Increment 3 image, run its migration, and prove real sign-in plus session continuity across a revision.
+3. Verify a real Netlify pull-request Deploy Preview.
 
 Update this record when each item is independently verified. Do not relabel a frontend-only deployment as full-stack staging.
 
@@ -113,3 +113,29 @@ Target commit: `7a4798c88b62f8aa838102c05a80bb1684292c3e` (`Testing complete Git
 - Public API liveness and database-backed readiness both return HTTP 200 `Healthy` at `https://api.egobrane.net`.
 
 This proves the first end-to-end staging delivery path. Netlify deploy metadata for the exact commit, a Deploy Preview, and a PostgreSQL restore remain separate operational checks.
+
+## Identity Increment 2 staging verification: 2026-08-13
+
+Target commit: `54e2398649c68202e015a042b76a366d7201b7dd` (`Added functionality for household management, including members.`).
+
+- The local `main` branch was clean and matched `origin/main` at the target commit.
+- [Continuous Integration run 31636538321](https://github.com/egobrane/FamilyBoard/actions/runs/31636538321), [Publish Backend Image run 31636538357](https://github.com/egobrane/FamilyBoard/actions/runs/31636538357), and [Azure staging deployment run 31636925148](https://github.com/egobrane/FamilyBoard/actions/runs/31636925148) completed successfully for the target commit.
+- Public GHCR tag `sha-54e2398` resolves to the multi-architecture OCI index digest `sha256:6e01123fba9925b55b1f86ba7309e297fed9b14ca318d54c2bef5b08ea08df24` with `linux/amd64`, `linux/arm64`, and attestation manifests.
+- Migration execution `family-dashboard-staging-mig-socv2hn` succeeded using that exact digest. The migration job remains provisioned with the same digest.
+- Azure Container App revision `family-dashboard-staging-api--0000002` is the latest ready revision and runs that exact digest. Older healthy scale-to-zero revisions remain in revision history but receive no current replica.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is `Ready` on version 18 in Central US with `Standard_B1ms`, 32 GiB storage, seven-day backup retention, public access disabled, and the UTF-8 `family_dashboard` database present.
+- `https://api.egobrane.net/health/live` and `/health/ready` return HTTP 200 `Healthy`. An unauthenticated request to `/api/auth/me` returns HTTP 401 `application/problem+json` with stable code `authentication_required`, proving production still fails closed before Google sign-in exists.
+- `https://family.egobrane.net` returns HTTPS 200 and its current compiled bundle contains `https://api.egobrane.net`. This increment changed no frontend content, so this evidence does not claim Netlify deploy metadata for the target commit. The interactive browser surface was unavailable; the frontend check used public HTTP and compiled-asset inspection.
+
+This proves Increment 2 schema migration and backend deployment without enabling production authentication. The restore drill and durable Data Protection infrastructure were completed on 2026-08-13; real Google configuration, Increment 3 deployment proof, and a real Netlify Deploy Preview remain.
+
+## Recovery and Identity Increment 3 infrastructure evidence: 2026-08-13
+
+- PostgreSQL was restored privately to the separate temporary server `family-dashboard-stg-pitr-20260813` at the 15:55 UTC restore point. Azure recorded 7 minutes 4 seconds from restore start to success. Read-only verifier execution `family-dashboard-pitr-verify-4z2ymsc` confirmed the application database, both deployed EF migrations, and readable household/account tables without modifying the restored or original database.
+- The original PostgreSQL server and public readiness endpoint remained healthy throughout. The verifier job and temporary restored server were deleted after verification; no application connection, DNS target, or original database changed.
+- Deployment `family-dashboard-staging-auth-infra` succeeded at 16:45:59 UTC. It provisioned runtime identity `family-dashboard-staging-runtime`, private Data Protection Blob Storage `familydbrwzkcdch6czlm`, Key Vault `familydb-rwzkcdch6czlm`, its RSA wrapping key, and approved private endpoints.
+- Storage public networking and shared-key access are disabled. Key Vault public networking is disabled with RBAC, soft deletion, and purge protection enabled. The runtime identity has only Storage Blob Data Contributor on that storage account plus Key Vault Crypto User and Secrets User on that vault.
+- Azure revision `family-dashboard-staging-api--0000003` remained healthy on the previously published Increment 2 digest. Both public health checks pass and `/api/auth/me` continues to return the expected `401 application/problem+json` until Increment 3 is published and Google is enabled.
+- The Increment 3 working tree passes 51 backend tests with PostgreSQL 18, four frontend component tests, six Playwright wall-display/phone tests, frontend lint/build, both production container builds, Compose validation, both K3s renders, Bicep compilation, and dependency vulnerability checks.
+
+This evidence proves recovery and the durable key-storage foundation, not real Google authentication. The Google client does not exist in repository configuration, no placeholder secret was provisioned, and the working-tree application image has not been deployed to staging.

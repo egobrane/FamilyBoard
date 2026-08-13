@@ -29,6 +29,6 @@ Playwright runs Chromium at a 1920×1080 touch-enabled wall-display viewport and
 dotnet test FamilyDashboard.sln
 ```
 
-The liveness and production fail-closed authentication tests run without PostgreSQL. Migration, endpoint, constraint, household-isolation, atomic-bootstrap, and concurrent last-adult tests run when `TEST_POSTGRES_CONNECTION_STRING` points to a dedicated disposable test database. These tests delete and recreate that database, so it must never target shared or production data.
+The liveness, return-URL, Google option, CORS, and production fail-closed authentication tests can run without PostgreSQL. Migration, endpoint, constraint, household-isolation, atomic-bootstrap, concurrent last-adult, Google identity mapping, session renewal/revocation/expiration, disabled-account, and antiforgery tests run when `TEST_POSTGRES_CONNECTION_STRING` points to a dedicated disposable test database. These tests delete and recreate that database, so it must never target shared or production data.
 
 CI supplies an ephemeral PostgreSQL service, then restores, builds, tests, builds production containers, and renders the K3s manifests. Builds or required tests must be green before a milestone is considered complete.

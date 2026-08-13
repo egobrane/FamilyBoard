@@ -23,6 +23,12 @@ param apiHostname string = 'api.egobrane.net'
 param frontendOrigin string = 'https://family.egobrane.net'
 param githubRepository string = 'egobrane/FamilyBoard'
 
+@description('Enable only after the Google client secret exists in Key Vault.')
+param enableGoogleAuthentication bool = false
+
+@description('Public Google OAuth client ID. The client secret remains in Key Vault.')
+param googleClientId string = ''
+
 @description('Exact immutable GitHub Actions OIDC subject for the protected staging environment.')
 param githubOidcSubject string
 
@@ -65,6 +71,18 @@ module postgres 'modules/postgres.bicep' = {
   }
 }
 
+module authenticationSecurity 'modules/authentication-security.bicep' = {
+  name: '${nameStem}-authentication-security'
+  params: {
+    location: location
+    nameStem: nameStem
+    tags: resourceTags
+    privateEndpointsSubnetId: network.outputs.privateEndpointsSubnetId
+    blobPrivateDnsZoneId: network.outputs.blobPrivateDnsZoneId
+    keyVaultPrivateDnsZoneId: network.outputs.keyVaultPrivateDnsZoneId
+  }
+}
+
 var postgresConnectionString = 'Host=${postgres.outputs.fullyQualifiedDomainName};Port=5432;Database=${postgres.outputs.databaseName};Username=${postgres.outputs.administratorLogin};Password=${postgresAdminPassword};SSL Mode=Require;Trust Server Certificate=false'
 
 module containerApps 'modules/container-apps.bicep' = {
@@ -80,6 +98,13 @@ module containerApps 'modules/container-apps.bicep' = {
     frontendOrigin: frontendOrigin
     apiHostname: apiHostname
     enableCustomDomain: enableCustomDomain
+    enableGoogleAuthentication: enableGoogleAuthentication
+    googleClientId: googleClientId
+    googleClientSecretUri: authenticationSecurity.outputs.googleClientSecretUri
+    runtimeIdentityId: authenticationSecurity.outputs.runtimeIdentityId
+    runtimeIdentityClientId: authenticationSecurity.outputs.runtimeIdentityClientId
+    dataProtectionBlobUri: authenticationSecurity.outputs.dataProtectionBlobUri
+    dataProtectionKeyIdentifier: authenticationSecurity.outputs.dataProtectionKeyIdentifier
   }
 }
 
@@ -104,5 +129,8 @@ output postgresServerName string = postgres.outputs.serverName
 output postgresFullyQualifiedDomainName string = postgres.outputs.fullyQualifiedDomainName
 output githubClientId string = deploymentIdentity.outputs.clientId
 output githubPrincipalId string = deploymentIdentity.outputs.principalId
+output runtimeIdentityClientId string = authenticationSecurity.outputs.runtimeIdentityClientId
+output keyVaultName string = authenticationSecurity.outputs.keyVaultName
+output storageAccountName string = authenticationSecurity.outputs.storageAccountName
 output tenantId string = tenant().tenantId
 output subscriptionId string = subscription().subscriptionId

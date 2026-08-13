@@ -15,6 +15,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<HouseholdMembership> HouseholdMemberships => Set<HouseholdMembership>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<ApplicationPreference> ApplicationPreferences => Set<ApplicationPreference>();
     public DbSet<ChoreDefinition> ChoreDefinitions => Set<ChoreDefinition>();
     public DbSet<ChoreAssignment> ChoreAssignments => Set<ChoreAssignment>();

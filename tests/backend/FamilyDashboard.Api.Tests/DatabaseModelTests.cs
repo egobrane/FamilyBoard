@@ -24,6 +24,7 @@ public sealed class DatabaseModelTests
         Assert.NotNull(model.FindEntityType(typeof(HouseholdMembership)));
         Assert.NotNull(model.FindEntityType(typeof(UserAccount)));
         Assert.NotNull(model.FindEntityType(typeof(ExternalIdentity)));
+        Assert.NotNull(model.FindEntityType(typeof(UserSession)));
         Assert.NotNull(model.FindEntityType(typeof(ChoreDefinition)));
         Assert.NotNull(model.FindEntityType(typeof(ChoreAssignment)));
         Assert.NotNull(model.FindEntityType(typeof(ChoreCompletion)));

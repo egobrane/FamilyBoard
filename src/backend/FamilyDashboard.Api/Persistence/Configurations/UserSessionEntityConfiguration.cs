@@ -1,0 +1,26 @@
+using FamilyDashboard.Api.Domain.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace FamilyDashboard.Api.Persistence.Configurations;
+
+public sealed class UserSessionEntityConfiguration : IEntityTypeConfiguration<UserSession>
+{
+    public void Configure(EntityTypeBuilder<UserSession> builder)
+    {
+        builder.ToTable("UserSessions", table =>
+        {
+            table.HasCheckConstraint("CK_UserSessions_ExpiresAfterCreation", "\"ExpiresAt\" > \"CreatedAt\"");
+            table.HasCheckConstraint("CK_UserSessions_AbsoluteExpiration", "\"AbsoluteExpiresAt\" >= \"ExpiresAt\"");
+        });
+        builder.HasKey(session => session.Id);
+        builder.Property(session => session.DeviceLabel).HasMaxLength(80);
+        builder.Property(session => session.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        builder.HasIndex(session => new { session.UserAccountId, session.RevokedAt, session.ExpiresAt });
+        builder.HasIndex(session => session.AbsoluteExpiresAt);
+        builder.HasOne(session => session.UserAccount)
+            .WithMany(account => account.UserSessions)
+            .HasForeignKey(session => session.UserAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

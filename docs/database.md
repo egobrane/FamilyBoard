@@ -10,6 +10,7 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 - A user account can belong to multiple households through `HouseholdMembership`; each membership links exactly one adult account to a profile in the same household.
 - Children remain profile-only and have no user account or membership link.
 - `ExternalIdentity` reserves the unique provider-subject mapping used by future Google sign-in without storing OAuth tokens.
+- `UserSession` stores revocable application sessions with rolling idle and hard absolute expiration. It stores no Google token or cookie payload.
 - Chore definitions belong to a household; assignments connect one definition to one member.
 - A completion is a unique reviewable record for one assignment.
 - Point transactions form an append-only signed ledger for each member.
@@ -19,6 +20,8 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 Identifiers are UUIDs. Instants are `timestamptz` and interpreted as UTC. Household display uses its IANA time-zone identifier. Historical records use restrictive foreign keys; members, chores, and rewards should be deactivated instead of deleting history.
 
 Migration `AddIdentityAndHouseholdPersistence` is additive. Its composite foreign key prevents linking an account to a profile from a different household, and its provider/subject uniqueness constraint prevents two accounts from claiming the same external identity.
+
+Migration `AddUserSessions` is additive. It restricts account deletion, indexes active-session lookup and cleanup expiration, and enforces that idle expiration follows creation and never exceeds absolute expiration.
 
 ## Creating a migration
 
@@ -51,4 +54,4 @@ Application replicas do not migrate automatically. Before a production migration
 4. verify completion before deploying code that requires the schema;
 5. retain an application rollback plan, noting that database rollback may require a forward-fix.
 
-Azure staging uses PostgreSQL Flexible Server 18 with private VNet access, TLS-required application connections, seven-day automated backup retention, and a Container Apps migration job. The job must succeed before the API is updated. A point-in-time restore drill to a separate server is required before storing irreplaceable data.
+Azure staging uses PostgreSQL Flexible Server 18 with private VNet access, TLS-required application connections, seven-day automated backup retention, and a Container Apps migration job. The job must succeed before the API is updated. The first isolated point-in-time restore drill completed successfully on 2026-08-13; repeat it after material recovery-policy or topology changes.

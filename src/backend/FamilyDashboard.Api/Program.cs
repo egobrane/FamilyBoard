@@ -11,17 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
-builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = UnavailableAuthenticationHandler.SchemeName;
-        options.DefaultChallengeScheme = UnavailableAuthenticationHandler.SchemeName;
-        options.DefaultForbidScheme = UnavailableAuthenticationHandler.SchemeName;
-    })
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-        UnavailableAuthenticationHandler>(
-        UnavailableAuthenticationHandler.SchemeName,
-        _ => { });
+builder.Services.AddFamilyDashboardAuthentication(builder.Configuration);
 builder.Services.AddFamilyDashboardAuthorization();
 builder.Services.AddScoped<HouseholdService>();
 builder.Services.AddScoped<HouseholdMemberService>();
@@ -38,8 +28,9 @@ builder.Services.AddCors(options =>
         {
             policy
                 .WithOrigins(corsOptions.AllowedOrigins)
-                .AllowAnyHeader()
-                .AllowAnyMethod();
+                .WithHeaders("Content-Type", "X-CSRF-TOKEN")
+                .WithMethods("GET", "POST", "PATCH")
+                .AllowCredentials();
         }
     });
 });
@@ -48,7 +39,8 @@ var connectionString = builder.Configuration.GetConnectionString("FamilyDashboar
 builder.Services.AddDbContext<FamilyDashboardDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services
     .AddHealthChecks()
-    .AddDbContextCheck<FamilyDashboardDbContext>("postgresql", tags: ["ready"]);
+    .AddDbContextCheck<FamilyDashboardDbContext>("postgresql", tags: ["ready"])
+    .AddCheck<DataProtectionHealthCheck>("data-protection", tags: ["ready"]);
 
 var app = builder.Build();
 

@@ -4,7 +4,7 @@ These Bicep templates deploy Family Dashboard staging into the **existing** `rya
 
 ## Safety boundary
 
-Every managed resource starts with `family-dashboard-staging` and carries the `application=family-dashboard`, `environment=staging`, and `managed-by=bicep` tags. The shared resource group contains unrelated resources; never use complete-mode deployment and never delete the resource group. Azure Container Apps creates a separate Azure-managed infrastructure resource group for the custom-VNet environment. Do not manage or delete it directly.
+Managed resources use the `family-dashboard-staging` prefix or the globally unique `familydb` prefix and carry the `application=family-dashboard`, `environment=staging`, and `managed-by=bicep` tags. Provider-required private DNS zones use Azure's fixed names; the existing Blob zone is referenced rather than managed. The shared resource group contains unrelated resources; never use complete-mode deployment and never delete the resource group. Azure Container Apps creates a separate Azure-managed infrastructure resource group for the custom-VNet environment. Do not manage or delete it directly.
 
 ## Prerequisites
 
@@ -46,6 +46,24 @@ unset FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
 ```
 
 The current staging administrator credential is stored in the project owner's macOS Keychain under service `com.egobrane.family-dashboard.azure.staging.postgres` and account `familydashboardadmin`. Do not copy it into the repository, GitHub, Netlify, or command output.
+
+The authentication-security deployment creates private Data Protection storage, a Key Vault wrapping key, and a least-privilege runtime identity. `enableGoogleAuthentication` remains false until the Google web client exists and `google-client-secret` has been seeded through the separate secure template. Never put the Google secret in GitHub, Netlify, a committed parameter, or a shell argument recorded in history.
+
+Because Key Vault public networking is disabled, seed the real Google secret through Azure Resource Manager rather than opening its data plane. The parameter file reads a hidden environment variable and Bicep marks the value secure, so it is not retained in source, command arguments, or deployment output:
+
+```sh
+read -s FAMILY_DASHBOARD_GOOGLE_CLIENT_SECRET
+export FAMILY_DASHBOARD_GOOGLE_CLIENT_SECRET
+az deployment group create \
+  --name family-dashboard-staging-google-secret \
+  --subscription b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8 \
+  --resource-group ryan-dev \
+  --mode Incremental \
+  --parameters deploy/azure/google-secret.bicepparam
+unset FAMILY_DASHBOARD_GOOGLE_CLIENT_SECRET
+```
+
+Run that deployment only after creating the Google web OAuth client. Secret rotation uses the same exact deployment and creates a new Key Vault secret version. The main template references the versionless secret URI, so no application configuration change is required for rotation; roll out a new API revision to force a fresh secret resolution.
 
 The initial deployment leaves the custom API domain disabled. Record the `apiDefaultHostname`, `customDomainVerificationId`, `githubClientId`, `tenantId`, and `subscriptionId` outputs.
 

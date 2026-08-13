@@ -19,6 +19,16 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `Cors__AllowedOrigins__0` and subsequent indexes | Public configuration | Exact trusted frontend origins |
 | `ASPNETCORE_ENVIRONMENT` | Public configuration | Runtime environment |
 | `ASPNETCORE_HTTP_PORTS` | Public configuration | Container listening port |
+| `Authentication__FrontendOrigin` | Public configuration | Exact post-login frontend origin |
+| `Authentication__Google__Enabled` | Public configuration | Explicit Google login feature gate |
+| `Authentication__Google__ClientId` | Public identifier | Google web OAuth client ID |
+| `Authentication__Google__ClientSecret` | Secret | Google web OAuth client secret; backend only |
+| `Authentication__SessionIdleLifetime` | Public configuration | Ordinary rolling idle lifetime; default 14 days |
+| `Authentication__SessionAbsoluteLifetime` | Public configuration | Ordinary hard lifetime; default 30 days |
+| `DataProtection__UseAzure` | Public configuration | Enables Azure-backed key persistence |
+| `DataProtection__BlobUri` | Public configuration | Private key-ring blob URI |
+| `DataProtection__KeyIdentifier` | Public configuration | Versionless Key Vault wrapping-key URI |
+| `DataProtection__ManagedIdentityClientId` | Public identifier | Runtime managed identity used for Blob and Key Vault |
 
 Future OAuth client secrets, token-encryption keys, and signing keys belong only in backend runtime secret storage.
 
@@ -29,8 +39,10 @@ Future OAuth client secrets, token-encryption keys, and signing keys belong only
 - Netlify: public build variables in deploy-context configuration.
 - GitHub Actions: repository-scoped `GITHUB_TOKEN` for GHCR; no personal token.
 - K3s: Kubernetes Secret created out of band. No Secret manifest with values is committed.
-- Azure staging: secure Bicep input creates Container Apps secrets; GitHub uses OIDC variables and no client secret. PostgreSQL remains private.
+- Azure staging: secure Bicep input creates the PostgreSQL Container Apps secret; the Google client secret is a versionless Key Vault reference. GitHub uses OIDC variables and no client secret. PostgreSQL, Data Protection Blob Storage, and Key Vault use private networking.
 
 Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. It is never a frontend or GitHub Actions value.
 
 CORS is an origin boundary, not authentication. When authenticated APIs arrive, the backend must validate sessions and permissions regardless of the requesting frontend route.
+
+The future authenticated frontend client must send cookies only with `credentials: "include"`. It will obtain an antiforgery request token from `/api/auth/antiforgery`, hold that token in memory, and send it as `X-CSRF-TOKEN` on unsafe requests. Increment 3 establishes this backend contract; the current mock dashboard does not yet initiate authenticated requests. No privileged value belongs in Netlify configuration.

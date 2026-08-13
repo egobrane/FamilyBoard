@@ -11,6 +11,13 @@ param postgresConnectionString string
 param frontendOrigin string
 param apiHostname string
 param enableCustomDomain bool
+param enableGoogleAuthentication bool
+param googleClientId string
+param googleClientSecretUri string
+param runtimeIdentityId string
+param runtimeIdentityClientId string
+param dataProtectionBlobUri string
+param dataProtectionKeyIdentifier string
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: last(split(logAnalyticsWorkspaceId, '/'))
@@ -56,6 +63,12 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
   name: '${nameStem}-api'
   location: location
   tags: tags
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${runtimeIdentityId}': {}
+    }
+  }
   properties: {
     environmentId: environment.id
     workloadProfileName: 'Consumption'
@@ -74,12 +87,18 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
           }
         ] : []
       }
-      secrets: [
-        {
-          name: 'postgres-connection'
-          value: postgresConnectionString
-        }
-      ]
+      secrets: concat([
+          {
+            name: 'postgres-connection'
+            value: postgresConnectionString
+          }
+        ], enableGoogleAuthentication ? [
+          {
+            name: 'google-client-secret'
+            keyVaultUrl: googleClientSecretUri
+            identity: runtimeIdentityId
+          }
+        ] : [])
     }
     template: {
       containers: [
@@ -90,7 +109,7 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
+          env: concat([
             {
               name: 'ASPNETCORE_ENVIRONMENT'
               value: 'Staging'
@@ -107,7 +126,44 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'ConnectionStrings__FamilyDashboard'
               secretRef: 'postgres-connection'
             }
-          ]
+            {
+              name: 'Authentication__FrontendOrigin'
+              value: frontendOrigin
+            }
+            {
+              name: 'Authentication__Google__Enabled'
+              value: string(enableGoogleAuthentication)
+            }
+            {
+              name: 'Authentication__Google__ClientId'
+              value: googleClientId
+            }
+            {
+              name: 'DataProtection__UseAzure'
+              value: 'true'
+            }
+            {
+              name: 'DataProtection__ApplicationName'
+              value: 'FamilyDashboard'
+            }
+            {
+              name: 'DataProtection__BlobUri'
+              value: dataProtectionBlobUri
+            }
+            {
+              name: 'DataProtection__KeyIdentifier'
+              value: dataProtectionKeyIdentifier
+            }
+            {
+              name: 'DataProtection__ManagedIdentityClientId'
+              value: runtimeIdentityClientId
+            }
+          ], enableGoogleAuthentication ? [
+            {
+              name: 'Authentication__Google__ClientSecret'
+              secretRef: 'google-client-secret'
+            }
+          ] : [])
           probes: [
             {
               type: 'Startup'

@@ -12,5 +12,6 @@ public sealed class UserAccount
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<ExternalIdentity> ExternalIdentities { get; set; } = [];
+    public ICollection<UserSession> UserSessions { get; set; } = [];
     public ICollection<HouseholdMembership> HouseholdMemberships { get; set; } = [];
 }

@@ -10,6 +10,8 @@ flowchart LR
     GHCR --> API
     Job -->|private TLS| PostgreSQL[(PostgreSQL Flexible Server 18)]
     API -->|private TLS| PostgreSQL
+    API -->|managed identity, private link| Blob[(Data Protection Blob)]
+    API -->|managed identity, private link| Vault[Key Vault key and Google secret]
     GitHub[GitHub Actions OIDC] --> Job
     GitHub --> API
 ```
@@ -35,6 +37,9 @@ Provisioned successfully on 2026-08-12:
 - GitHub OIDC client ID: `537b279f-60d3-4e5a-ac7f-bfc5120b8dc4`
 - Tenant ID: `204a8dcb-68e2-4947-95a8-ed313d75b397`
 - Subscription ID: `b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8`
+- Runtime managed identity: `family-dashboard-staging-runtime`
+- Data Protection storage account: `familydbrwzkcdch6czlm`
+- Authentication Key Vault: `familydb-rwzkcdch6czlm`
 
 The initial migration execution succeeded. Both default-hostname and `https://api.egobrane.net` health endpoints return HTTP 200. Azure managed TLS is active with insecure ingress disabled.
 
@@ -43,6 +48,8 @@ The initial migration execution succeeded. Both default-hostname and `https://ap
 The generated PostgreSQL password enters Bicep through `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD`. Bicep marks it secure and stores the resulting connection string only as Container Apps secrets. It must also be retained in an owner-controlled password manager for emergency administration. It must never enter Git, GitHub variables, Netlify, logs, command-line arguments, or the frontend.
 
 The API receives exact CORS origin `https://family.egobrane.net`, listens on port 8080, and uses TLS-required PostgreSQL connections. The frontend receives only public `VITE_API_BASE_URL=https://api.egobrane.net`.
+
+The API runtime identity can write only the Data Protection Blob container, wrap/unwrap only through the Key Vault key, and read the Google secret. The migration job receives none of these permissions. Storage shared-key access and public networking are disabled. Key Vault uses RBAC, soft deletion, purge protection, a private endpoint, and public networking disabled. Google remains disabled until the owner creates a Google web OAuth client and places its secret in Key Vault; no placeholder secret is provisioned.
 
 ## DNS and managed TLS
 
@@ -68,6 +75,8 @@ The staging server uses seven-day Azure automated backups with point-in-time res
 4. document the measured restore time;
 5. remove the temporary server only after explicit review.
 
+The first drill ran on 2026-08-13. Azure restored `family-dashboard-stg-pitr-20260813` privately to the 15:55 UTC point. The Azure activity log measured 7 minutes 4 seconds from restore start to server success. Temporary job execution `family-dashboard-pitr-verify-4z2ymsc` completed a read-only transaction and confirmed `family_dashboard`, both deployed EF migrations, and readable household/account tables. The original readiness endpoint remained healthy. The verifier and restored server were then deleted; no staging connection or DNS target changed.
+
 Burstable PostgreSQL has backup and performance limitations. Increase retention, add geo-redundancy, or move to General Purpose before production requirements justify the cost.
 
 ## Cost categories
@@ -76,5 +85,6 @@ Burstable PostgreSQL has backup and performance limitations. Increase retention,
 - Container Apps Consumption charges for requests/compute while active; min replicas zero reduces idle compute but introduces cold starts.
 - Log Analytics charges by ingestion and retention.
 - Managed certificate, VNet, private DNS, and OIDC identity are generally low/no direct cost, while data transfer and DNS-provider fees may apply.
+- Standard Key Vault operations, LRS Blob capacity/transactions, and both private endpoints add small ongoing charges even while Container Apps scales to zero.
 
 Azure pricing and sponsorship-credit treatment must be checked at deployment time. Budgets and alerts should be configured outside this app-scoped template because the shared resource group contains unrelated workloads.

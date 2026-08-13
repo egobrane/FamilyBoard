@@ -37,7 +37,7 @@ Constraints: unique member profile; unique `(UserAccountId, HouseholdId)`; compo
 
 ### `UserSession`
 
-Major fields: `Id`, `UserAccountId`, `CreatedAt`, `ExpiresAt`, `LastSeenAt`, `RevokedAt`, and an optional user-supplied device label. No OAuth token is stored.
+Major fields: `Id`, `UserAccountId`, `CreatedAt`, `LastSeenAt`, `ExpiresAt`, `AbsoluteExpiresAt`, `RevokedAt`, optional `DeviceLabel`, `IsSharedDisplay`, and optional `AdministrativeElevationExpiresAt`. No OAuth token is stored.
 
 ### `HouseholdInvitation`
 
@@ -93,27 +93,26 @@ Exit criterion: complete. Contract and authorization tests pass while production
 
 ### Increment 2: identity and household persistence
 
-- **Implemented locally on 2026-08-12; deployment pending review.** `UserAccount`, `ExternalIdentity`, and `HouseholdMembership` plus their EF configurations establish persistent identity and household access. Session, invitation, and PIN tables remain deferred until their behavior is implemented.
+- **Implemented on 2026-08-12 and deployed to Azure staging.** `UserAccount`, `ExternalIdentity`, and `HouseholdMembership` plus their EF configurations establish persistent identity and household access. Session, invitation, and PIN tables remain deferred until their behavior is implemented.
 - The additive `AddIdentityAndHouseholdPersistence` migration adds the three tables, unique provider-subject identity, unique account-household membership, and a composite foreign key requiring the linked profile to belong to the same household.
 - `GET /api/auth/me`, household list/bootstrap/read/update, and household-member list/create/update endpoints are mapped with explicit DTOs and stable problems.
 - Household bootstrap atomically creates the household, configuration, initial adult profile, and account link.
 - The EF-backed authorization evaluator requires an active account, household, profile, and membership; cross-household access returns not found.
 - Child creation produces only a profile. Adult creation remains reserved for the invitation increment.
 - Adult deactivation uses a serializable transaction and rejects removal of the last active linked adult.
-- Production uses a no-identity authentication scheme that always fails closed. The client-controlled header scheme remains compiled only into the test assembly.
+- The deployed Increment 2 image uses a no-identity authentication scheme that always fails closed. The client-controlled header scheme remains compiled only into the test assembly.
 
-Exit criterion: met locally. All 29 backend tests pass against PostgreSQL 18, including migration, atomic bootstrap, multiple-household membership, child profile ownership, cross-household isolation, relational constraints, last-adult protection, and concurrent deactivation safety. Staging deployment remains pending review.
+Exit criterion: complete. All 30 backend tests passed against PostgreSQL 18, including migration, atomic bootstrap, multiple-household membership, child profile ownership, cross-household isolation, relational constraints, last-adult protection, and concurrent deactivation safety. GitHub Actions then ran the additive migration and deployed the same immutable image digest to Azure; public live/readiness checks pass and unauthenticated `/api/auth/me` still fails closed with the documented 401 problem response.
 
 ### Increment 3: backend Google sign-in and sessions
 
-- Configure backend Google authorization-code login using identity scopes only.
-- Map provider subject to `ExternalIdentity` and `UserAccount`.
-- Create, validate, renew, revoke, and expire `UserSession` records.
-- Persist and protect the Data Protection key ring.
-- Add exact credentialed CORS and antiforgery validation.
-- Add login, logout, disabled-account, revoked-session, return-URL, CORS, and CSRF tests.
+- **Implemented and locally verified on 2026-08-13; staging activation remains pending.** The backend Google authorization-code handler requests identity scopes only, requires verified email, uses provider `sub` as the login key, and stores no Google tokens.
+- `UserSession` records provide database-backed validation, rolling idle expiration, hard absolute expiration, throttled last-seen writes, immediate revocation, shared-display state, and reserved parent-PIN elevation state.
+- The host-only secure application cookie is paired with exact credentialed CORS, synchronized antiforgery validation on mutations, and local-path-only return URLs.
+- Azure Data Protection uses private Blob Storage, a Key Vault wrapping key, private endpoints, and the API runtime managed identity. The migration job receives none of those permissions.
+- Fifty-one backend tests pass against PostgreSQL 18, including concurrent first login, disabled/revoked/expired sessions, unavailable-login problems, CORS, CSRF, return URLs, schema migration, and all earlier household-isolation behavior.
 
-Exit criterion: the staging API completes Google login without exposing codes, secrets, or provider tokens to frontend JavaScript.
+Exit criterion: not yet complete. Create the external Google web client, store its secret directly in Key Vault, deploy the new immutable image and migration, then prove real staging login and cookie continuity across an API revision without exposing codes, secrets, or provider tokens to frontend JavaScript.
 
 ### Increment 4: onboarding and household administration UI
 
@@ -200,7 +199,7 @@ The exact list will be confirmed in the plan for each approved increment. Expect
 
 Implementation must pause for approval at these points:
 
-1. introduction of the Google authentication package and React Router;
+1. introduction of React Router during Increment 4;
 2. generated database migration review;
 3. real Google client configuration and staging secrets;
 4. the exact parent-PIN hashing, rate-limit, elevation lifetime, and administrative-action policy;

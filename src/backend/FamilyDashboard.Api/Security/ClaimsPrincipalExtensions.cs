@@ -10,4 +10,11 @@ public static class ClaimsPrincipalExtensions
             principal.FindFirstValue(FamilyDashboardClaimTypes.UserAccountId),
             out userAccountId);
     }
+
+    public static bool TryGetUserSessionId(this ClaimsPrincipal principal, out Guid userSessionId)
+    {
+        return Guid.TryParse(
+            principal.FindFirstValue(FamilyDashboardClaimTypes.UserSessionId),
+            out userSessionId);
+    }
 }

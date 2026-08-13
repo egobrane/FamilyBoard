@@ -5,6 +5,10 @@ namespace FamilyDashboard.Api.Features.Common;
 public static class ApiProblemCodes
 {
     public const string AuthenticationRequired = "authentication_required";
+    public const string AuthenticationUnavailable = "authentication_unavailable";
+    public const string AuthenticationFailed = "authentication_failed";
+    public const string InvalidReturnUrl = "invalid_return_url";
+    public const string AntiforgeryValidationFailed = "antiforgery_validation_failed";
     public const string AccountUnavailable = "account_unavailable";
     public const string HouseholdNotFound = "household_not_found";
     public const string HouseholdMemberNotFound = "household_member_not_found";

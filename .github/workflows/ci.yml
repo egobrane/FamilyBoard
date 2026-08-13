@@ -92,10 +92,13 @@ jobs:
         uses: azure/cli@v2
         env:
           FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD: validation-only-placeholder-NotASecret1!
+          FAMILY_DASHBOARD_GOOGLE_CLIENT_SECRET: validation-only-placeholder-not-a-secret
         with:
           inlineScript: |
             az bicep build --file deploy/azure/main.bicep --outfile /tmp/family-dashboard-main.json
             az bicep build-params --file deploy/azure/staging.bicepparam --outfile /tmp/family-dashboard-staging-parameters.json
+            az bicep build --file deploy/azure/google-secret.bicep --outfile /tmp/family-dashboard-google-secret.json
+            az bicep build-params --file deploy/azure/google-secret.bicepparam --outfile /tmp/family-dashboard-google-secret-parameters.json
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
       - name: Build backend production image

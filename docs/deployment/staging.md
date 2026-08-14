@@ -142,16 +142,29 @@ This evidence proves recovery and the durable key-storage foundation, not real G
 
 ## Identity Increment 3 activation evidence: 2026-08-14
 
-Application baseline commit: `518c587` (`Resolved a potential issue blocking tests with Google Sign In`). Infrastructure activation is represented by the current reviewed working tree and must pass CI after commit.
+Target commit: `0b8bbdc336f09e9bf7d5cbfd286c747a3b6ac0f1` (`Implemented successful Google OAuth authentication`).
 
 - The public Google client ID is configuration, while the client secret was placed directly in private Key Vault secret `google-client-secret`; the secret value was never read into command output or added to the repository.
-- Staging runs immutable multi-architecture image digest `sha256:fd123bd13a3998ca6c65d374122559eb3fe64d447410ae923833e352a7dc0ea5`.
+- [Continuous Integration run 31837753121](https://github.com/egobrane/FamilyBoard/actions/runs/31837753121), [Publish Backend Image run 31837753176](https://github.com/egobrane/FamilyBoard/actions/runs/31837753176), and [Azure staging deployment run 31838329773](https://github.com/egobrane/FamilyBoard/actions/runs/31838329773) all completed successfully for the target commit.
+- Public GHCR tag `sha-0b8bbdc` resolves to multi-architecture OCI digest `sha256:0d07536b2185bbfc4eb695188e64ca7ef54c5cbd1e82ec965f7305037bc76e18` with `linux/amd64`, `linux/arm64`, and attestation manifests.
 - Initial activation exposed that managed Container Apps ingress terminates TLS and Kestrel saw the forwarded request as HTTP. Google was immediately disabled without changing the image, database, client ID, or secret while the fix was reviewed.
 - The API container now sets `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, following the Azure Container Apps reverse-proxy boundary. With Google disabled, the intermediary revision remained healthy and the login endpoint returned the expected `503 authentication_unavailable` ProblemDetails.
 - Google was re-enabled only after that intermediary check. The resulting OAuth challenge returned HTTP 302 to `accounts.google.com`, used the exact HTTPS callback `https://api.egobrane.net/api/auth/callback/google`, matched the configured client ID, requested only `email`, `openid`, and `profile`, used authorization code response type, requested online access, and included transient state.
-- Public liveness and database-backed readiness return `Healthy`. Unauthenticated `/api/auth/me` returns the expected `401 authentication_required` ProblemDetails. Credentialed CORS permits only `https://family.egobrane.net`, including the approved `Content-Type` and `X-CSRF-TOKEN` headers and GET/POST/PATCH methods.
+- Public liveness and database-backed readiness return `Healthy`. Unauthenticated `/api/auth/me` returns the expected `401 authentication_required` ProblemDetails. Credentialed CORS permits only `https://family.egobrane.net`, including the approved `Content-Type` and `X-CSRF-TOKEN` headers and GET/POST/PUT/PATCH methods.
 - The owner completed a real first-time Google sign-in, returned to the Netlify dashboard, and confirmed `/api/auth/me` returned the new persisted account, no household memberships yet, and a non-shared database-backed session.
 - The session issued by API revision `0000008` remained authenticated after traffic moved to healthy functionally identical revision `authproof1`, proving cookie continuity through Blob-persisted, Key-Vault-wrapped Data Protection keys.
 - From the configured frontend origin, the owner obtained an antiforgery token and completed credentialed `POST /api/auth/logout`; it returned HTTP 204. The same browser then received HTTP 401 from `/api/auth/me`, proving application-session revocation, and a subsequent Google sign-in succeeded.
+- Migration execution `family-dashboard-staging-mig-pu871ue` succeeded using the target digest. Azure revision `family-dashboard-staging-api--0000009` is healthy, receives 100% of traffic, and runs that same digest with Google authentication, forwarded-header processing, and persistent Azure Data Protection configured.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is `Ready` on version 18 with public access disabled, seven-day retention, `Standard_B1ms`, 32 GiB storage, and the UTF-8 `family_dashboard` database present.
+- Public liveness and database-backed readiness return `Healthy`; an independent request without the owner's private session cookie receives the expected credentialed-CORS `401 authentication_required` response from `/api/auth/me`.
+- Netlify production deploy `6a7e002702ab2100083aac26` remains ready at `https://family.egobrane.net` from frontend commit `ad5e100a159dbaa098b5f673745732d618596fb4`. Later commits changed no frontend source, so retaining that deploy is expected. Its compiled bundle contains `https://api.egobrane.net`, the PWA manifest is available, and the response retains the configured security headers.
 
-Identity Increment 3 staging activation is proven end to end. A real Netlify Deploy Preview remains unproven.
+Identity Increment 3 staging activation and final digest deployment are proven end to end. On 2026-08-14 the owner confirmed that the private browser session remained authenticated after revision `0000009`; the cookie itself was not inspected or disclosed. A real Netlify Deploy Preview remains unproven.
+
+## Identity Increment 4 local implementation evidence: 2026-08-14
+
+- The approved working tree adds authenticated frontend onboarding and per-session household selection but has not yet been pushed, migrated, or deployed. This section intentionally records local evidence only.
+- The additive `AddSelectedHouseholdToUserSession` migration leaves existing sessions nullable and constrains any selection to a membership owned by the same user account.
+- Local frontend lint, ten Vitest component/API tests, the production PWA build, and eight Playwright wall-display/phone cases pass.
+- The Release backend build and all 55 backend tests pass against an isolated PostgreSQL 18 test database. Coverage includes atomic first-household bootstrap and selection, independent selections across two sessions, inactive-membership filtering, cross-household not-found behavior, CSRF, and the relational constraint.
+- The currently deployed Azure revision, migration execution, GHCR digest, and Netlify deploy remain the verified Increment 3 artifacts documented above. Increment 4 requires new CI/GHCR, migration/Azure, and Netlify evidence after the owner reviews and pushes this working tree.

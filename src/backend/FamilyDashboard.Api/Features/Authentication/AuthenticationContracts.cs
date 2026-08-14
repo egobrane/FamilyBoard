@@ -21,3 +21,9 @@ public sealed record CurrentSessionResponse(
 public sealed record AntiforgeryTokenResponse(
     string RequestToken,
     string HeaderName);
+
+public sealed record SelectHouseholdRequest(
+    Guid HouseholdId);
+
+public sealed record SelectedHouseholdResponse(
+    Guid SelectedHouseholdId);

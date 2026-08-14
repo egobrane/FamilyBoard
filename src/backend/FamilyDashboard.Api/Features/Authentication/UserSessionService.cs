@@ -10,6 +10,17 @@ namespace FamilyDashboard.Api.Features.Authentication;
 
 public sealed record SessionValidationResult(bool IsValid, bool WasRenewed, UserSession? Session);
 
+public enum HouseholdSelectionStatus
+{
+    Success,
+    SessionUnavailable,
+    HouseholdNotFound,
+}
+
+public sealed record HouseholdSelectionResult(
+    HouseholdSelectionStatus Status,
+    SelectedHouseholdResponse? Selection = null);
+
 public sealed class UserSessionService(
     FamilyDashboardDbContext dbContext,
     TimeProvider timeProvider,
@@ -96,6 +107,53 @@ public sealed class UserSessionService(
             .SingleOrDefaultAsync(session =>
                 session.Id == sessionId && session.UserAccountId == userAccountId,
                 cancellationToken);
+    }
+
+    public async Task<UserSession?> FindCurrentForUpdateAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken)
+    {
+        if (!principal.TryGetUserAccountId(out var userAccountId)
+            || !principal.TryGetUserSessionId(out var sessionId))
+        {
+            return null;
+        }
+
+        return await dbContext.UserSessions.SingleOrDefaultAsync(session =>
+            session.Id == sessionId && session.UserAccountId == userAccountId,
+            cancellationToken);
+    }
+
+    public async Task<HouseholdSelectionResult> SelectHouseholdAsync(
+        ClaimsPrincipal principal,
+        Guid householdId,
+        CancellationToken cancellationToken)
+    {
+        var session = await FindCurrentForUpdateAsync(principal, cancellationToken);
+        if (session is null)
+        {
+            return new HouseholdSelectionResult(HouseholdSelectionStatus.SessionUnavailable);
+        }
+
+        var hasAccess = await dbContext.HouseholdMemberships
+            .AsNoTracking()
+            .AnyAsync(membership =>
+                membership.UserAccountId == session.UserAccountId
+                && membership.HouseholdId == householdId
+                && membership.UserAccount.IsActive
+                && membership.Household.IsActive
+                && membership.HouseholdMember.IsActive,
+                cancellationToken);
+        if (!hasAccess)
+        {
+            return new HouseholdSelectionResult(HouseholdSelectionStatus.HouseholdNotFound);
+        }
+
+        session.SelectedHouseholdId = householdId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new HouseholdSelectionResult(
+            HouseholdSelectionStatus.Success,
+            new SelectedHouseholdResponse(householdId));
     }
 
     public async Task RevokeCurrentAsync(

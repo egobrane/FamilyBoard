@@ -1,3 +1,5 @@
+using FamilyDashboard.Api.Domain.Households;
+
 namespace FamilyDashboard.Api.Domain.Identity;
 
 public sealed class UserSession
@@ -12,6 +14,8 @@ public sealed class UserSession
     public string? DeviceLabel { get; set; }
     public bool IsSharedDisplay { get; set; }
     public DateTimeOffset? AdministrativeElevationExpiresAt { get; set; }
+    public Guid? SelectedHouseholdId { get; set; }
 
     public UserAccount UserAccount { get; set; } = null!;
+    public HouseholdMembership? SelectedHouseholdMembership { get; set; }
 }

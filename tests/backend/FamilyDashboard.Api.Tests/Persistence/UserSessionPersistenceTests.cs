@@ -1,4 +1,5 @@
 using FamilyDashboard.Api.Configuration;
+using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Tests.Infrastructure;
@@ -60,6 +61,52 @@ public sealed class UserSessionPersistenceTests
             LastSeenAt = now,
             ExpiresAt = now,
             AbsoluteExpiresAt = now.AddDays(1),
+        });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => database.DbContext.SaveChangesAsync());
+    }
+
+    [PostgreSqlFact]
+    public async Task SessionCannotSelectAHouseholdWithoutAnAccountMembership()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount
+        {
+            DisplayName = "First Adult",
+            PrimaryEmail = "first@example.test",
+        };
+        var otherAccount = new UserAccount
+        {
+            DisplayName = "Other Adult",
+            PrimaryEmail = "other@example.test",
+        };
+        var household = new Household { Name = "Other Household" };
+        var member = new HouseholdMember
+        {
+            HouseholdId = household.Id,
+            DisplayName = otherAccount.DisplayName,
+            Role = HouseholdMemberRole.Adult,
+        };
+        household.Configuration = new HouseholdConfiguration { HouseholdId = household.Id };
+        household.Members.Add(member);
+        household.Memberships.Add(new HouseholdMembership
+        {
+            UserAccountId = otherAccount.Id,
+            HouseholdId = household.Id,
+            HouseholdMemberId = member.Id,
+        });
+        database.DbContext.AddRange(account, otherAccount, household);
+        await database.DbContext.SaveChangesAsync();
+
+        var now = DateTimeOffset.UtcNow;
+        database.DbContext.UserSessions.Add(new UserSession
+        {
+            UserAccountId = account.Id,
+            CreatedAt = now,
+            LastSeenAt = now,
+            ExpiresAt = now.AddDays(1),
+            AbsoluteExpiresAt = now.AddDays(2),
+            SelectedHouseholdId = household.Id,
         });
 
         await Assert.ThrowsAsync<DbUpdateException>(() => database.DbContext.SaveChangesAsync());

@@ -20,6 +20,9 @@ public static class AuthenticationEndpoints
             .RequireAuthorization();
         endpoints.MapGet("/api/auth/antiforgery", GetAntiforgeryToken)
             .RequireAuthorization();
+        endpoints.MapPut("/api/auth/session/household", SelectHouseholdAsync)
+            .RequireAuthorization()
+            .RequireFamilyDashboardAntiforgery();
         endpoints.MapPost("/api/auth/logout", LogoutAsync)
             .RequireAuthorization()
             .RequireFamilyDashboardAntiforgery();
@@ -119,10 +122,14 @@ public static class AuthenticationEndpoints
 
         var households = await householdService.ListAsync(userAccountId, cancellationToken);
         var session = await sessionService.FindCurrentAsync(context.User, cancellationToken);
+        Guid? selectedHouseholdId = session?.SelectedHouseholdId is Guid selected
+            && households.Any(household => household.Id == selected)
+                ? selected
+                : null;
         return Results.Ok(new CurrentUserResponse(
             new UserAccountResponse(account.Id, account.DisplayName, account.PrimaryEmail),
             households,
-            SelectedHouseholdId: null,
+            selectedHouseholdId,
             session is null
                 ? null
                 : new CurrentSessionResponse(
@@ -139,6 +146,35 @@ public static class AuthenticationEndpoints
         return Results.Ok(new AntiforgeryTokenResponse(
             tokens.RequestToken!,
             tokens.HeaderName!));
+    }
+
+    private static async Task<IResult> SelectHouseholdAsync(
+        SelectHouseholdRequest? request,
+        HttpContext context,
+        UserSessionService sessionService,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || request.HouseholdId == Guid.Empty)
+        {
+            return HouseholdEndpoints.ValidationFailed(
+                context,
+                new Dictionary<string, string[]>
+                {
+                    ["householdId"] = ["A household is required."],
+                });
+        }
+
+        var result = await sessionService.SelectHouseholdAsync(
+            context.User,
+            request.HouseholdId,
+            cancellationToken);
+        return result.Status switch
+        {
+            HouseholdSelectionStatus.Success => Results.Ok(result.Selection),
+            HouseholdSelectionStatus.SessionUnavailable => AccountUnavailable(context),
+            HouseholdSelectionStatus.HouseholdNotFound => HouseholdEndpoints.HouseholdNotFound(context),
+            _ => throw new InvalidOperationException("Unsupported household selection result."),
+        };
     }
 
     private static async Task<IResult> LogoutAsync(

@@ -40,6 +40,7 @@ public static class HouseholdEndpoints
         CreateHouseholdRequest? request,
         HttpContext context,
         HouseholdService householdService,
+        UserSessionService sessionService,
         CancellationToken cancellationToken)
     {
         if (!context.User.TryGetUserAccountId(out var userAccountId))
@@ -58,7 +59,12 @@ public static class HouseholdEndpoints
             return ValidationFailed(context, errors);
         }
 
-        var response = await householdService.CreateAsync(account, values!, cancellationToken);
+        var session = await sessionService.FindCurrentForUpdateAsync(context.User, cancellationToken);
+        var response = await householdService.CreateAsync(
+            account,
+            values!,
+            session,
+            cancellationToken);
         return Results.Created($"/api/households/{response.Id}", response);
     }
 

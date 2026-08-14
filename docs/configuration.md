@@ -43,6 +43,6 @@ Future OAuth client secrets, token-encryption keys, and signing keys belong only
 
 Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. It is never a frontend or GitHub Actions value.
 
-CORS is an origin boundary, not authentication. When authenticated APIs arrive, the backend must validate sessions and permissions regardless of the requesting frontend route.
+CORS is an origin boundary, not authentication. The backend validates sessions and household permissions regardless of the requesting frontend route.
 
-The future authenticated frontend client must send cookies only with `credentials: "include"`. It will obtain an antiforgery request token from `/api/auth/antiforgery`, hold that token in memory, and send it as `X-CSRF-TOKEN` on unsafe requests. Increment 3 establishes this backend contract; the current mock dashboard does not yet initiate authenticated requests. No privileged value belongs in Netlify configuration.
+The authenticated frontend sends cookies with `credentials: "include"`. Before each unsafe request it obtains fresh antiforgery material from `/api/auth/antiforgery` and sends the returned request token in the returned header name (`X-CSRF-TOKEN` in the current backend). The token remains in memory for the request and is not persisted in browser storage. No privileged value belongs in Netlify configuration.

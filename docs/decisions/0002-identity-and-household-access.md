@@ -70,6 +70,7 @@ Route household resources explicitly:
 - `GET /api/auth/callback/google` (provider callback)
 - `POST /api/auth/logout`
 - `GET /api/auth/antiforgery`
+- `PUT /api/auth/session/household`
 - `GET /api/households`
 - `POST /api/households`
 - `GET /api/households/{householdId}`
@@ -93,7 +94,9 @@ Initial routes are:
 
 - `/` — authenticated dashboard;
 - `/welcome` — signed-out entry point;
+- `/auth/error` — recoverable Google sign-in failure;
 - `/setup/household` — first-household bootstrap;
+- `/households/select` — select a household for the current browser session;
 - `/households/:householdId/members` — adult member administration;
 - `/invite/:token` — invitation acceptance.
 

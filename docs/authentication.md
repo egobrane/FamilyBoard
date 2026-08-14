@@ -13,10 +13,12 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 - The backend accepts only `openid profile email`, identifies accounts by Google `sub`, requires verified email, and does not request offline access.
 - Provider access tokens, refresh tokens, and authorization codes are never stored in the application database, application cookie, frontend bundle, or browser storage.
 - `UserSession` provides rolling idle expiration, a hard absolute expiration, last-seen throttling, revocation, shared-display state, and the reserved administrative-elevation expiry.
+- `PUT /api/auth/session/household` stores the selected active membership on the current `UserSession`; a composite database constraint prevents selecting a household owned only by another account.
 - `__Host-FamilyDashboard.Session` is host-only, `Secure`, `HttpOnly`, `Path=/`, and `SameSite=Lax`.
 - Unsafe cookie-authenticated requests require the synchronized `X-CSRF-TOKEN` antiforgery header.
 - Credentialed CORS allows only the configured exact frontend origin. Staging allows `https://family.egobrane.net`.
 - Return URLs must be local paths; external or ambiguous targets are rejected before the Google challenge.
+- The React client models loading, signed-out, unavailable, disabled-account, first-household, household-selection, and ready states. It uses credentialed requests, keeps antiforgery material in memory only, and never attempts to read the HTTP-only session cookie.
 
 ## Continuing constraints
 

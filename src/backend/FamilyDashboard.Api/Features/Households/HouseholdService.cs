@@ -41,6 +41,7 @@ internal sealed class HouseholdService(FamilyDashboardDbContext dbContext)
     public async Task<HouseholdResponse> CreateAsync(
         UserAccount account,
         ValidatedHouseholdValues values,
+        UserSession? currentSession,
         CancellationToken cancellationToken)
     {
         var household = new Household
@@ -72,6 +73,11 @@ internal sealed class HouseholdService(FamilyDashboardDbContext dbContext)
         household.Memberships.Add(membership);
         account.HouseholdMemberships.Add(membership);
         adultMember.Membership = membership;
+        if (currentSession is not null)
+        {
+            currentSession.SelectedHouseholdId = household.Id;
+            currentSession.SelectedHouseholdMembership = membership;
+        }
 
         dbContext.Households.Add(household);
         await dbContext.SaveChangesAsync(cancellationToken);

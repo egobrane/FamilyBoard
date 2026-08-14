@@ -29,7 +29,7 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins(corsOptions.AllowedOrigins)
                 .WithHeaders("Content-Type", "X-CSRF-TOKEN")
-                .WithMethods("GET", "POST", "PATCH")
+                .WithMethods("GET", "POST", "PUT", "PATCH")
                 .AllowCredentials();
         }
     });

@@ -2,13 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
+using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Features.Common;
+using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using FamilyAuthenticationSchemes = FamilyDashboard.Api.Features.Authentication.AuthenticationSchemes;
@@ -36,6 +39,151 @@ public sealed class SessionAuthenticationEndpointTests
         Assert.NotNull(currentUser.Session);
         Assert.Equal(session.ExpiresAt, currentUser.Session.ExpiresAt);
         Assert.False(currentUser.Session.IsSharedDisplay);
+    }
+
+    [PostgreSqlFact]
+    public async Task CurrentUserReturnsOnlyAnActiveSelectedHousehold()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var (account, session) = await SeedSessionAsync(database);
+        var household = await AddHouseholdAsync(database, account, "Selected Household");
+        session.SelectedHouseholdId = household.Id;
+        await database.DbContext.SaveChangesAsync();
+        using var factory = new CookieSessionWebApplicationFactory(ConnectionString());
+        using var client = CreateClient(factory);
+
+        using var selectedRequest = AuthenticatedRequest(factory, session, HttpMethod.Get, "/api/auth/me");
+        using var selectedResponse = await client.SendAsync(selectedRequest);
+        selectedResponse.EnsureSuccessStatusCode();
+        var selectedUser = await selectedResponse.Content.ReadFromJsonAsync<CurrentUserResponse>();
+        Assert.Equal(household.Id, selectedUser!.SelectedHouseholdId);
+
+        household.Members.Single().IsActive = false;
+        await database.DbContext.SaveChangesAsync();
+        using var inactiveRequest = AuthenticatedRequest(factory, session, HttpMethod.Get, "/api/auth/me");
+        using var inactiveResponse = await client.SendAsync(inactiveRequest);
+        inactiveResponse.EnsureSuccessStatusCode();
+        var inactiveUser = await inactiveResponse.Content.ReadFromJsonAsync<CurrentUserResponse>();
+        Assert.Null(inactiveUser!.SelectedHouseholdId);
+        Assert.Empty(inactiveUser.Households);
+    }
+
+    [PostgreSqlFact]
+    public async Task HouseholdSelectionRequiresAntiforgeryIsIsolatedAndIsSessionSpecific()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var (account, firstSession) = await SeedSessionAsync(database);
+        var secondSession = new UserSession
+        {
+            UserAccountId = account.Id,
+            CreatedAt = firstSession.CreatedAt,
+            LastSeenAt = firstSession.LastSeenAt,
+            ExpiresAt = firstSession.ExpiresAt,
+            AbsoluteExpiresAt = firstSession.AbsoluteExpiresAt,
+        };
+        database.DbContext.UserSessions.Add(secondSession);
+        var household = await AddHouseholdAsync(database, account, "First Household");
+        var otherAccount = new UserAccount
+        {
+            DisplayName = "Other Adult",
+            PrimaryEmail = "other@example.test",
+        };
+        database.DbContext.UserAccounts.Add(otherAccount);
+        await database.DbContext.SaveChangesAsync();
+        var otherHousehold = await AddHouseholdAsync(database, otherAccount, "Other Household");
+        using var factory = new CookieSessionWebApplicationFactory(ConnectionString());
+        using var client = CreateClient(factory);
+        var sessionCookie = CreateSessionCookie(factory, firstSession);
+
+        using var missingToken = new HttpRequestMessage(HttpMethod.Put, "/api/auth/session/household")
+        {
+            Content = JsonContent.Create(new SelectHouseholdRequest(household.Id)),
+        };
+        missingToken.Headers.TryAddWithoutValidation("Cookie", sessionCookie);
+        using var missingTokenResponse = await client.SendAsync(missingToken);
+        Assert.Equal(HttpStatusCode.BadRequest, missingTokenResponse.StatusCode);
+
+        var antiforgery = await GetAntiforgeryAsync(client, sessionCookie);
+        using var select = UnsafeRequest(
+            HttpMethod.Put,
+            "/api/auth/session/household",
+            sessionCookie,
+            antiforgery,
+            new SelectHouseholdRequest(household.Id));
+        using var selectResponse = await client.SendAsync(select);
+        selectResponse.EnsureSuccessStatusCode();
+        Assert.Equal(
+            household.Id,
+            (await selectResponse.Content.ReadFromJsonAsync<SelectedHouseholdResponse>())!.SelectedHouseholdId);
+
+        database.DbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            household.Id,
+            await database.DbContext.UserSessions
+                .Where(candidate => candidate.Id == firstSession.Id)
+                .Select(candidate => candidate.SelectedHouseholdId)
+                .SingleAsync());
+        Assert.Null(await database.DbContext.UserSessions
+            .Where(candidate => candidate.Id == secondSession.Id)
+            .Select(candidate => candidate.SelectedHouseholdId)
+            .SingleAsync());
+
+        using var crossHousehold = UnsafeRequest(
+            HttpMethod.Put,
+            "/api/auth/session/household",
+            sessionCookie,
+            antiforgery,
+            new SelectHouseholdRequest(otherHousehold.Id));
+        using var crossHouseholdResponse = await client.SendAsync(crossHousehold);
+        Assert.Equal(HttpStatusCode.NotFound, crossHouseholdResponse.StatusCode);
+        Assert.Equal(ApiProblemCodes.HouseholdNotFound, await ReadProblemCodeAsync(crossHouseholdResponse));
+
+        using var emptySelection = UnsafeRequest(
+            HttpMethod.Put,
+            "/api/auth/session/household",
+            sessionCookie,
+            antiforgery,
+            new SelectHouseholdRequest(Guid.Empty));
+        using var emptySelectionResponse = await client.SendAsync(emptySelection);
+        Assert.Equal(HttpStatusCode.BadRequest, emptySelectionResponse.StatusCode);
+        Assert.Equal(ApiProblemCodes.ValidationFailed, await ReadProblemCodeAsync(emptySelectionResponse));
+    }
+
+    [PostgreSqlFact]
+    public async Task HouseholdBootstrapSelectsTheNewHouseholdInTheSameSession()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var (_, session) = await SeedSessionAsync(database);
+        using var factory = new CookieSessionWebApplicationFactory(ConnectionString());
+        using var client = CreateClient(factory);
+        var sessionCookie = CreateSessionCookie(factory, session);
+        var antiforgery = await GetAntiforgeryAsync(client, sessionCookie);
+        using var create = UnsafeRequest(
+            HttpMethod.Post,
+            "/api/households",
+            sessionCookie,
+            antiforgery,
+            new CreateHouseholdRequest(
+                "Bootstrap Household",
+                "America/New_York",
+                "en-US",
+                "Sunday"));
+
+        using var response = await client.SendAsync(create);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var household = await response.Content.ReadFromJsonAsync<HouseholdResponse>();
+        database.DbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            household!.Id,
+            await database.DbContext.UserSessions
+                .Where(candidate => candidate.Id == session.Id)
+                .Select(candidate => candidate.SelectedHouseholdId)
+                .SingleAsync());
+        Assert.Equal(1, await database.DbContext.Households.CountAsync());
+        Assert.Equal(1, await database.DbContext.HouseholdConfigurations.CountAsync());
+        Assert.Equal(1, await database.DbContext.HouseholdMembers.CountAsync());
+        Assert.Equal(1, await database.DbContext.HouseholdMemberships.CountAsync());
     }
 
     [PostgreSqlFact]
@@ -131,6 +279,10 @@ public sealed class SessionAuthenticationEndpointTests
         Assert.Equal(
             "true",
             Assert.Single(allowedResponse.Headers.GetValues("Access-Control-Allow-Credentials")));
+        Assert.Contains(
+            "PUT",
+            Assert.Single(allowedResponse.Headers.GetValues("Access-Control-Allow-Methods")),
+            StringComparison.Ordinal);
 
         using var denied = Preflight("https://evil.example");
         using var deniedResponse = await client.SendAsync(denied);
@@ -179,6 +331,43 @@ public sealed class SessionAuthenticationEndpointTests
         request.Headers.TryAddWithoutValidation("Origin", origin);
         request.Headers.TryAddWithoutValidation("Access-Control-Request-Method", "POST");
         request.Headers.TryAddWithoutValidation("Access-Control-Request-Headers", "X-CSRF-TOKEN");
+        return request;
+    }
+
+    private static async Task<(AntiforgeryTokenResponse Token, string Cookie)> GetAntiforgeryAsync(
+        HttpClient client,
+        string sessionCookie)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/antiforgery");
+        request.Headers.TryAddWithoutValidation("Cookie", sessionCookie);
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var token = (await response.Content.ReadFromJsonAsync<AntiforgeryTokenResponse>())!;
+        var cookie = response.Headers.GetValues("Set-Cookie")
+            .Select(value => value.Split(';', 2)[0])
+            .Single(value => value.StartsWith(
+                "__Host-FamilyDashboard.Antiforgery=",
+                StringComparison.Ordinal));
+        return (token, cookie);
+    }
+
+    private static HttpRequestMessage UnsafeRequest<T>(
+        HttpMethod method,
+        string path,
+        string sessionCookie,
+        (AntiforgeryTokenResponse Token, string Cookie) antiforgery,
+        T body)
+    {
+        var request = new HttpRequestMessage(method, path)
+        {
+            Content = JsonContent.Create(body),
+        };
+        request.Headers.TryAddWithoutValidation(
+            "Cookie",
+            $"{sessionCookie}; {antiforgery.Cookie}");
+        request.Headers.TryAddWithoutValidation(
+            antiforgery.Token.HeaderName,
+            antiforgery.Token.RequestToken);
         return request;
     }
 
@@ -234,6 +423,40 @@ public sealed class SessionAuthenticationEndpointTests
         await database.DbContext.SaveChangesAsync();
         await database.DbContext.Entry(session).ReloadAsync();
         return (account, session);
+    }
+
+    private static async Task<Household> AddHouseholdAsync(
+        PostgreSqlTestDatabase database,
+        UserAccount account,
+        string name)
+    {
+        var household = new Household { Name = name };
+        var member = new HouseholdMember
+        {
+            HouseholdId = household.Id,
+            DisplayName = account.DisplayName,
+            Role = HouseholdMemberRole.Adult,
+        };
+        var membership = new HouseholdMembership
+        {
+            UserAccountId = account.Id,
+            HouseholdId = household.Id,
+            HouseholdMemberId = member.Id,
+        };
+        household.Configuration = new HouseholdConfiguration { HouseholdId = household.Id };
+        household.Members.Add(member);
+        household.Memberships.Add(membership);
+        account.HouseholdMemberships.Add(membership);
+        member.Membership = membership;
+        database.DbContext.Households.Add(household);
+        await database.DbContext.SaveChangesAsync();
+        return household;
+    }
+
+    private static async Task<string?> ReadProblemCodeAsync(HttpResponseMessage response)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("code").GetString();
     }
 
     private static string ConnectionString() =>

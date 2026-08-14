@@ -22,5 +22,18 @@ public sealed class UserSessionEntityConfiguration : IEntityTypeConfiguration<Us
             .WithMany(account => account.UserSessions)
             .HasForeignKey(session => session.UserAccountId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(session => session.SelectedHouseholdMembership)
+            .WithMany()
+            .HasForeignKey(session => new
+            {
+                session.UserAccountId,
+                session.SelectedHouseholdId,
+            })
+            .HasPrincipalKey(membership => new
+            {
+                membership.UserAccountId,
+                membership.HouseholdId,
+            })
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

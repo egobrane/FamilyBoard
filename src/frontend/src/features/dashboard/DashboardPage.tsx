@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react'
 import { DashboardCard } from '../../components/DashboardCard'
-import { chorePreviews, demoHousehold, familyMembers, scheduleItems } from './mockDashboardData'
+import { chorePreviews, demoHouseholdPhotoUrl, familyMembers, scheduleItems } from './mockDashboardData'
 
-export function DashboardPage() {
+export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
   return (
     <main className="dashboard" id="main-content">
       <DashboardCard
@@ -30,7 +30,7 @@ export function DashboardPage() {
         className="welcome-card"
         eyebrow="Good morning"
         title="Ready for a good day?"
-        style={{ '--household-photo': `url("${demoHousehold.photoUrl}")` } as CSSProperties}
+        style={{ '--household-photo': `url("${householdPhotoUrl}")` } as CSSProperties}
       >
         <p>FamilyBoard is in active development. Annie is beautiful.</p>
         <div className="weather-preview" aria-label="Weather placeholder">

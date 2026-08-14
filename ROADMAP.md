@@ -11,14 +11,15 @@
 - Identity Increment 3 is deployed and staging verified: backend Google sign-in, revocable database sessions, exact credentialed CORS, antiforgery protection, Azure-backed Data Protection, and session continuity across API revisions.
 - Azure authentication security is provisioned with private Blob Storage, Key Vault, private endpoints, and a least-privilege runtime managed identity.
 - The first PostgreSQL point-in-time restore drill succeeded against a separate temporary target without changing staging; the verifier and restored server were removed afterward.
-- Google activation proof is complete; begin authenticated onboarding and household selection.
+- Identity Increment 4 is implemented locally: authenticated frontend state, first-household bootstrap, per-session household selection, dynamic account/household context, and secure logout are ready for CI and staging proof.
 - Validate the wall-display interaction model on physical hardware.
 
 ## Next
 
 - Rehearse application rollback and record recovery objectives before staging stores irreplaceable household data.
 - Verify a real Netlify Deploy Preview without sharing production credentials or broadening credentialed CORS.
-- Add authenticated onboarding, household selection/settings, and member administration after the Increment 3 staging proof.
+- Publish and verify Increment 4 through GitHub Actions, the Azure migration/deploy workflow, and Netlify, including a real first-household bootstrap and multi-household selection check.
+- Add household settings and responsive member administration as the next focused vertical slice; preserve backend authorization and the future parent-PIN boundary.
 - Add copyable adult invitations as the following backend vertical slice.
 - Add shared-display mode with a backend-enforced parent access PIN for administrative actions.
 - Add a read-only Google Calendar adapter and disposable cache strategy.

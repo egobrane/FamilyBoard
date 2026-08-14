@@ -10,7 +10,7 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 - A user account can belong to multiple households through `HouseholdMembership`; each membership links exactly one adult account to a profile in the same household.
 - Children remain profile-only and have no user account or membership link.
 - `ExternalIdentity` reserves the unique provider-subject mapping used by future Google sign-in without storing OAuth tokens.
-- `UserSession` stores revocable application sessions with rolling idle and hard absolute expiration. It stores no Google token or cookie payload.
+- `UserSession` stores revocable application sessions with rolling idle and hard absolute expiration. Its optional selected household is constrained to a membership owned by the same account, so separate browser sessions may retain different valid household contexts. It stores no Google token or cookie payload.
 - Chore definitions belong to a household; assignments connect one definition to one member.
 - A completion is a unique reviewable record for one assignment.
 - Point transactions form an append-only signed ledger for each member.
@@ -22,6 +22,8 @@ Identifiers are UUIDs. Instants are `timestamptz` and interpreted as UTC. Househ
 Migration `AddIdentityAndHouseholdPersistence` is additive. Its composite foreign key prevents linking an account to a profile from a different household, and its provider/subject uniqueness constraint prevents two accounts from claiming the same external identity.
 
 Migration `AddUserSessions` is additive. It restricts account deletion, indexes active-session lookup and cleanup expiration, and enforces that idle expiration follows creation and never exceeds absolute expiration.
+
+Migration `AddSelectedHouseholdToUserSession` is additive. It adds a nullable selection plus a composite foreign key to `(UserAccountId, HouseholdId)` on `HouseholdMembership`, preventing a session from selecting another account's household. Existing sessions remain valid with no selection and are routed through household selection on their next frontend load.
 
 ## Creating a migration
 

@@ -14,10 +14,7 @@ export interface ChorePreview {
   completed: boolean
 }
 
-export const demoHousehold = {
-  name: 'Bamford-Fahie-Waltz Family',
-  photoUrl: '/images/demo-family-photo.jpg',
-} as const
+export const demoHouseholdPhotoUrl = '/images/demo-family-photo.jpg'
 
 export const scheduleItems: ScheduleItem[] = [
   { id: 'school', time: '8:10', title: 'School drop-off', person: 'Everyone', color: 'sun' },

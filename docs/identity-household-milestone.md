@@ -106,25 +106,26 @@ Exit criterion: complete. All 30 backend tests passed against PostgreSQL 18, inc
 
 ### Increment 3: backend Google sign-in and sessions
 
-- **Implemented and locally verified on 2026-08-13; staging activation remains pending.** The backend Google authorization-code handler requests identity scopes only, requires verified email, uses provider `sub` as the login key, and stores no Google tokens.
+- **Implemented on 2026-08-13 and activated in Azure staging on 2026-08-14.** The backend Google authorization-code handler requests identity scopes only, requires verified email, uses provider `sub` as the login key, and stores no Google tokens.
 - `UserSession` records provide database-backed validation, rolling idle expiration, hard absolute expiration, throttled last-seen writes, immediate revocation, shared-display state, and reserved parent-PIN elevation state.
 - The host-only secure application cookie is paired with exact credentialed CORS, synchronized antiforgery validation on mutations, and local-path-only return URLs.
 - Azure Data Protection uses private Blob Storage, a Key Vault wrapping key, private endpoints, and the API runtime managed identity. The migration job receives none of those permissions.
 - Fifty-one backend tests pass against PostgreSQL 18, including concurrent first login, disabled/revoked/expired sessions, unavailable-login problems, CORS, CSRF, return URLs, schema migration, and all earlier household-isolation behavior.
 
-Exit criterion: not yet complete. Create the external Google web client, store its secret directly in Key Vault, deploy the new immutable image and migration, then prove real staging login and cookie continuity across an API revision without exposing codes, secrets, or provider tokens to frontend JavaScript.
+Exit criterion: complete. The external Google web client secret resides only in Key Vault; real sign-in, persisted application sessions, exact HTTPS callback behavior, cross-revision cookie continuity, antiforgery-protected logout, revocation, and subsequent sign-in were verified in staging without exposing codes, secrets, or provider tokens to frontend JavaScript.
 
-### Increment 4: onboarding and household administration UI
+### Increment 4: authenticated onboarding and household selection
 
-- Add React Router and the proposed routes.
-- Add signed-out, loading, authentication-error, no-household, and forbidden states.
-- Implement household bootstrap and responsive member management.
-- Replace the mock avatar identity with authenticated profile data.
-- Replace the demo household heading with the name of the household selected from the authenticated adult's memberships.
-- Replace the bundled demo photo with a household setting after image storage, resizing, deletion, access control, and privacy behavior are approved.
-- Keep the existing dashboard cards on mock feature data until their own integrations ship.
+- **Implemented locally on 2026-08-14; staging proof remains pending.** React Router provides stable `/`, `/welcome`, `/auth/error`, `/setup/household`, and `/households/select` URLs with browser back/forward behavior.
+- The frontend has explicit loading, signed-out, unavailable, disabled-account, no-household, household-selection, and ready-dashboard states. Production authorization remains entirely backend-enforced.
+- A typed `fetch` client always includes browser credentials and obtains fresh antiforgery material before household creation, household selection, and logout. It stores no cookie, token, or privileged configuration in browser storage.
+- First-household bootstrap now atomically creates the household, configuration, adult profile, account membership, and current session selection in one EF Core save.
+- Each `UserSession` may persist a different selected household. The database enforces that the selection belongs to that session's account, and cross-household selection returns the same not-found boundary used by other household resources.
+- The dashboard avatar and household heading use authenticated API data. The bundled public family photo remains an explicitly accepted fallback until household photo storage, resizing, deletion, access control, and privacy behavior are designed.
+- Existing schedule, chore, and reward cards remain mock feature data. Household settings and member administration move to the next focused slice; parent-only administration will remain behind the future backend-enforced parent PIN.
+- Ten frontend component/API tests, eight wall-display/phone Playwright cases, and 55 backend tests cover the local behavior, including pointer and keyboard navigation, responsive overflow, secure logout, CSRF, atomic selection, per-session independence, inactive membership filtering, cross-household isolation, and the new PostgreSQL constraint.
 
-Exit criterion: Playwright covers mouse, keyboard, touch-sized controls, phone layout, adult setup, validation errors, and forbidden states.
+Exit criterion: local implementation complete. CI publication, additive migration execution, Azure deployment, Netlify deployment, real first-household creation, real logout, and multi-household staging checks must pass before this increment is marked deployed.
 
 ### Increment 5: adult invitations
 
@@ -199,7 +200,7 @@ The exact list will be confirmed in the plan for each approved increment. Expect
 
 Implementation must pause for approval at these points:
 
-1. introduction of React Router during Increment 4;
+1. introduction of React Router during Increment 4 (approved and implemented);
 2. generated database migration review;
 3. real Google client configuration and staging secrets;
 4. the exact parent-PIN hashing, rate-limit, elevation lifetime, and administrative-action policy;

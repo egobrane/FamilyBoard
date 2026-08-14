@@ -2,7 +2,7 @@
 
 Family Dashboard is a touch-first household organization platform designed for wall displays, phones, tablets, and desktop browsers.
 
-The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household backend increments now add persistent households, backend Google sign-in, and revocable application sessions; calendar, task, chore, reward, and authentication UI workflows remain intentionally deferred.
+The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household increments now add persistent households, backend Google sign-in, revocable application sessions, and an authenticated onboarding and household-selection frontend; calendar, task, chore, reward, invitation, member-administration, and parent-PIN workflows remain intentionally deferred.
 
 ## Repository
 
@@ -41,4 +41,4 @@ The migration service runs once before the development API starts. See [developm
 
 ## Current scope
 
-Only health and Google-login initiation endpoints are anonymously usable. Dashboard content is mock data. External services remain their own sources of truth. Full-stack staging is operational: Netlify serves the frontend at `https://family.egobrane.net`, its production bundle targets `https://api.egobrane.net`, and the Azure backend uses private PostgreSQL 18 plus digest-pinned GitHub OIDC deployment and migration workflows. Identity and Household Management Increments 1–3 are deployed; real Google sign-in, database-backed sessions, and cross-revision session continuity are verified in staging. Authenticated onboarding and household-management UI remain next. No Google provider tokens are stored.
+Only health and Google-login initiation endpoints are anonymously usable. Dashboard feature cards still use mock data, while the account identity and household heading come from the authenticated API. The local Increment 4 working tree adds signed-out/loading/error states, first-household bootstrap, per-session multi-household selection, and credentialed logout; it is not staging-deployed until its CI image and Netlify build are published and verified. Full-stack staging currently runs Identity and Household Management Increments 1–3: Netlify serves `https://family.egobrane.net`, its production bundle targets `https://api.egobrane.net`, and Azure uses private PostgreSQL 18 plus digest-pinned GitHub OIDC deployment and migration workflows. No Google provider tokens are stored.

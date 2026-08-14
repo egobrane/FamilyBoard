@@ -139,3 +139,19 @@ This proves Increment 2 schema migration and backend deployment without enabling
 - The Increment 3 working tree passes 51 backend tests with PostgreSQL 18, four frontend component tests, six Playwright wall-display/phone tests, frontend lint/build, both production container builds, Compose validation, both K3s renders, Bicep compilation, and dependency vulnerability checks.
 
 This evidence proves recovery and the durable key-storage foundation, not real Google authentication. The Google client does not exist in repository configuration, no placeholder secret was provisioned, and the working-tree application image has not been deployed to staging.
+
+## Identity Increment 3 activation evidence: 2026-08-14
+
+Application baseline commit: `518c587` (`Resolved a potential issue blocking tests with Google Sign In`). Infrastructure activation is represented by the current reviewed working tree and must pass CI after commit.
+
+- The public Google client ID is configuration, while the client secret was placed directly in private Key Vault secret `google-client-secret`; the secret value was never read into command output or added to the repository.
+- Staging runs immutable multi-architecture image digest `sha256:fd123bd13a3998ca6c65d374122559eb3fe64d447410ae923833e352a7dc0ea5`.
+- Initial activation exposed that managed Container Apps ingress terminates TLS and Kestrel saw the forwarded request as HTTP. Google was immediately disabled without changing the image, database, client ID, or secret while the fix was reviewed.
+- The API container now sets `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`, following the Azure Container Apps reverse-proxy boundary. With Google disabled, the intermediary revision remained healthy and the login endpoint returned the expected `503 authentication_unavailable` ProblemDetails.
+- Google was re-enabled only after that intermediary check. The resulting OAuth challenge returned HTTP 302 to `accounts.google.com`, used the exact HTTPS callback `https://api.egobrane.net/api/auth/callback/google`, matched the configured client ID, requested only `email`, `openid`, and `profile`, used authorization code response type, requested online access, and included transient state.
+- Public liveness and database-backed readiness return `Healthy`. Unauthenticated `/api/auth/me` returns the expected `401 authentication_required` ProblemDetails. Credentialed CORS permits only `https://family.egobrane.net`, including the approved `Content-Type` and `X-CSRF-TOKEN` headers and GET/POST/PATCH methods.
+- The owner completed a real first-time Google sign-in, returned to the Netlify dashboard, and confirmed `/api/auth/me` returned the new persisted account, no household memberships yet, and a non-shared database-backed session.
+- The session issued by API revision `0000008` remained authenticated after traffic moved to healthy functionally identical revision `authproof1`, proving cookie continuity through Blob-persisted, Key-Vault-wrapped Data Protection keys.
+- From the configured frontend origin, the owner obtained an antiforgery token and completed credentialed `POST /api/auth/logout`; it returned HTTP 204. The same browser then received HTTP 401 from `/api/auth/me`, proving application-session revocation, and a subsequent Google sign-in succeeded.
+
+Identity Increment 3 staging activation is proven end to end. A real Netlify Deploy Preview remains unproven.

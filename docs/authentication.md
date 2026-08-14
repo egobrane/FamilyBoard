@@ -1,6 +1,6 @@
 # Authentication Boundary
 
-Identity Increment 3 implements the backend Google authorization-code flow and revocable application-cookie sessions. It is disabled by configuration until a real Google web client is created and its secret is placed in Azure Key Vault. With Google disabled, protected endpoints continue to fail closed with stable `401 ProblemDetails`; the login endpoint returns `503 authentication_unavailable`.
+Identity Increment 3 implements the backend Google authorization-code flow and revocable application-cookie sessions. Google authentication is active in Azure staging with its client secret held in Key Vault. Protected endpoints continue to fail closed with stable `401 ProblemDetails` when no valid application session is present; disabling Google configuration makes the login endpoint return `503 authentication_unavailable`.
 
 Household authorization uses persistence-backed membership lookup and requires an active account, household, and linked member profile. Backend tests retain a test-assembly-only header scheme for household authorization and use real protected cookies plus database sessions for authentication tests. Neither test bypass is available in production.
 
@@ -42,4 +42,10 @@ Calendar/Tasks token storage, the exact parent-PIN protection parameters, and an
 4. Publish the reviewed backend commit, select its immutable GHCR digest, and run the protected `Deploy backend to Azure staging` workflow. The migration job must succeed before the API update.
 5. Verify login, `/api/auth/me`, antiforgery-protected logout, revocation, expiration behavior, exact CORS, and cookie continuity across a scale-to-zero wake and a new API revision.
 
-The Google client and secret are external prerequisites and cannot be generated from this repository. Keep Google authentication disabled until both values are real and the secret reference resolves.
+The Google client and secret are external prerequisites and cannot be generated from this repository. Keep Google authentication disabled in a new environment until both values are real and the secret reference resolves.
+
+## Staging activation status
+
+Google sign-in was activated and verified on 2026-08-14. Azure Container Apps terminates public TLS before forwarding requests to Kestrel, so the API container sets `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`; this preserves the original HTTPS scheme when ASP.NET Core constructs the Google callback URL. The Container App is the only public path to the target port, which is the trust boundary for forwarded headers.
+
+The live OAuth challenge uses the exact callback `https://api.egobrane.net/api/auth/callback/google`, requests only `openid`, `email`, and `profile`, uses `response_type=code`, and does not request offline access. A real first-time sign-in created the application account and database-backed session, redirected to `https://family.egobrane.net/`, and returned the authenticated account through `/api/auth/me`. The same session remained valid after traffic moved to a functionally identical API revision, proving that persisted Azure Data Protection keys support cross-revision cookie continuity. A live antiforgery-protected logout returned `204`, the revoked session then received `401` from `/api/auth/me`, and a subsequent Google sign-in succeeded.

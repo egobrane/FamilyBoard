@@ -8,10 +8,10 @@
 - `api.egobrane.net` is bound with Cloudflare DNS and Azure managed TLS; `family.egobrane.net` is rebuilt and verified with that HTTPS API origin.
 - Identity and Household Management Increment 1 is implemented: explicit API contracts, stable problem responses, and a deny-by-default backend household authorization seam.
 - Identity and Household Management Increment 2 is deployed: identity and household persistence, atomic household bootstrap, member management, last-active-adult protection, and PostgreSQL household-isolation tests.
-- Identity Increment 3 is implemented and locally verified: backend Google sign-in, revocable database sessions, exact credentialed CORS, antiforgery protection, and Azure-backed Data Protection.
+- Identity Increment 3 is deployed and staging verified: backend Google sign-in, revocable database sessions, exact credentialed CORS, antiforgery protection, Azure-backed Data Protection, and session continuity across API revisions.
 - Azure authentication security is provisioned with private Blob Storage, Key Vault, private endpoints, and a least-privilege runtime managed identity.
 - The first PostgreSQL point-in-time restore drill succeeded against a separate temporary target without changing staging; the verifier and restored server were removed afterward.
-- Create the Google web OAuth client, store its secret directly in Key Vault, publish/deploy the Increment 3 image, run its migration, and prove real staging sign-in/session persistence.
+- Google activation proof is complete; begin authenticated onboarding and household selection.
 - Validate the wall-display interaction model on physical hardware.
 
 ## Next

@@ -119,6 +119,10 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
               value: '8080'
             }
             {
+              name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED'
+              value: 'true'
+            }
+            {
               name: 'Cors__AllowedOrigins__0'
               value: frontendOrigin
             }

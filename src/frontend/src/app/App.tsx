@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Outlet, Route, Routes } from 'react-router'
 import { AccountMenu } from '../components/AccountMenu'
 import { NavigationBar } from '../components/NavigationBar'
 import {
@@ -9,6 +9,9 @@ import {
 import { AuthenticationErrorPage } from '../features/authentication/AuthenticationErrorPage'
 import { WelcomePage } from '../features/authentication/WelcomePage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { HouseholdAdminLayout } from '../features/household-admin/HouseholdAdminLayout'
+import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembersPage'
+import { HouseholdSettingsPage } from '../features/household-admin/HouseholdSettingsPage'
 import { HouseholdSelectionPage } from '../features/households/HouseholdSelectionPage'
 import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
 import { configuration } from '../lib/configuration'
@@ -49,7 +52,7 @@ function StatusPage({ state, onRetry }: { state: AuthenticationState; onRetry: (
   )
 }
 
-function DashboardShell() {
+function HouseholdShell() {
   const { state, isMutating, logout } = useAuthentication()
   const [now, setNow] = useState(() => new Date())
 
@@ -71,7 +74,7 @@ function DashboardShell() {
 
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main-content">Skip to dashboard</a>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <header className="topbar">
         <Brand />
         <h1 className="household-name">{household.name}</h1>
@@ -80,14 +83,25 @@ function DashboardShell() {
           <AccountMenu
             canSwitchHouseholds={state.currentUser.households.length > 1}
             displayName={state.currentUser.user.displayName}
+            householdSettingsPath={household.role === 'adult'
+              ? `/households/${household.id}/settings`
+              : undefined}
             isBusy={isMutating}
             onLogout={logout}
           />
         </div>
       </header>
+      <Outlet />
+    </div>
+  )
+}
+
+function DashboardHome() {
+  return (
+    <>
       <DashboardPage />
       <NavigationBar />
-    </div>
+    </>
   )
 }
 
@@ -117,7 +131,14 @@ function AuthenticatedRoutes() {
 
   return (
     <Routes>
-      <Route element={<DashboardShell />} path="/" />
+      <Route element={<HouseholdShell />}>
+        <Route element={<DashboardHome />} path="/" />
+        <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
+          <Route element={<HouseholdSettingsPage />} path="settings" />
+          <Route element={<HouseholdMembersPage />} path="members" />
+          <Route element={<Navigate replace to="settings" />} index />
+        </Route>
+      </Route>
       <Route element={<HouseholdSelectionPage />} path="/households/select" />
       <Route element={<Navigate replace to="/" />} path="*" />
     </Routes>

@@ -170,7 +170,7 @@ describe('App', () => {
     const calendarLink = await screen.findByRole('link', { name: 'Calendar' })
 
     await user.tab()
-    expect(screen.getByRole('link', { name: /skip to dashboard/i })).toHaveFocus()
+    expect(screen.getByRole('link', { name: /skip to content/i })).toHaveFocus()
     await user.click(calendarLink)
 
     await waitFor(() => expect(calendarLink).toHaveAttribute('aria-current', 'location'))

@@ -161,10 +161,30 @@ Target commit: `0b8bbdc336f09e9bf7d5cbfd286c747a3b6ac0f1` (`Implemented successf
 
 Identity Increment 3 staging activation and final digest deployment are proven end to end. On 2026-08-14 the owner confirmed that the private browser session remained authenticated after revision `0000009`; the cookie itself was not inspected or disclosed. A real Netlify Deploy Preview remains unproven.
 
-## Identity Increment 4 local implementation evidence: 2026-08-14
+## Identity Increment 4 staging verification: 2026-08-15
 
-- The approved working tree adds authenticated frontend onboarding and per-session household selection but has not yet been pushed, migrated, or deployed. This section intentionally records local evidence only.
-- The additive `AddSelectedHouseholdToUserSession` migration leaves existing sessions nullable and constrains any selection to a membership owned by the same user account.
-- Local frontend lint, ten Vitest component/API tests, the production PWA build, and eight Playwright wall-display/phone cases pass.
-- The Release backend build and all 55 backend tests pass against an isolated PostgreSQL 18 test database. Coverage includes atomic first-household bootstrap and selection, independent selections across two sessions, inactive-membership filtering, cross-household not-found behavior, CSRF, and the relational constraint.
-- The currently deployed Azure revision, migration execution, GHCR digest, and Netlify deploy remain the verified Increment 3 artifacts documented above. Increment 4 requires new CI/GHCR, migration/Azure, and Netlify evidence after the owner reviews and pushes this working tree.
+Target commit: `eaccfd8fb122651e8ae282344a929b0c8f1432e4` (`Deplying onboarding functions and procedures.`).
+
+- The local `main` branch is clean and matches `origin/main` at the target commit.
+- [Continuous Integration run 31850616363](https://github.com/egobrane/FamilyBoard/actions/runs/31850616363) completed successfully. Backend, frontend, and containers/manifests jobs passed, including PostgreSQL tests, frontend lint/component/build checks, responsive Playwright coverage, production container builds, Compose validation, Bicep compilation, and K3s rendering.
+- [Publish Backend Image run 31850616332](https://github.com/egobrane/FamilyBoard/actions/runs/31850616332) completed successfully. Public tag `sha-eaccfd8` resolves to multi-architecture OCI digest `sha256:591f816f10a155591cfbbbd8a5ed974eaae9bbb5cdf0eabfc4476cfed081e8b0` with `linux/amd64`, `linux/arm64`, and attestation manifests.
+- [Azure staging deployment run 31885267333](https://github.com/egobrane/FamilyBoard/actions/runs/31885267333) completed successfully through GitHub OIDC. Migration execution `family-dashboard-staging-mig-bwd5p3f` succeeded, and the migration job retains `--migrate` while using the target digest.
+- Azure revision `family-dashboard-staging-api--0000010` is healthy, provisioned, receives 100% of traffic, and uses the same immutable digest. Insecure ingress remains disabled and `minReplicas` remains zero.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is `Ready` on version 18 in Central US with `Standard_B1ms`, 32 GiB storage, seven-day backup retention, no HA or geo-redundant backup, and public access disabled. Database `family_dashboard` is present with UTF-8 encoding.
+- `https://api.egobrane.net/health/live` and `/health/ready` return HTTP 200 `Healthy`. An unauthenticated request from the configured frontend origin receives the expected credentialed-CORS `401 authentication_required` response from `/api/auth/me`.
+- Netlify production deploy `6a7fa5201b7d69000801485d` is `ready`, targets the exact commit, and serves `https://family.egobrane.net`. The published bundle contains `https://api.egobrane.net`, `/api/auth/session/household`, and the Increment 4 household-selection UI; it contains no localhost API origin. The PWA manifest remains available.
+- The owner completed first-household bootstrap with the intended household configuration and confirmed the authenticated household heading. Logout revoked the application session, and a subsequent Google sign-in succeeded.
+- The owner created `Staging Selection Test Household` through the authenticated, antiforgery-protected API. The account could switch between both households in both directions, and the selected household persisted after refresh.
+- `Staging Selection Test Household` remains intentionally stored in staging because household deletion is not implemented. Removing it requires a separately reviewed cleanup or deletion workflow.
+
+Identity Increment 4 is proven end to end in staging. A real Netlify Deploy Preview and physical wall-display validation remain separate outstanding checks.
+
+## Identity Increment 4B local implementation evidence: 2026-08-15
+
+- The approved working tree adds responsive household settings and member administration but has not yet been pushed or deployed. This section records local evidence only and does not replace the Increment 4 staging baseline above.
+- Household name, time zone, locale, and week-start updates use the existing authenticated household endpoint. The frontend refreshes current-user context after a save so the household heading remains consistent.
+- Adults can list members, create and edit child-only profiles, and deactivate or reactivate profiles while preserving history. The signed-in adult has no self-deactivation control, and the backend independently rejects direct self-deactivation with `409 self_deactivation_requires_leave_flow`.
+- The backend still enforces household isolation and the serializable last-active-adult invariant. A real-cookie PostgreSQL test confirms member mutations require antiforgery material.
+- Frontend lint, 13 Vitest component/API tests, the production PWA build, and ten Playwright wall-display/phone cases pass locally. Playwright covers settings, child creation, touch/pointer/keyboard behavior, responsive layout, and automated serious/critical accessibility checks.
+- The Release backend build and all 58 backend tests pass against an isolated local PostgreSQL 18 database. No model change or migration is required.
+- The currently deployed Azure revision, migration execution, GHCR digest, and Netlify deploy remain the verified Increment 4 artifacts documented above. Increment 4B requires a new immutable image digest and new Azure and Netlify evidence after review and push.

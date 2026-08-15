@@ -104,8 +104,18 @@ public sealed class IdentityHouseholdPersistenceTests
         var patch = new ValidatedHouseholdMemberPatch(null, null, false);
 
         var results = await Task.WhenAll(
-            firstService.UpdateAsync(household.Id, firstMember.Id, patch, CancellationToken.None),
-            secondService.UpdateAsync(household.Id, secondMember.Id, patch, CancellationToken.None));
+            firstService.UpdateAsync(
+                household.Id,
+                firstMember.Id,
+                secondAccount.Id,
+                patch,
+                CancellationToken.None),
+            secondService.UpdateAsync(
+                household.Id,
+                secondMember.Id,
+                firstAccount.Id,
+                patch,
+                CancellationToken.None));
 
         Assert.Contains(results, result => result.Status == HouseholdMemberUpdateStatus.Success);
         Assert.Contains(results, result =>
@@ -116,6 +126,36 @@ public sealed class IdentityHouseholdPersistenceTests
             member => member.HouseholdId == household.Id
                 && member.IsActive
                 && member.Role == HouseholdMemberRole.Adult));
+    }
+
+    [PostgreSqlFact]
+    public async Task ServiceRejectsDeactivationOfTheLastActiveAdult()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var household = CreateHousehold("Last Adult Household");
+        var account = new UserAccount
+        {
+            DisplayName = "Only Adult",
+            PrimaryEmail = "only-persistence@example.test",
+        };
+        var member = CreateAdultMember(household, account);
+        database.DbContext.AddRange(household, account);
+        await database.DbContext.SaveChangesAsync();
+        var service = new HouseholdMemberService(database.DbContext);
+
+        var result = await service.UpdateAsync(
+            household.Id,
+            member.Id,
+            Guid.NewGuid(),
+            new ValidatedHouseholdMemberPatch(null, null, false),
+            CancellationToken.None);
+
+        Assert.Equal(HouseholdMemberUpdateStatus.LastActiveAdult, result.Status);
+        database.DbContext.ChangeTracker.Clear();
+        Assert.True(await database.DbContext.HouseholdMembers
+            .Where(candidate => candidate.Id == member.Id)
+            .Select(candidate => candidate.IsActive)
+            .SingleAsync());
     }
 
     private static Household CreateHousehold(string name)

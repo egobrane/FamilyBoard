@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, createHousehold, getCurrentUser, googleLoginUrl, selectHousehold } from './api'
+import {
+  ApiError,
+  createHousehold,
+  getCurrentUser,
+  googleLoginUrl,
+  listHouseholdMembers,
+  selectHousehold,
+  updateHousehold,
+} from './api'
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -61,6 +69,33 @@ describe('API client', () => {
       locale: 'en-US',
       weekStartsOn: 'Sunday',
     })).rejects.toSatisfy((error: unknown) => error instanceof ApiError && error.status === 400)
+  })
+
+  it('uses credentialed reads and antiforgery-protected household administration writes', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse({ requestToken: 'token-value', headerName: 'X-CSRF-TOKEN' }))
+      .mockResolvedValueOnce(jsonResponse({ id: 'household/id', name: 'Updated Family' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await listHouseholdMembers('household/id')
+    await updateHousehold('household/id', { name: 'Updated Family' })
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8080/api/households/household%2Fid/members',
+      expect.objectContaining({ credentials: 'include' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://localhost:8080/api/households/household%2Fid',
+      expect.objectContaining({
+        method: 'PATCH',
+        credentials: 'include',
+        headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'token-value' }),
+        body: JSON.stringify({ name: 'Updated Family' }),
+      }),
+    )
   })
 
   it('only constructs Google login URLs with local return paths', () => {

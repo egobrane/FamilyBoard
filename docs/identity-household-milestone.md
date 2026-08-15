@@ -116,16 +116,29 @@ Exit criterion: complete. The external Google web client secret resides only in 
 
 ### Increment 4: authenticated onboarding and household selection
 
-- **Implemented locally on 2026-08-14; staging proof remains pending.** React Router provides stable `/`, `/welcome`, `/auth/error`, `/setup/household`, and `/households/select` URLs with browser back/forward behavior.
+- **Implemented on 2026-08-14 and deployed and verified in staging on 2026-08-15.** React Router provides stable `/`, `/welcome`, `/auth/error`, `/setup/household`, and `/households/select` URLs with browser back/forward behavior.
 - The frontend has explicit loading, signed-out, unavailable, disabled-account, no-household, household-selection, and ready-dashboard states. Production authorization remains entirely backend-enforced.
 - A typed `fetch` client always includes browser credentials and obtains fresh antiforgery material before household creation, household selection, and logout. It stores no cookie, token, or privileged configuration in browser storage.
 - First-household bootstrap now atomically creates the household, configuration, adult profile, account membership, and current session selection in one EF Core save.
 - Each `UserSession` may persist a different selected household. The database enforces that the selection belongs to that session's account, and cross-household selection returns the same not-found boundary used by other household resources.
 - The dashboard avatar and household heading use authenticated API data. The bundled public family photo remains an explicitly accepted fallback until household photo storage, resizing, deletion, access control, and privacy behavior are designed.
 - Existing schedule, chore, and reward cards remain mock feature data. Household settings and member administration move to the next focused slice; parent-only administration will remain behind the future backend-enforced parent PIN.
-- Ten frontend component/API tests, eight wall-display/phone Playwright cases, and 55 backend tests cover the local behavior, including pointer and keyboard navigation, responsive overflow, secure logout, CSRF, atomic selection, per-session independence, inactive membership filtering, cross-household isolation, and the new PostgreSQL constraint.
+- Ten frontend component/API tests, eight wall-display/phone Playwright cases, and 55 backend tests cover the behavior, including pointer and keyboard navigation, responsive overflow, secure logout, CSRF, atomic selection, per-session independence, inactive membership filtering, cross-household isolation, and the new PostgreSQL constraint.
 
-Exit criterion: local implementation complete. CI publication, additive migration execution, Azure deployment, Netlify deployment, real first-household creation, real logout, and multi-household staging checks must pass before this increment is marked deployed.
+Exit criterion: complete. CI and multi-architecture image publication passed; the additive migration and digest-pinned API deployment succeeded; Netlify published the matching frontend; and the owner verified real first-household bootstrap, authenticated household context, logout/revocation, subsequent Google sign-in, two-household switching in both directions, and refresh persistence. `Staging Selection Test Household` remains intentionally stored because deletion is not implemented.
+
+### Increment 4B: household settings and member administration
+
+- **Implemented and validated locally on 2026-08-15; staging proof remains pending.** Adult accounts can open stable household-scoped settings and members routes from the account menu.
+- Settings support household name, time zone, locale, and first-day-of-week updates. A successful name update refreshes authenticated context so the shared dashboard heading changes without a new sign-in.
+- Member administration lists active and inactive profiles; creates and edits child-only profiles; and deactivates or reactivates profiles without deleting historical records. Arbitrary linked-adult creation remains unavailable pending copyable invitation links.
+- Existing backend household isolation remains fail-closed. The API rejects cross-household access as not found, protects the last active adult under a serializable transaction, and now rejects self-deactivation with `409 self_deactivation_requires_leave_flow` until a dedicated leave-household workflow exists.
+- All unsafe requests use the existing credentialed cookie and fresh antiforgery-token client. Frontend visibility is convenience only; the API continues to enforce adult authorization.
+- The responsive screens provide large touch targets, pointer and keyboard operation, labeled status/error states, focus-managed modal dialogs, and wall-display and phone coverage. The public demo photo remains the fallback because photo storage and privacy behavior are still deferred.
+- Thirteen frontend component/API tests, ten wall-display/phone Playwright cases, and 58 backend tests pass locally. The backend suite includes real PostgreSQL 18 coverage for authorization, antiforgery, last-adult concurrency, and the self-deactivation contract.
+- No database migration or new runtime dependency is required because Increment 2 already introduced all household, configuration, profile, and membership fields used by this slice.
+
+Exit criterion: local implementation complete. CI/GHCR publication, digest-pinned Azure deployment, Netlify deployment, and authenticated staging checks for settings, child creation/editing, deactivation, reactivation, validation, and household isolation remain required before this increment is marked deployed.
 
 ### Increment 5: adult invitations
 

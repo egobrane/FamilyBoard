@@ -112,7 +112,7 @@ public sealed class HouseholdEndpointTests
     }
 
     [PostgreSqlFact]
-    public async Task LastActiveAdultCannotBeDeactivated()
+    public async Task OnlyAdultMustUseTheFutureLeaveHouseholdWorkflow()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var account = await AddAccountAsync(database, "Only Adult", "only@example.test");
@@ -124,7 +124,9 @@ public sealed class HouseholdEndpointTests
             new UpdateHouseholdMemberRequest(null, null, false));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal(ApiProblemCodes.LastActiveAdult, await ReadProblemCodeAsync(response));
+        Assert.Equal(
+            ApiProblemCodes.SelfDeactivationRequiresLeaveFlow,
+            await ReadProblemCodeAsync(response));
         database.DbContext.ChangeTracker.Clear();
         Assert.True(await database.DbContext.HouseholdMembers
             .Where(member => member.Id == household.Access.MemberId)
@@ -138,8 +140,44 @@ public sealed class HouseholdEndpointTests
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         var firstAccount = await AddAccountAsync(database, "First Adult", "first-adult@example.test");
         var secondAccount = await AddAccountAsync(database, "Second Adult", "second-adult@example.test");
+        using var firstClient = CreateAuthenticatedClient(database, firstAccount.Id);
+        var household = await BootstrapAsync(firstClient, "Two Adult Household");
+        var secondMember = new HouseholdMember
+        {
+            HouseholdId = household.Id,
+            DisplayName = secondAccount.DisplayName,
+            Role = HouseholdMemberRole.Adult,
+        };
+        database.DbContext.HouseholdMembers.Add(secondMember);
+        database.DbContext.HouseholdMemberships.Add(new HouseholdMembership
+        {
+            UserAccountId = secondAccount.Id,
+            HouseholdId = household.Id,
+            HouseholdMemberId = secondMember.Id,
+        });
+        await database.DbContext.SaveChangesAsync();
+
+        using var secondClient = CreateAuthenticatedClient(database, secondAccount.Id);
+        using var response = await secondClient.PatchAsJsonAsync(
+            $"/api/households/{household.Id}/members/{household.Access.MemberId}",
+            new UpdateHouseholdMemberRequest(null, null, false));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        database.DbContext.ChangeTracker.Clear();
+        Assert.Equal(1, await database.DbContext.HouseholdMembers.CountAsync(
+            member => member.HouseholdId == household.Id
+                && member.IsActive
+                && member.Role == HouseholdMemberRole.Adult));
+    }
+
+    [PostgreSqlFact]
+    public async Task AdultCannotDeactivateTheirOwnLinkedProfile()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var firstAccount = await AddAccountAsync(database, "First Adult", "first-self@example.test");
+        var secondAccount = await AddAccountAsync(database, "Second Adult", "second-self@example.test");
         using var client = CreateAuthenticatedClient(database, firstAccount.Id);
-        var household = await BootstrapAsync(client, "Two Adult Household");
+        var household = await BootstrapAsync(client, "Self Protection Household");
         var secondMember = new HouseholdMember
         {
             HouseholdId = household.Id,
@@ -159,12 +197,15 @@ public sealed class HouseholdEndpointTests
             $"/api/households/{household.Id}/members/{household.Access.MemberId}",
             new UpdateHouseholdMemberRequest(null, null, false));
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(
+            ApiProblemCodes.SelfDeactivationRequiresLeaveFlow,
+            await ReadProblemCodeAsync(response));
         database.DbContext.ChangeTracker.Clear();
-        Assert.Equal(1, await database.DbContext.HouseholdMembers.CountAsync(
-            member => member.HouseholdId == household.Id
-                && member.IsActive
-                && member.Role == HouseholdMemberRole.Adult));
+        Assert.True(await database.DbContext.HouseholdMembers
+            .Where(member => member.Id == household.Access.MemberId)
+            .Select(member => member.IsActive)
+            .SingleAsync());
     }
 
     [PostgreSqlFact]

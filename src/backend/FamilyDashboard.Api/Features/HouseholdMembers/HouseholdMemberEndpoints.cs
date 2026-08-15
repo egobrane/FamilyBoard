@@ -110,6 +110,11 @@ public static class HouseholdMemberEndpoints
             return authorizationFailure;
         }
 
+        if (!context.User.TryGetUserAccountId(out var actorUserAccountId))
+        {
+            return HouseholdEndpoints.AccountUnavailable(context);
+        }
+
         if (!HouseholdMemberValidation.TryValidate(request, out var patch, out var errors))
         {
             return HouseholdEndpoints.ValidationFailed(context, errors);
@@ -118,6 +123,7 @@ public static class HouseholdMemberEndpoints
         var result = await memberService.UpdateAsync(
             householdId,
             memberId,
+            actorUserAccountId,
             patch!,
             cancellationToken);
         return result.Status switch
@@ -125,6 +131,8 @@ public static class HouseholdMemberEndpoints
             HouseholdMemberUpdateStatus.Success => Results.Ok(result.Member),
             HouseholdMemberUpdateStatus.NotFound => MemberNotFound(context),
             HouseholdMemberUpdateStatus.LastActiveAdult => LastActiveAdult(context),
+            HouseholdMemberUpdateStatus.SelfDeactivationRequiresLeaveFlow =>
+                SelfDeactivationRequiresLeaveFlow(context),
             HouseholdMemberUpdateStatus.Conflict => Conflict(context),
             _ => throw new InvalidOperationException("Unsupported household member update result."),
         };
@@ -191,6 +199,15 @@ public static class HouseholdMemberEndpoints
             StatusCodes.Status409Conflict,
             ApiProblemCodes.LastActiveAdult,
             "The last active adult cannot be deactivated."));
+    }
+
+    private static IResult SelfDeactivationRequiresLeaveFlow(HttpContext context)
+    {
+        return Results.Problem(ApiProblems.Create(
+            context,
+            StatusCodes.Status409Conflict,
+            ApiProblemCodes.SelfDeactivationRequiresLeaveFlow,
+            "Leaving a household requires the dedicated leave-household workflow."));
     }
 
     private static IResult Conflict(HttpContext context)

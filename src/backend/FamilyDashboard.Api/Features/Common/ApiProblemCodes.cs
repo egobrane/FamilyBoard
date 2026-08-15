@@ -14,6 +14,7 @@ public static class ApiProblemCodes
     public const string HouseholdMemberNotFound = "household_member_not_found";
     public const string AdultAccessRequired = "adult_access_required";
     public const string LastActiveAdult = "last_active_adult";
+    public const string SelfDeactivationRequiresLeaveFlow = "self_deactivation_requires_leave_flow";
     public const string ValidationFailed = "validation_failed";
     public const string Conflict = "conflict";
     public const string UnexpectedError = "unexpected_error";

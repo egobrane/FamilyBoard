@@ -28,6 +28,7 @@ interface AuthenticationContextValue {
   state: AuthenticationState
   isMutating: boolean
   refresh: () => Promise<void>
+  refreshSilently: () => Promise<void>
   createHousehold: (request: CreateHouseholdRequest) => Promise<void>
   selectHousehold: (householdId: string) => Promise<void>
   logout: () => Promise<void>
@@ -131,6 +132,7 @@ export function AuthenticationProvider({ children }: { children: ReactNode }) {
     state,
     isMutating,
     refresh: () => load(true),
+    refreshSilently: () => load(false),
     createHousehold,
     selectHousehold,
     logout,

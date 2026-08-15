@@ -9,6 +9,7 @@ function initials(displayName: string) {
 interface AccountMenuProps {
   displayName: string
   canSwitchHouseholds: boolean
+  householdSettingsPath?: string
   isBusy: boolean
   onLogout: () => Promise<void>
 }
@@ -16,6 +17,7 @@ interface AccountMenuProps {
 export function AccountMenu({
   displayName,
   canSwitchHouseholds,
+  householdSettingsPath,
   isBusy,
   onLogout,
 }: AccountMenuProps) {
@@ -60,6 +62,11 @@ export function AccountMenu({
           {canSwitchHouseholds && (
             <Link onClick={() => setIsOpen(false)} role="menuitem" to="/households/select">
               Switch household
+            </Link>
+          )}
+          {householdSettingsPath && (
+            <Link onClick={() => setIsOpen(false)} role="menuitem" to={householdSettingsPath}>
+              Household settings
             </Link>
           )}
           <button

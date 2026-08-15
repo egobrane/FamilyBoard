@@ -6,6 +6,7 @@ using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Features.Common;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
@@ -184,6 +185,38 @@ public sealed class SessionAuthenticationEndpointTests
         Assert.Equal(1, await database.DbContext.HouseholdConfigurations.CountAsync());
         Assert.Equal(1, await database.DbContext.HouseholdMembers.CountAsync());
         Assert.Equal(1, await database.DbContext.HouseholdMemberships.CountAsync());
+    }
+
+    [PostgreSqlFact]
+    public async Task MemberAdministrationRequiresAntiforgeryWithARealCookieSession()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var (account, session) = await SeedSessionAsync(database);
+        var household = await AddHouseholdAsync(database, account, "Member Administration Household");
+        using var factory = new CookieSessionWebApplicationFactory(ConnectionString());
+        using var client = CreateClient(factory);
+        var sessionCookie = CreateSessionCookie(factory, session);
+        var path = $"/api/households/{household.Id}/members";
+
+        using var missingToken = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = JsonContent.Create(new CreateChildMemberRequest("Riley", "sky")),
+        };
+        missingToken.Headers.TryAddWithoutValidation("Cookie", sessionCookie);
+        using var missingTokenResponse = await client.SendAsync(missingToken);
+        Assert.Equal(HttpStatusCode.BadRequest, missingTokenResponse.StatusCode);
+
+        var antiforgery = await GetAntiforgeryAsync(client, sessionCookie);
+        using var create = UnsafeRequest(
+            HttpMethod.Post,
+            path,
+            sessionCookie,
+            antiforgery,
+            new CreateChildMemberRequest("Riley", "sky"));
+        using var createResponse = await client.SendAsync(create);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal("Riley", (await createResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!.DisplayName);
     }
 
     [PostgreSqlFact]

@@ -62,6 +62,32 @@ export interface HouseholdResponse {
   }
 }
 
+export interface UpdateHouseholdRequest {
+  name?: string
+  timeZone?: string
+  locale?: string
+  weekStartsOn?: string
+}
+
+export interface HouseholdMemberResponse {
+  id: string
+  displayName: string
+  role: 'adult' | 'child'
+  avatarColor: string | null
+  isActive: boolean
+}
+
+export interface CreateChildMemberRequest {
+  displayName: string
+  avatarColor: string | null
+}
+
+export interface UpdateHouseholdMemberRequest {
+  displayName?: string
+  avatarColor?: string
+  isActive?: boolean
+}
+
 interface AntiforgeryTokenResponse {
   requestToken: string
   headerName: string
@@ -123,6 +149,44 @@ export function getCurrentUser() {
 
 export function createHousehold(body: CreateHouseholdRequest) {
   return unsafeRequest<HouseholdResponse>('/api/households', 'POST', body)
+}
+
+export function getHousehold(householdId: string) {
+  return request<HouseholdResponse>(`/api/households/${encodeURIComponent(householdId)}`)
+}
+
+export function updateHousehold(householdId: string, body: UpdateHouseholdRequest) {
+  return unsafeRequest<HouseholdResponse>(
+    `/api/households/${encodeURIComponent(householdId)}`,
+    'PATCH',
+    body,
+  )
+}
+
+export function listHouseholdMembers(householdId: string) {
+  return request<HouseholdMemberResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/members`,
+  )
+}
+
+export function createChildMember(householdId: string, body: CreateChildMemberRequest) {
+  return unsafeRequest<HouseholdMemberResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/members`,
+    'POST',
+    body,
+  )
+}
+
+export function updateHouseholdMember(
+  householdId: string,
+  memberId: string,
+  body: UpdateHouseholdMemberRequest,
+) {
+  return unsafeRequest<HouseholdMemberResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}`,
+    'PATCH',
+    body,
+  )
 }
 
 export function selectHousehold(householdId: string) {

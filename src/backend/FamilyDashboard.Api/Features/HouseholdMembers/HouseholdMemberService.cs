@@ -12,6 +12,7 @@ internal enum HouseholdMemberUpdateStatus
     Success,
     NotFound,
     LastActiveAdult,
+    SelfDeactivationRequiresLeaveFlow,
     Conflict,
 }
 
@@ -64,6 +65,7 @@ internal sealed class HouseholdMemberService(FamilyDashboardDbContext dbContext)
     public async Task<HouseholdMemberUpdateResult> UpdateAsync(
         Guid householdId,
         Guid memberId,
+        Guid actorUserAccountId,
         ValidatedHouseholdMemberPatch patch,
         CancellationToken cancellationToken)
     {
@@ -91,6 +93,12 @@ internal sealed class HouseholdMemberService(FamilyDashboardDbContext dbContext)
                 && member.Membership?.UserAccount.IsActive == true;
             if (deactivatesLinkedAdult)
             {
+                if (member.Membership!.UserAccountId == actorUserAccountId)
+                {
+                    return new HouseholdMemberUpdateResult(
+                        HouseholdMemberUpdateStatus.SelfDeactivationRequiresLeaveFlow);
+                }
+
                 var activeAdultCount = await dbContext.HouseholdMembers.CountAsync(
                     candidate => candidate.HouseholdId == householdId
                         && candidate.IsActive

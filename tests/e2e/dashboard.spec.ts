@@ -29,6 +29,16 @@ let householdMembers: Array<{
   avatarColor: string | null
   isActive: boolean
 }> = []
+let householdInvitations: Array<{
+  id: string
+  householdId: string
+  intendedEmail: string
+  status: 'pending' | 'revoked'
+  createdAt: string
+  expiresAt: string
+  acceptedAt: null
+  revokedAt: string | null
+}> = []
 
 test.beforeEach(async ({ page }) => {
   householdName = authenticatedUser.households[0].name
@@ -39,6 +49,7 @@ test.beforeEach(async ({ page }) => {
     avatarColor: 'mint',
     isActive: true,
   }]
+  householdInvitations = []
   await page.route('http://localhost:8080/api/**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/me') {
@@ -96,6 +107,42 @@ test.beforeEach(async ({ page }) => {
         return
       }
       await route.fulfill({ json: householdMembers })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/invitations`) {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON() as { intendedEmail: string }
+        const invitation = {
+          id: '40000000-0000-0000-0000-000000000001',
+          householdId: authenticatedUser.households[0].id,
+          intendedEmail: body.intendedEmail,
+          status: 'pending' as const,
+          createdAt: '2026-08-15T12:00:00Z',
+          expiresAt: '2026-08-22T12:00:00Z',
+          acceptedAt: null,
+          revokedAt: null,
+        }
+        householdInvitations.unshift(invitation)
+        await route.fulfill({ json: { invitation, token: 'a'.repeat(43) }, status: 201 })
+        return
+      }
+      await route.fulfill({ json: householdInvitations })
+      return
+    }
+    if (url.pathname === '/api/invitations/prepare') {
+      await route.fulfill({ json: {
+        householdName: authenticatedUser.households[0].name,
+        intendedEmailMasked: 'a•••••@example.test',
+        expiresAt: '2026-08-22T12:00:00Z',
+      } })
+      return
+    }
+    if (url.pathname === '/api/invitations/pending/accept') {
+      await route.fulfill({ json: {
+        household: authenticatedUser.households[0],
+        selectedHouseholdId: authenticatedUser.households[0].id,
+        reusedExistingMembership: false,
+      } })
       return
     }
     await route.abort()
@@ -177,4 +224,30 @@ test('an adult can update settings and add a child with keyboard-accessible cont
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
+})
+
+test('an adult can create a copyable email-bound invitation', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/invitations`)
+
+  await expect(page.getByRole('heading', { name: 'Invitation links' })).toBeVisible()
+  await page.getByLabel('Adult email address').fill('adult@example.test')
+  await page.getByRole('button', { name: 'Create invitation' }).click()
+
+  await expect(page.getByRole('textbox', { name: 'Invitation link', exact: true }))
+    .toHaveValue(/\/invite#token=/)
+  await expect(page.getByText('adult@example.test')).toBeVisible()
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+    .toEqual([])
+})
+
+test('an authenticated invited adult can accept without retaining the raw URL fragment', async ({ page }) => {
+  await page.goto(`/invite#token=${'b'.repeat(43)}`)
+
+  await expect(page.getByRole('heading', { name: 'Join Bamford-Fahie-Waltz Family' })).toBeVisible()
+  await expect(page).toHaveURL(/\/invite$/)
+  await page.getByRole('button', { name: 'Join household' }).click()
+
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Bamford-Fahie-Waltz Family' })).toBeVisible()
 })

@@ -102,7 +102,7 @@ Update this record when each item is independently verified. Do not relabel a fr
 
 Target commit: `7a4798c88b62f8aa838102c05a80bb1684292c3e` (`Testing complete GitHub to Azure deployment path for backend updates`).
 
-- The local `main` branch is clean and matches `origin/main` at the target commit.
+- Before these evidence-only documentation updates, local `main` was clean and matched `origin/main` at the target commit.
 - [Continuous Integration run 31627987919](https://github.com/egobrane/FamilyBoard/actions/runs/31627987919) and [Publish Backend Image run 31627987813](https://github.com/egobrane/FamilyBoard/actions/runs/31627987813) both completed successfully for the target commit.
 - [Azure staging deployment run 31615282299](https://github.com/egobrane/FamilyBoard/actions/runs/31615282299) completed successfully on its third attempt. It used the protected `staging` environment and deployed the immutable backend digest after a successful migration.
 - `https://family.egobrane.net` returns HTTPS 200 with the configured security headers and serves the rebuilt production bundle. The compiled bundle contains `https://api.egobrane.net` and no `http://localhost:8080` API origin.
@@ -179,12 +179,19 @@ Target commit: `eaccfd8fb122651e8ae282344a929b0c8f1432e4` (`Deplying onboarding 
 
 Identity Increment 4 is proven end to end in staging. A real Netlify Deploy Preview and physical wall-display validation remain separate outstanding checks.
 
-## Identity Increment 4B local implementation evidence: 2026-08-15
+## Identity Increment 4B staging verification: 2026-08-15
 
-- The approved working tree adds responsive household settings and member administration but has not yet been pushed or deployed. This section records local evidence only and does not replace the Increment 4 staging baseline above.
-- Household name, time zone, locale, and week-start updates use the existing authenticated household endpoint. The frontend refreshes current-user context after a save so the household heading remains consistent.
-- Adults can list members, create and edit child-only profiles, and deactivate or reactivate profiles while preserving history. The signed-in adult has no self-deactivation control, and the backend independently rejects direct self-deactivation with `409 self_deactivation_requires_leave_flow`.
-- The backend still enforces household isolation and the serializable last-active-adult invariant. A real-cookie PostgreSQL test confirms member mutations require antiforgery material.
-- Frontend lint, 13 Vitest component/API tests, the production PWA build, and ten Playwright wall-display/phone cases pass locally. Playwright covers settings, child creation, touch/pointer/keyboard behavior, responsive layout, and automated serious/critical accessibility checks.
-- The Release backend build and all 58 backend tests pass against an isolated local PostgreSQL 18 database. No model change or migration is required.
-- The currently deployed Azure revision, migration execution, GHCR digest, and Netlify deploy remain the verified Increment 4 artifacts documented above. Increment 4B requires a new immutable image digest and new Azure and Netlify evidence after review and push.
+Target commit: `3b5c3dbe7269868f8b33275103a6235f9172c7fa` (`Added household and member management features and focused dashboards for different family units.`).
+
+- The local `main` branch is clean and matches `origin/main` at the target commit.
+- [Continuous Integration run 31897612128](https://github.com/egobrane/FamilyBoard/actions/runs/31897612128) completed successfully. Backend, frontend, and containers/manifests jobs passed, including 58 PostgreSQL-backed backend tests, frontend lint and 13 component/API tests, the production PWA build, ten responsive Playwright cases, production container builds, Compose validation, Bicep compilation, and K3s rendering.
+- [Publish Backend Image run 31897612110](https://github.com/egobrane/FamilyBoard/actions/runs/31897612110) initially failed only while GHCR returned `blob upload unknown to registry`. Its failed-job rerun completed successfully, including provenance attestation. Public tag `sha-3b5c3db` resolves to multi-architecture OCI digest `sha256:b43300a03c1d02036ff1c25c0c5d091257942764866a5ea804fafba4a1d4e12f` with `linux/amd64`, `linux/arm64`, and attestation manifests.
+- [Azure staging deployment run 31900932186](https://github.com/egobrane/FamilyBoard/actions/runs/31900932186) completed successfully through GitHub OIDC. Migration execution `family-dashboard-staging-mig-y0bnuki` succeeded with `--migrate` and the target digest. Increment 4B had no model change, so no new migration was expected.
+- Azure revision `family-dashboard-staging-api--0000011` is healthy, provisioned, receives 100% of traffic, and runs the same immutable digest. Insecure ingress remains disabled and `minReplicas` remains zero.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is `Ready` on version 18 in Central US with `Standard_B1ms`, 32 GiB storage, seven-day backup retention, no HA or geo-redundant backup, and public access disabled. Database `family_dashboard` remains present with UTF-8 encoding.
+- `https://api.egobrane.net/health/live` and `/health/ready` return HTTP 200 `Healthy`. An unauthenticated request from the configured frontend origin receives credentialed CORS and the expected `401 authentication_required` ProblemDetails from `/api/auth/me`.
+- Netlify production deploy `6a809dcde4c43a0008668c1e` is `ready`, targets the exact commit, and serves `https://family.egobrane.net`. Its compiled bundle contains `https://api.egobrane.net`, the household-settings and child-administration UI, and the self-deactivation error contract; it contains no localhost API origin.
+- The owner confirmed that authenticated household settings and member administration loaded successfully, then created child profiles and successfully deactivated and reactivated them. Historical records were retained as designed.
+- The self-deactivation path is hidden for the current adult in the UI and has deployed automated API/PostgreSQL coverage for `409 self_deactivation_requires_leave_flow`. A fresh direct authenticated staging request was not attempted during this evidence refresh because no controllable signed-in browser session was available; staging data was not modified to manufacture the check.
+
+Identity Increment 4B is proven end to end in staging. A real Netlify Deploy Preview, direct staging proof of the self-deactivation ProblemDetails contract, and physical wall-display validation remain separate outstanding checks.

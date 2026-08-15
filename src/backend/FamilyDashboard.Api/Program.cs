@@ -2,6 +2,7 @@ using FamilyDashboard.Api.Configuration;
 using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Features.Households;
+using FamilyDashboard.Api.Features.Invitations;
 using FamilyDashboard.Api.Persistence;
 using FamilyDashboard.Api.Security;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -15,6 +16,15 @@ builder.Services.AddFamilyDashboardAuthentication(builder.Configuration);
 builder.Services.AddFamilyDashboardAuthorization();
 builder.Services.AddScoped<HouseholdService>();
 builder.Services.AddScoped<HouseholdMemberService>();
+builder.Services.AddScoped<InvitationService>();
+builder.Services.AddSingleton<InvitationTokenService>();
+builder.Services.AddSingleton<PendingInvitationCookieService>();
+builder.Services.AddOptions<InvitationConfiguration>()
+    .Bind(builder.Configuration.GetSection(InvitationConfiguration.SectionName))
+    .Validate(
+        options => options.Lifetime > TimeSpan.Zero && options.PendingCookieLifetime > TimeSpan.Zero,
+        "Invitation lifetimes must be positive.")
+    .ValidateOnStart();
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)
@@ -94,6 +104,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapAuthenticationEndpoints();
 app.MapHouseholdEndpoints();
 app.MapHouseholdMemberEndpoints();
+app.MapInvitationEndpoints();
 
 await app.RunAsync();
 

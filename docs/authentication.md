@@ -9,6 +9,7 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 ## Implemented browser flow
 
 - `GET /api/auth/login/google?returnUrl=/local-path` starts the Google challenge.
+- Invitation sign-in adds `chooseAccount=true`, which asks Google to show account selection without adding scopes or changing the identity-only authorization flow.
 - Google returns only to `https://api.egobrane.net/api/auth/callback/google` in staging.
 - The backend accepts only `openid profile email`, identifies accounts by Google `sub`, requires verified email, and does not request offline access.
 - Provider access tokens, refresh tokens, and authorization codes are never stored in the application database, application cookie, frontend bundle, or browser storage.
@@ -19,6 +20,7 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 - Credentialed CORS allows only the configured exact frontend origin. Staging allows `https://family.egobrane.net`.
 - Return URLs must be local paths; external or ambiguous targets are rejected before the Google challenge.
 - The React client models loading, signed-out, unavailable, disabled-account, first-household, household-selection, and ready states. It uses credentialed requests, keeps antiforgery material in memory only, and never attempts to read the HTTP-only session cookie.
+- Invitation links place the raw token in a URL fragment, which is removed immediately and exchanged from the exact frontend origin for a 30-minute protected, host-only, secure, HTTP-only pending-invitation cookie. The raw token is not stored in PostgreSQL, browser storage, Google state, analytics, or subsequent browser history.
 
 ## Continuing constraints
 

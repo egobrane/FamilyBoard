@@ -12,7 +12,8 @@
 - Azure authentication security is provisioned with private Blob Storage, Key Vault, private endpoints, and a least-privilege runtime managed identity.
 - The first PostgreSQL point-in-time restore drill succeeded against a separate temporary target without changing staging; the verifier and restored server were removed afterward.
 - Identity Increment 4 is deployed and staging verified: authenticated frontend state, first-household bootstrap, per-session multi-household selection, dynamic account/household context, secure logout, and subsequent Google sign-in all work end to end.
-- Increment 4B is implemented and validated locally: adults can edit household and regional settings, list members, create/edit child profiles, and deactivate/reactivate historical profiles. The backend prevents self-deactivation and preserves the last active adult.
+- Increment 4B is deployed and staging verified: adults can edit household and regional settings, list members, create/edit child profiles, and deactivate/reactivate historical profiles. The deployed backend prevents self-deactivation and preserves the last active adult.
+- Increment 5 is implemented locally: adults can create, list, copy, and revoke seven-day email-bound invitation links; recipients can inspect and atomically accept a single-use invitation after Google sign-in. CI and staging verification remain pending.
 - `Staging Selection Test Household` remains intentionally stored until household deletion or an approved cleanup workflow exists.
 - Validate the wall-display interaction model on physical hardware.
 
@@ -20,8 +21,7 @@
 
 - Rehearse application rollback and record recovery objectives before staging stores irreplaceable household data.
 - Verify a real Netlify Deploy Preview without sharing production credentials or broadening credentialed CORS.
-- Publish and verify Increment 4B through GitHub Actions, the Azure migration/deploy workflow, Netlify, and a focused authenticated staging smoke test.
-- Add copyable adult invitations as the following backend vertical slice.
+- Publish Increment 5, run its additive migration, and verify a real two-Google-account invitation, wrong-account rejection, revocation, replay rejection, and household switching in staging.
 - Add shared-display mode with a backend-enforced parent access PIN for administrative actions.
 - Add a read-only Google Calendar adapter and disposable cache strategy.
 - Validate routine child-accessible actions and parent-only administration on the physical wall display.

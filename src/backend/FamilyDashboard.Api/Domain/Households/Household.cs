@@ -14,6 +14,7 @@ public sealed class Household
     public HouseholdConfiguration? Configuration { get; set; }
     public ICollection<HouseholdMember> Members { get; set; } = [];
     public ICollection<HouseholdMembership> Memberships { get; set; } = [];
+    public ICollection<HouseholdInvitation> Invitations { get; set; } = [];
     public ICollection<ApplicationPreference> Preferences { get; set; } = [];
     public ICollection<ChoreDefinition> ChoreDefinitions { get; set; } = [];
     public ICollection<Reward> Rewards { get; set; } = [];

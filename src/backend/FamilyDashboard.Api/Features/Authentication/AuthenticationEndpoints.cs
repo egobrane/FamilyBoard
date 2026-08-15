@@ -32,7 +32,8 @@ public static class AuthenticationEndpoints
     private static async Task<IResult> BeginGoogleLoginAsync(
         string? returnUrl,
         HttpContext context,
-        IAuthenticationSchemeProvider schemeProvider)
+        IAuthenticationSchemeProvider schemeProvider,
+        bool chooseAccount = false)
     {
         if (!ReturnUrlValidator.TryNormalize(returnUrl, out var normalizedReturnUrl))
         {
@@ -57,6 +58,10 @@ public static class AuthenticationEndpoints
             RedirectUri = "/api/auth/google/complete",
         };
         properties.Items["returnUrl"] = normalizedReturnUrl;
+        if (chooseAccount)
+        {
+            properties.Parameters["prompt"] = "select_account";
+        }
         return Results.Challenge(properties, [AuthenticationSchemes.Google]);
     }
 

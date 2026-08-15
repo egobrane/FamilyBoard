@@ -959,6 +959,115 @@ a:focus-visible {
   border-radius: 0.9rem;
 }
 
+.invitation-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.8rem;
+  margin: 1.25rem 0;
+}
+
+.invitation-created {
+  margin: 1.25rem 0;
+  padding: 1.2rem;
+  background: #e8f5ef;
+  border: 2px solid #8bc7b1;
+  border-radius: 1rem;
+}
+
+.invitation-created h4,
+.invitation-history h4 {
+  margin: 0 0 0.45rem;
+  font-size: 1.15rem;
+}
+
+.invitation-created p {
+  margin: 0 0 0.8rem;
+}
+
+.copy-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.6rem;
+}
+
+.copy-link-row input {
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 0.75rem;
+  border: 1px solid #9d9b92;
+  border-radius: 0.7rem;
+}
+
+.text-action {
+  min-height: var(--touch-target);
+  padding: 0.5rem 0;
+  color: #326c59;
+  font: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.invitation-history {
+  margin-top: 2rem;
+}
+
+.invitation-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.invitation-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: #f5f3ec;
+  border-radius: 0.9rem;
+}
+
+.invitation-card strong {
+  overflow-wrap: anywhere;
+}
+
+.invitation-card p {
+  margin: 0.2rem 0 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.invitation-status {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: capitalize;
+  background: #e2e0d8;
+  border-radius: 99rem;
+}
+
+.invitation-status--pending { color: #72560c; background: #fff1bc; }
+.invitation-status--accepted { color: #326c59; background: #d9f0e7; }
+.invitation-status--revoked,
+.invitation-status--expired { color: #75514b; background: #f3dfdb; }
+
+.invitation-entry .entry-card {
+  max-width: 42rem;
+}
+
+.invitation-account-actions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.invitation-account-actions p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .dialog-backdrop {
   position: fixed;
   z-index: 100;
@@ -1164,6 +1273,12 @@ a:focus-visible {
   .admin-tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .invitation-form,
+  .copy-link-row,
+  .invitation-card {
+    grid-template-columns: 1fr;
   }
 
   .admin-tabs a {

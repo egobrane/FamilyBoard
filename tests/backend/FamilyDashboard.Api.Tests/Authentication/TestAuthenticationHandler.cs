@@ -15,6 +15,7 @@ internal sealed class TestAuthenticationHandler(
 {
     public const string SchemeName = "Test";
     public const string UserIdHeaderName = "X-Test-User-Id";
+    public const string SessionIdHeaderName = "X-Test-Session-Id";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -29,9 +30,16 @@ internal sealed class TestAuthenticationHandler(
                 $"{UserIdHeaderName} must contain a valid user account identifier."));
         }
 
-        var identity = new ClaimsIdentity(
-            [new Claim(FamilyDashboardClaimTypes.UserAccountId, userAccountId.ToString())],
-            SchemeName);
+        var claims = new List<Claim>
+        {
+            new(FamilyDashboardClaimTypes.UserAccountId, userAccountId.ToString()),
+        };
+        if (Request.Headers.TryGetValue(SessionIdHeaderName, out var sessionValues)
+            && Guid.TryParse(sessionValues.ToString(), out var sessionId))
+        {
+            claims.Add(new Claim(FamilyDashboardClaimTypes.UserSessionId, sessionId.ToString()));
+        }
+        var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, SchemeName);
 

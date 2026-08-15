@@ -41,9 +41,9 @@ Major fields: `Id`, `UserAccountId`, `CreatedAt`, `LastSeenAt`, `ExpiresAt`, `Ab
 
 ### `HouseholdInvitation`
 
-Major fields: `Id`, `HouseholdId`, `CreatedByMemberId`, `TokenHash`, `InvitedEmail`, `Role`, `CreatedAt`, `ExpiresAt`, `AcceptedAt`, `RevokedAt`.
+Major fields: `Id`, `HouseholdId`, `CreatedByUserAccountId`, `IntendedEmailNormalized`, `TokenHash`, `Status`, `CreatedAt`, `ExpiresAt`, `AcceptedAt`, `AcceptedByUserAccountId`, `RevokedAt`, and `RevokedByUserAccountId`.
 
-Constraints: unique token hash; only adults may be invited initially; expired, accepted, or revoked invitations cannot be reused.
+Constraints: unique 32-byte token hash; one pending invitation per household and normalized email; restrictive actor and household foreign keys; terminal timestamps and actors must match the status. Only adults are invited; expired, accepted, or revoked invitations cannot be reused.
 
 ### `HouseholdAccessPin`
 
@@ -129,7 +129,7 @@ Exit criterion: complete. CI and multi-architecture image publication passed; th
 
 ### Increment 4B: household settings and member administration
 
-- **Implemented and validated locally on 2026-08-15; staging proof remains pending.** Adult accounts can open stable household-scoped settings and members routes from the account menu.
+- **Implemented, deployed, and verified in staging on 2026-08-15.** Adult accounts can open stable household-scoped settings and members routes from the account menu.
 - Settings support household name, time zone, locale, and first-day-of-week updates. A successful name update refreshes authenticated context so the shared dashboard heading changes without a new sign-in.
 - Member administration lists active and inactive profiles; creates and edits child-only profiles; and deactivates or reactivates profiles without deleting historical records. Arbitrary linked-adult creation remains unavailable pending copyable invitation links.
 - Existing backend household isolation remains fail-closed. The API rejects cross-household access as not found, protects the last active adult under a serializable transaction, and now rejects self-deactivation with `409 self_deactivation_requires_leave_flow` until a dedicated leave-household workflow exists.
@@ -138,16 +138,21 @@ Exit criterion: complete. CI and multi-architecture image publication passed; th
 - Thirteen frontend component/API tests, ten wall-display/phone Playwright cases, and 58 backend tests pass locally. The backend suite includes real PostgreSQL 18 coverage for authorization, antiforgery, last-adult concurrency, and the self-deactivation contract.
 - No database migration or new runtime dependency is required because Increment 2 already introduced all household, configuration, profile, and membership fields used by this slice.
 
-Exit criterion: local implementation complete. CI/GHCR publication, digest-pinned Azure deployment, Netlify deployment, and authenticated staging checks for settings, child creation/editing, deactivation, reactivation, validation, and household isolation remain required before this increment is marked deployed.
+Exit criterion: complete. CI passed, the transient first GHCR upload failure succeeded on its failed-job rerun, and the resulting multi-architecture digest was used by both the successful migration job and healthy Azure API revision. Netlify published the exact commit with the production API origin. The owner confirmed authenticated administration, child-profile creation, deactivation, and reactivation. The deployed self-deactivation contract remains covered by automated API/PostgreSQL tests; a separate direct authenticated staging request is still pending because no controllable signed-in browser session was available during evidence refresh.
 
 ### Increment 5: adult invitations
 
-- Create, list, revoke, inspect, and accept expiring invitations.
-- Show a copyable link; do not add an email vendor.
-- Redact tokens from logs and return them only at creation time.
-- Add replay, expiry, wrong-email, concurrent acceptance, and last-adult tests.
+- **Implemented locally on 2026-08-15; deployment verification pending.** Adults can create, list, revoke, inspect, and accept seven-day invitations without an email-delivery vendor.
+- Each invitation is bound to a required normalized Google email. Creation returns a cryptographically random 256-bit base64url token exactly once; PostgreSQL stores only its SHA-256 hash.
+- Copyable links use `/invite#token=...`. The recipient page captures the fragment, immediately replaces browser history with `/invite`, and exchanges the token for the protected host-only `__Host-FamilyDashboard.PendingInvitation` cookie. The page declares `no-referrer`, stores nothing in browser storage, and never passes the secret through Google return URLs.
+- Anonymous preparation requires `application/json` and the exact configured frontend `Origin`. Acceptance requires a valid application session and antiforgery token, compares the verified account email, and clears the pending cookie on success or terminal failure.
+- Acceptance uses a serializable transaction to consume the invitation, create or reactivate the adult profile and membership, and select the household on the current session. Existing memberships are reused; memberships in other households remain unchanged; same-account concurrent retries are idempotent.
+- Household-scoped create/list/revoke endpoints require active adult membership. Cross-household requests retain the not-found isolation boundary. Invitation tokens and hashes are excluded from list and inspection responses.
+- No new runtime package or Azure resource is required. Existing ASP.NET Data Protection protects the pending cookie; Google login may request account selection while retaining identity scopes only.
+- The shared adult wall-display session can still perform these administrative actions until Increment 6 introduces backend parent-PIN elevation. This residual risk must remain explicit.
+- Local validation passes with 66 backend tests against PostgreSQL 18, 15 frontend component/API tests, and 14 Playwright cases across wall-display and phone projects.
 
-Exit criterion: a second Google account can join the staging household through a single-use invitation.
+Exit criterion: local automated validation is complete; final completion requires CI, the additive migration and digest-pinned Azure deployment, Netlify publication, and proof that a second real Google account can join staging once while wrong-account, revoked, expired, and replay attempts fail safely.
 
 ### Increment 6: shared display and parent access PIN
 
@@ -191,7 +196,8 @@ Sensitive backend:
 - `Authentication__Google__ClientSecret`;
 - parent-PIN pepper/key material;
 - Data Protection key-ring location and key-protection material;
-- session lifetime and invitation lifetime;
+- session lifetime;
+- `Invitations__Lifetime` (default seven days) and `Invitations__PendingCookieLifetime` (default 30 minutes), which are public backend policy values rather than secrets;
 - exact frontend origins and allowed post-login return origins.
 
 Examples contain placeholders only. Google secrets, cookies, invitation tokens, and key material must never appear in Netlify variables, source control, container layers, logs, or frontend bundles.

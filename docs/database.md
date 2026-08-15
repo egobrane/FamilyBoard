@@ -11,6 +11,7 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 - Children remain profile-only and have no user account or membership link.
 - `ExternalIdentity` reserves the unique provider-subject mapping used by future Google sign-in without storing OAuth tokens.
 - `UserSession` stores revocable application sessions with rolling idle and hard absolute expiration. Its optional selected household is constrained to a membership owned by the same account, so separate browser sessions may retain different valid household contexts. It stores no Google token or cookie payload.
+- `HouseholdInvitation` stores an email-bound adult invitation lifecycle. It stores only a unique 32-byte SHA-256 token hash, never the raw copyable token; a partial unique index permits only one pending invitation per household and normalized email.
 - Chore definitions belong to a household; assignments connect one definition to one member.
 - A completion is a unique reviewable record for one assignment.
 - Point transactions form an append-only signed ledger for each member.
@@ -24,6 +25,8 @@ Migration `AddIdentityAndHouseholdPersistence` is additive. Its composite foreig
 Migration `AddUserSessions` is additive. It restricts account deletion, indexes active-session lookup and cleanup expiration, and enforces that idle expiration follows creation and never exceeds absolute expiration.
 
 Migration `AddSelectedHouseholdToUserSession` is additive. It adds a nullable selection plus a composite foreign key to `(UserAccountId, HouseholdId)` on `HouseholdMembership`, preventing a session from selecting another account's household. Existing sessions remain valid with no selection and are routed through household selection on their next frontend load.
+
+Migration `AddHouseholdInvitations` is additive. It creates the invitation table, actor and household relationships, terminal-state checks, exact hash-length and normalized-email checks, metadata lookup indexes, unique token hashes, and the partial pending-invitation uniqueness rule. It does not modify existing household, membership, or session rows.
 
 ## Creating a migration
 

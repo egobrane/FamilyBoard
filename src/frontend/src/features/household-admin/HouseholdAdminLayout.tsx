@@ -77,6 +77,7 @@ export function HouseholdAdminLayout() {
           <nav aria-label="Household administration" className="admin-tabs">
             <NavLink to={`${basePath}/settings`}>Settings</NavLink>
             <NavLink to={`${basePath}/members`}>Members</NavLink>
+            <NavLink to={`${basePath}/invitations`}>Invitations</NavLink>
           </nav>
         </header>
         <Outlet />

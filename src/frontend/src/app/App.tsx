@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { AccountMenu } from '../components/AccountMenu'
 import { NavigationBar } from '../components/NavigationBar'
 import {
@@ -12,6 +12,8 @@ import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { HouseholdAdminLayout } from '../features/household-admin/HouseholdAdminLayout'
 import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembersPage'
 import { HouseholdSettingsPage } from '../features/household-admin/HouseholdSettingsPage'
+import { HouseholdInvitationsPage } from '../features/invitations/HouseholdInvitationsPage'
+import { InvitationLandingPage } from '../features/invitations/InvitationLandingPage'
 import { HouseholdSelectionPage } from '../features/households/HouseholdSelectionPage'
 import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
 import { configuration } from '../lib/configuration'
@@ -136,6 +138,7 @@ function AuthenticatedRoutes() {
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
           <Route element={<HouseholdSettingsPage />} path="settings" />
           <Route element={<HouseholdMembersPage />} path="members" />
+          <Route element={<HouseholdInvitationsPage />} path="invitations" />
           <Route element={<Navigate replace to="settings" />} index />
         </Route>
       </Route>
@@ -147,6 +150,7 @@ function AuthenticatedRoutes() {
 
 export function App() {
   const { state, refresh } = useAuthentication()
+  const location = useLocation()
   const [applyUpdate, setApplyUpdate] = useState<(() => Promise<void>) | null>(null)
 
   useEffect(() => {
@@ -166,16 +170,17 @@ export function App() {
           <button type="button" onClick={() => void applyUpdate()}>Reload</button>
         </div>
       )}
-      {state.status === 'loading' && <StatusPage onRetry={refresh} state={state} />}
-      {state.status === 'unavailable' && <StatusPage onRetry={refresh} state={state} />}
-      {state.status === 'accountUnavailable' && <StatusPage onRetry={refresh} state={state} />}
-      {state.status === 'signedOut' && (
+      {location.pathname === '/invite' && <InvitationLandingPage />}
+      {location.pathname !== '/invite' && state.status === 'loading' && <StatusPage onRetry={refresh} state={state} />}
+      {location.pathname !== '/invite' && state.status === 'unavailable' && <StatusPage onRetry={refresh} state={state} />}
+      {location.pathname !== '/invite' && state.status === 'accountUnavailable' && <StatusPage onRetry={refresh} state={state} />}
+      {location.pathname !== '/invite' && state.status === 'signedOut' && (
         <Routes>
           <Route element={<AuthenticationErrorPage />} path="/auth/error" />
           <Route element={<WelcomePage />} path="*" />
         </Routes>
       )}
-      {state.status === 'authenticated' && <AuthenticatedRoutes />}
+      {location.pathname !== '/invite' && state.status === 'authenticated' && <AuthenticatedRoutes />}
     </>
   )
 }

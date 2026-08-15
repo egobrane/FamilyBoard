@@ -29,6 +29,8 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `DataProtection__BlobUri` | Public configuration | Private key-ring blob URI |
 | `DataProtection__KeyIdentifier` | Public configuration | Versionless Key Vault wrapping-key URI |
 | `DataProtection__ManagedIdentityClientId` | Public identifier | Runtime managed identity used for Blob and Key Vault |
+| `Invitations__Lifetime` | Public configuration | Invitation validity; default seven days |
+| `Invitations__PendingCookieLifetime` | Public configuration | Maximum protected pending-cookie lifetime; default 30 minutes and capped by invitation expiry |
 
 Future OAuth client secrets, token-encryption keys, and signing keys belong only in backend runtime secret storage.
 

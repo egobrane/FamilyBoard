@@ -14,4 +14,7 @@ public sealed class UserAccount
     public ICollection<ExternalIdentity> ExternalIdentities { get; set; } = [];
     public ICollection<UserSession> UserSessions { get; set; } = [];
     public ICollection<HouseholdMembership> HouseholdMemberships { get; set; } = [];
+    public ICollection<HouseholdInvitation> CreatedHouseholdInvitations { get; set; } = [];
+    public ICollection<HouseholdInvitation> AcceptedHouseholdInvitations { get; set; } = [];
+    public ICollection<HouseholdInvitation> RevokedHouseholdInvitations { get; set; } = [];
 }

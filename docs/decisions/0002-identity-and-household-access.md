@@ -57,7 +57,7 @@ The API handles the Google client secret, authorization callback, identity mappi
 - Adult authorization is required to update household settings, create or deactivate profiles, or issue and revoke invitations.
 - Historical member records are deactivated, not deleted.
 - The last active adult membership cannot be deactivated or unlinked.
-- Accepting an invitation is transactional and verifies token hash, expiry, revocation, intended email when present, and household state.
+- Accepting an invitation is transactional and verifies token hash, expiry, revocation, the required intended email, and household state.
 
 ### API shape
 
@@ -79,8 +79,11 @@ Route household resources explicitly:
 - `POST /api/households/{householdId}/members`
 - `PATCH /api/households/{householdId}/members/{memberId}`
 - `POST /api/households/{householdId}/invitations`
-- `POST /api/invitations/{token}/accept`
-- `DELETE /api/households/{householdId}/invitations/{invitationId}`
+- `GET /api/households/{householdId}/invitations`
+- `POST /api/households/{householdId}/invitations/{invitationId}/revoke`
+- `POST /api/invitations/prepare`
+- `GET /api/invitations/pending`
+- `POST /api/invitations/pending/accept`
 - `PUT /api/households/{householdId}/parent-access-pin`
 - `POST /api/households/{householdId}/shared-display`
 - `POST /api/households/{householdId}/parent-access/verify`
@@ -98,7 +101,7 @@ Initial routes are:
 - `/setup/household` — first-household bootstrap;
 - `/households/select` — select a household for the current browser session;
 - `/households/:householdId/members` — adult member administration;
-- `/invite/:token` — invitation acceptance.
+- `/invite#token=...` — invitation preparation and acceptance; the raw fragment is removed immediately and replaced by a protected HTTP-only pending cookie.
 
 ## Security implications
 

@@ -13,6 +13,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<HouseholdConfiguration> HouseholdConfigurations => Set<HouseholdConfiguration>();
     public DbSet<HouseholdMember> HouseholdMembers => Set<HouseholdMember>();
     public DbSet<HouseholdMembership> HouseholdMemberships => Set<HouseholdMembership>();
+    public DbSet<HouseholdInvitation> HouseholdInvitations => Set<HouseholdInvitation>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();

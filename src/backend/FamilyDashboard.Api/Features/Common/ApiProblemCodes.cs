@@ -17,6 +17,15 @@ public static class ApiProblemCodes
     public const string SelfDeactivationRequiresLeaveFlow = "self_deactivation_requires_leave_flow";
     public const string ValidationFailed = "validation_failed";
     public const string Conflict = "conflict";
+    public const string ActiveInvitationExists = "active_invitation_exists";
+    public const string InvitationNotFound = "invitation_not_found";
+    public const string InvitationExpired = "invitation_expired";
+    public const string InvitationRevoked = "invitation_revoked";
+    public const string InvitationUsed = "invitation_used";
+    public const string InvitationUnavailable = "invitation_unavailable";
+    public const string InvitationEmailMismatch = "invitation_email_mismatch";
+    public const string InvitationOriginNotAllowed = "invitation_origin_not_allowed";
+    public const string InvitationConflict = "invitation_conflict";
     public const string UnexpectedError = "unexpected_error";
 }
 

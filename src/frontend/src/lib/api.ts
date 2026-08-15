@@ -88,6 +88,36 @@ export interface UpdateHouseholdMemberRequest {
   isActive?: boolean
 }
 
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired'
+
+export interface HouseholdInvitationResponse {
+  id: string
+  householdId: string
+  intendedEmail: string
+  status: InvitationStatus
+  createdAt: string
+  expiresAt: string
+  acceptedAt: string | null
+  revokedAt: string | null
+}
+
+export interface CreatedInvitationResponse {
+  invitation: HouseholdInvitationResponse
+  token: string
+}
+
+export interface PendingInvitationResponse {
+  householdName: string
+  intendedEmailMasked: string
+  expiresAt: string
+}
+
+export interface AcceptedInvitationResponse {
+  household: HouseholdSummary
+  selectedHouseholdId: string
+  reusedExistingMembership: boolean
+}
+
 interface AntiforgeryTokenResponse {
   requestToken: string
   headerName: string
@@ -143,6 +173,14 @@ async function unsafeRequest<T>(
   })
 }
 
+function publicJsonRequest<T>(path: string, body: unknown) {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
 export function getCurrentUser() {
   return request<CurrentUser>('/api/auth/me')
 }
@@ -189,6 +227,39 @@ export function updateHouseholdMember(
   )
 }
 
+export function listHouseholdInvitations(householdId: string) {
+  return request<HouseholdInvitationResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/invitations`,
+  )
+}
+
+export function createHouseholdInvitation(householdId: string, intendedEmail: string) {
+  return unsafeRequest<CreatedInvitationResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/invitations`,
+    'POST',
+    { intendedEmail },
+  )
+}
+
+export function revokeHouseholdInvitation(householdId: string, invitationId: string) {
+  return unsafeRequest<HouseholdInvitationResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/invitations/${encodeURIComponent(invitationId)}/revoke`,
+    'POST',
+  )
+}
+
+export function prepareInvitation(token: string) {
+  return publicJsonRequest<PendingInvitationResponse>('/api/invitations/prepare', { token })
+}
+
+export function getPendingInvitation() {
+  return request<PendingInvitationResponse>('/api/invitations/pending')
+}
+
+export function acceptPendingInvitation() {
+  return unsafeRequest<AcceptedInvitationResponse>('/api/invitations/pending/accept', 'POST')
+}
+
 export function selectHousehold(householdId: string) {
   return unsafeRequest<SelectedHouseholdResponse>(
     '/api/auth/session/household',
@@ -201,9 +272,11 @@ export function logout() {
   return unsafeRequest<void>('/api/auth/logout', 'POST')
 }
 
-export function googleLoginUrl(returnUrl = '/') {
+export function googleLoginUrl(returnUrl = '/', chooseAccount = false) {
   const safeReturnUrl = returnUrl.startsWith('/') && !returnUrl.startsWith('//')
     ? returnUrl
     : '/'
-  return `${configuration.apiBaseUrl}/api/auth/login/google?returnUrl=${encodeURIComponent(safeReturnUrl)}`
+  const parameters = new URLSearchParams({ returnUrl: safeReturnUrl })
+  if (chooseAccount) parameters.set('chooseAccount', 'true')
+  return `${configuration.apiBaseUrl}/api/auth/login/google?${parameters.toString()}`
 }

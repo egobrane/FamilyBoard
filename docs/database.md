@@ -12,6 +12,8 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 - `ExternalIdentity` reserves the unique provider-subject mapping used by future Google sign-in without storing OAuth tokens.
 - `UserSession` stores revocable application sessions with rolling idle and hard absolute expiration. Its optional selected household is constrained to a membership owned by the same account, so separate browser sessions may retain different valid household contexts. It stores no Google token or cookie payload.
 - `HouseholdInvitation` stores an email-bound adult invitation lifecycle. It stores only a unique 32-byte SHA-256 token hash, never the raw copyable token; a partial unique index permits only one pending invitation per household and normalized email.
+- `HouseholdAccessPin` stores one salted, server-peppered PBKDF2 hash per household with algorithm, work-factor, and pepper version metadata. `ParentAccessAuditEvent` records only security-event metadata; neither table stores plaintext PINs or request bodies.
+- `UserSession` scopes administrative elevation to one household and stores per-session failed-attempt windows and cooldowns. Switching households, locking, logout, revocation, or PIN replacement clears applicable elevation.
 - Chore definitions belong to a household; assignments connect one definition to one member.
 - A completion is a unique reviewable record for one assignment.
 - Point transactions form an append-only signed ledger for each member.
@@ -26,7 +28,9 @@ Migration `AddUserSessions` is additive. It restricts account deletion, indexes 
 
 Migration `AddSelectedHouseholdToUserSession` is additive. It adds a nullable selection plus a composite foreign key to `(UserAccountId, HouseholdId)` on `HouseholdMembership`, preventing a session from selecting another account's household. Existing sessions remain valid with no selection and are routed through household selection on their next frontend load.
 
-Migration `AddHouseholdInvitations` is additive. It creates the invitation table, actor and household relationships, terminal-state checks, exact hash-length and normalized-email checks, metadata lookup indexes, unique token hashes, and the partial pending-invitation uniqueness rule. It does not modify existing household, membership, or session rows.
+Migration `AddHouseholdInvitations` is additive. It creates the invitation table, actor and household relationships, terminal-state checks, exact hash-length and normalized-email checks, metadata lookup indexes, unique token hashes, and the partial pending-invitation uniqueness rule. It does not modify existing household, membership, or session rows. The migration ran successfully in Azure staging on 2026-08-16 before API revision `family-dashboard-staging-api--0000012` received traffic.
+
+Migration `AddHouseholdParentAccess` is additive. It creates the household PIN and audit tables, adds nullable elevation-household and cooldown fields to sessions, and constrains elevated households through the account-membership relationship. Existing sessions remain private, locked, and otherwise valid. The older API can read the expanded schema, but rolling back to pre-Increment-6 code after a shared display has been activated would remove PIN enforcement; revoke shared sessions or forward-fix instead.
 
 ## Creating a migration
 

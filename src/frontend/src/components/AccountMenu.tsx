@@ -10,16 +10,24 @@ interface AccountMenuProps {
   displayName: string
   canSwitchHouseholds: boolean
   householdSettingsPath?: string
+  parentAccessPath?: string
+  isSharedDisplay: boolean
+  isParentElevated: boolean
   isBusy: boolean
   onLogout: () => Promise<void>
+  onLockParentAccess: () => Promise<void>
 }
 
 export function AccountMenu({
   displayName,
   canSwitchHouseholds,
   householdSettingsPath,
+  parentAccessPath,
+  isSharedDisplay,
+  isParentElevated,
   isBusy,
   onLogout,
+  onLockParentAccess,
 }: AccountMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +66,7 @@ export function AccountMenu({
       {isOpen && (
         <div aria-label="Account actions" className="account-menu__panel" role="menu">
           <strong>{displayName}</strong>
+          {isSharedDisplay && <span className="shared-display-badge">Shared display</span>}
           {error && <span className="account-menu__error" role="alert">{error}</span>}
           {canSwitchHouseholds && (
             <Link onClick={() => setIsOpen(false)} role="menuitem" to="/households/select">
@@ -68,6 +77,21 @@ export function AccountMenu({
             <Link onClick={() => setIsOpen(false)} role="menuitem" to={householdSettingsPath}>
               Household settings
             </Link>
+          )}
+          {parentAccessPath && (
+            <Link onClick={() => setIsOpen(false)} role="menuitem" to={parentAccessPath}>
+              Parent access
+            </Link>
+          )}
+          {isSharedDisplay && isParentElevated && (
+            <button
+              disabled={isBusy}
+              onClick={() => void onLockParentAccess().then(() => setIsOpen(false))}
+              role="menuitem"
+              type="button"
+            >
+              Lock parent controls
+            </button>
           )}
           <button
             disabled={isBusy}

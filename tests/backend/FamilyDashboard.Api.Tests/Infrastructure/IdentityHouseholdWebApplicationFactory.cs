@@ -15,6 +15,11 @@ internal sealed class IdentityHouseholdWebApplicationFactory(string connectionSt
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:FamilyDashboard", connectionString);
+        builder.UseSetting("ParentAccess:Enabled", "true");
+        builder.UseSetting(
+            "ParentAccess:Pepper",
+            "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
+        builder.UseSetting("ParentAccess:WorkFactor", "1000");
         builder.ConfigureTestServices(services =>
         {
             services

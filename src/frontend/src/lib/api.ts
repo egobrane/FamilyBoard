@@ -38,9 +38,23 @@ export interface CurrentUser {
   session: {
     expiresAt: string
     isSharedDisplay: boolean
+    deviceLabel: string | null
+    administrativeElevationHouseholdId: string | null
     administrativeElevationExpiresAt: string | null
   } | null
 }
+
+export interface ParentAccessState {
+  householdId: string
+  isPinConfigured: boolean
+  pinLength: number
+  isSharedDisplay: boolean
+  isElevated: boolean
+  elevationExpiresAt: string | null
+  lockedUntil: string | null
+}
+
+export type CurrentSession = NonNullable<CurrentUser['session']>
 
 export interface CreateHouseholdRequest {
   name: string
@@ -270,6 +284,55 @@ export function selectHousehold(householdId: string) {
 
 export function logout() {
   return unsafeRequest<void>('/api/auth/logout', 'POST')
+}
+
+export function getParentAccessState(householdId: string) {
+  return request<ParentAccessState>(
+    `/api/households/${encodeURIComponent(householdId)}/parent-access`,
+  )
+}
+
+export function setParentPin(householdId: string, pin: string) {
+  return unsafeRequest<ParentAccessState>(
+    `/api/households/${encodeURIComponent(householdId)}/parent-access/pin`,
+    'PUT',
+    { pin },
+  )
+}
+
+export function recoverParentPin(householdId: string, pin: string) {
+  return unsafeRequest<ParentAccessState>(
+    `/api/households/${encodeURIComponent(householdId)}/parent-access/pin/recover`,
+    'POST',
+    { pin },
+  )
+}
+
+export function verifyParentPin(householdId: string, pin: string) {
+  return unsafeRequest<ParentAccessState>(
+    `/api/households/${encodeURIComponent(householdId)}/parent-access/verify`,
+    'POST',
+    { pin },
+  )
+}
+
+export function lockParentAccess(householdId: string) {
+  return unsafeRequest<void>(
+    `/api/households/${encodeURIComponent(householdId)}/parent-access/lock`,
+    'POST',
+  )
+}
+
+export function updateSharedDisplay(
+  householdId: string,
+  isSharedDisplay: boolean,
+  deviceLabel?: string,
+) {
+  return unsafeRequest<CurrentSession>('/api/auth/session/shared-display', 'PUT', {
+    householdId,
+    isSharedDisplay,
+    deviceLabel,
+  })
 }
 
 export function googleLoginUrl(returnUrl = '/', chooseAccount = false) {

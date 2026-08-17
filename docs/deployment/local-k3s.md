@@ -67,10 +67,11 @@ kubectl -n family-dashboard create secret generic family-dashboard-secrets \
   --from-literal="postgres-database=${POSTGRES_DB}" \
   --from-literal="postgres-username=${POSTGRES_USER}" \
   --from-literal="postgres-password=${POSTGRES_PASSWORD}" \
-  --from-literal="connection-string=Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+  --from-literal="connection-string=Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}" \
+  --from-literal="parent-access-pepper=${ParentAccess__Pepper}"
 ```
 
-For repeat runs, delete and recreate only this named local secret, or use a local secret-management workflow. Restart the API deployment and recreate any pending migration job after changing the secret because environment variables in existing pods do not update automatically. Never commit `.env` or a populated Kubernetes Secret manifest.
+`ParentAccess__Pepper` must be a locally generated, base64-encoded random 32-byte value. For repeat runs, delete and recreate only this named local secret, or use a local secret-management workflow. Restart the API deployment and recreate any pending migration job after changing the secret because environment variables in existing pods do not update automatically. Never commit `.env` or a populated Kubernetes Secret manifest.
 
 ## Deploy and verify
 

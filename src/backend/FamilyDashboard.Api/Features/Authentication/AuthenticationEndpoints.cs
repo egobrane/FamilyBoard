@@ -137,10 +137,7 @@ public static class AuthenticationEndpoints
             selectedHouseholdId,
             session is null
                 ? null
-                : new CurrentSessionResponse(
-                    session.ExpiresAt,
-                    session.IsSharedDisplay,
-                    session.AdministrativeElevationExpiresAt)));
+                : MapSession(session)));
     }
 
     private static IResult GetAntiforgeryToken(
@@ -207,4 +204,12 @@ public static class AuthenticationEndpoints
             ApiProblemCodes.AccountUnavailable,
             "The authenticated account is unavailable."));
     }
+
+    internal static CurrentSessionResponse MapSession(
+        FamilyDashboard.Api.Domain.Identity.UserSession session) => new(
+            session.ExpiresAt,
+            session.IsSharedDisplay,
+            session.DeviceLabel,
+            session.AdministrativeElevationHouseholdId,
+            session.AdministrativeElevationExpiresAt);
 }

@@ -31,6 +31,16 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `DataProtection__ManagedIdentityClientId` | Public identifier | Runtime managed identity used for Blob and Key Vault |
 | `Invitations__Lifetime` | Public configuration | Invitation validity; default seven days |
 | `Invitations__PendingCookieLifetime` | Public configuration | Maximum protected pending-cookie lifetime; default 30 minutes and capped by invitation expiry |
+| `ParentAccess__Enabled` | Public configuration | Explicit parent-access feature and readiness gate |
+| `ParentAccess__Pepper` | Secret | Base64-encoded random 32-byte backend-only PIN pepper |
+| `ParentAccess__PepperVersion` | Public configuration | Version stored beside each PIN hash; default 1 |
+| `ParentAccess__PinLength` | Public policy | Exact PIN length; default six digits |
+| `ParentAccess__WorkFactor` | Public policy | PBKDF2-HMAC-SHA-256 iterations; default 600,000 |
+| `ParentAccess__ElevationLifetime` | Public policy | Fixed parent elevation lifetime; default five minutes |
+| `ParentAccess__RecentAuthenticationLifetime` | Public policy | Maximum session age for setup/recovery; default ten minutes |
+| `ParentAccess__MaximumFailures` | Public policy | Failures before cooldown; default five |
+| `ParentAccess__FailureWindow` | Public policy | Failed-attempt window; default ten minutes |
+| `ParentAccess__LockoutLifetime` | Public policy | Per-session cooldown; default 15 minutes |
 
 Future OAuth client secrets, token-encryption keys, and signing keys belong only in backend runtime secret storage.
 
@@ -41,7 +51,7 @@ Future OAuth client secrets, token-encryption keys, and signing keys belong only
 - Netlify: public build variables in deploy-context configuration.
 - GitHub Actions: repository-scoped `GITHUB_TOKEN` for GHCR; no personal token.
 - K3s: Kubernetes Secret created out of band. No Secret manifest with values is committed.
-- Azure staging: secure Bicep input creates the PostgreSQL Container Apps secret; the Google client secret is a versionless Key Vault reference. GitHub uses OIDC variables and no client secret. PostgreSQL, Data Protection Blob Storage, and Key Vault use private networking.
+- Azure staging: secure Bicep input creates the PostgreSQL Container Apps secret; Google and parent-access secrets are Key Vault references. GitHub uses OIDC variables and no client secret. PostgreSQL, Data Protection Blob Storage, and Key Vault use private networking.
 
 Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. It is never a frontend or GitHub Actions value.
 

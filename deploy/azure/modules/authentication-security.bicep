@@ -197,5 +197,6 @@ output runtimeIdentityClientId string = runtimeIdentity.properties.clientId
 output dataProtectionBlobUri string = 'https://${storage.name}.blob.${environment().suffixes.storage}/data-protection/keys.xml'
 output dataProtectionKeyIdentifier string = '${keyVault.properties.vaultUri}keys/${dataProtectionKey.name}'
 output googleClientSecretUri string = '${keyVault.properties.vaultUri}secrets/google-client-secret'
+output parentAccessPepperSecretUri string = '${keyVault.properties.vaultUri}secrets/parent-access-pepper-v1'
 output keyVaultName string = keyVault.name
 output storageAccountName string = storage.name

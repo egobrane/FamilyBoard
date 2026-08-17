@@ -17,11 +17,23 @@ const authenticatedUser = {
   session: {
     expiresAt: '2026-08-28T20:05:38Z',
     isSharedDisplay: false,
+    deviceLabel: null,
+    administrativeElevationHouseholdId: null,
     administrativeElevationExpiresAt: null,
   },
 }
 
 let householdName = authenticatedUser.households[0].name
+let currentSession = { ...authenticatedUser.session }
+let parentAccess = {
+  householdId: authenticatedUser.households[0].id,
+  isPinConfigured: true,
+  pinLength: 6,
+  isSharedDisplay: false,
+  isElevated: false,
+  elevationExpiresAt: null as string | null,
+  lockedUntil: null as string | null,
+}
 let householdMembers: Array<{
   id: string
   displayName: string
@@ -42,6 +54,8 @@ let householdInvitations: Array<{
 
 test.beforeEach(async ({ page }) => {
   householdName = authenticatedUser.households[0].name
+  currentSession = { ...authenticatedUser.session }
+  parentAccess = { ...parentAccess, isSharedDisplay: false, isElevated: false, elevationExpiresAt: null, lockedUntil: null }
   householdMembers = [{
     id: authenticatedUser.households[0].memberId,
     displayName: authenticatedUser.user.displayName,
@@ -56,6 +70,7 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({
         json: {
           ...authenticatedUser,
+          session: currentSession,
           households: [{ ...authenticatedUser.households[0], name: householdName }],
         },
       })
@@ -69,6 +84,41 @@ test.beforeEach(async ({ page }) => {
     }
     if (url.pathname === '/api/auth/logout') {
       await route.fulfill({ status: 204 })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/parent-access`) {
+      await route.fulfill({ json: parentAccess })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/parent-access/verify`) {
+      const body = route.request().postDataJSON() as { pin: string }
+      if (body.pin !== '482913') {
+        await route.fulfill({ status: 403, json: { title: 'The parent PIN could not be verified.', status: 403, code: 'parent_pin_invalid' } })
+        return
+      }
+      const expires = new Date(Date.now() + 300_000).toISOString()
+      parentAccess = { ...parentAccess, isElevated: true, elevationExpiresAt: expires }
+      currentSession = {
+        ...currentSession,
+        isSharedDisplay: true,
+        deviceLabel: 'Kitchen display',
+        administrativeElevationHouseholdId: authenticatedUser.households[0].id,
+        administrativeElevationExpiresAt: expires,
+      }
+      await route.fulfill({ json: parentAccess })
+      return
+    }
+    if (url.pathname === '/api/auth/session/shared-display') {
+      const body = route.request().postDataJSON() as { isSharedDisplay: boolean; deviceLabel?: string }
+      currentSession = {
+        ...currentSession,
+        isSharedDisplay: body.isSharedDisplay,
+        deviceLabel: body.isSharedDisplay ? body.deviceLabel ?? null : null,
+        administrativeElevationHouseholdId: null,
+        administrativeElevationExpiresAt: null,
+      }
+      parentAccess = { ...parentAccess, isSharedDisplay: body.isSharedDisplay, isElevated: false, elevationExpiresAt: null }
+      await route.fulfill({ json: currentSession })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}`) {
@@ -250,4 +300,24 @@ test('an authenticated invited adult can accept without retaining the raw URL fr
 
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Bamford-Fahie-Waltz Family' })).toBeVisible()
+})
+
+test('a shared display keeps the dashboard available and gates administration with the parent PIN', async ({ page }) => {
+  currentSession = { ...currentSession, isSharedDisplay: true, deviceLabel: 'Kitchen display' }
+  parentAccess = { ...parentAccess, isSharedDisplay: true, isElevated: false, elevationExpiresAt: null }
+  await page.goto(`/households/${authenticatedUser.households[0].id}/settings`)
+
+  await expect(page.getByRole('heading', { name: 'Unlock parent controls' })).toBeVisible()
+  await page.getByLabel('6-digit parent PIN').fill('000000')
+  await page.getByRole('button', { name: 'Unlock' }).click()
+  await expect(page.getByRole('alert')).toContainText('did not work')
+
+  await page.getByLabel('6-digit parent PIN').fill('482913')
+  await page.getByRole('button', { name: 'Unlock' }).click()
+  await expect(page.getByRole('heading', { name: 'Household settings' })).toBeVisible()
+
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible()
+  await page.getByRole('button', { name: 'Account menu for Ryan Bamford' }).click()
+  await expect(page.getByText('Shared display')).toBeVisible()
 })

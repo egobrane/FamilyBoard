@@ -47,6 +47,8 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__FamilyDashboard: Host=db;Port=5432;Database=${POSTGRES_DB:-family_dashboard};Username=${POSTGRES_USER:-family_dashboard};Password=${POSTGRES_PASSWORD}
       Cors__AllowedOrigins__0: http://localhost:${FRONTEND_PORT:-5173}
+      ParentAccess__Enabled: ${ParentAccess__Enabled:-false}
+      ParentAccess__Pepper: ${ParentAccess__Pepper:-}
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:

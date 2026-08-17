@@ -37,7 +37,7 @@ Constraints: unique member profile; unique `(UserAccountId, HouseholdId)`; compo
 
 ### `UserSession`
 
-Major fields: `Id`, `UserAccountId`, `CreatedAt`, `LastSeenAt`, `ExpiresAt`, `AbsoluteExpiresAt`, `RevokedAt`, optional `DeviceLabel`, `IsSharedDisplay`, and optional `AdministrativeElevationExpiresAt`. No OAuth token is stored.
+Major fields: `Id`, `UserAccountId`, `CreatedAt`, `LastSeenAt`, `ExpiresAt`, `AbsoluteExpiresAt`, `RevokedAt`, optional `DeviceLabel`, `IsSharedDisplay`, optional `AdministrativeElevationHouseholdId`, optional `AdministrativeElevationExpiresAt`, and per-session PIN failure-window and cooldown fields. No OAuth token is stored.
 
 ### `HouseholdInvitation`
 
@@ -93,7 +93,7 @@ Exit criterion: complete. Contract and authorization tests pass while production
 
 ### Increment 2: identity and household persistence
 
-- **Implemented on 2026-08-12 and deployed to Azure staging.** `UserAccount`, `ExternalIdentity`, and `HouseholdMembership` plus their EF configurations establish persistent identity and household access. Session, invitation, and PIN tables remain deferred until their behavior is implemented.
+- **Implemented on 2026-08-12 and deployed to Azure staging.** `UserAccount`, `ExternalIdentity`, and `HouseholdMembership` plus their EF configurations established persistent identity and household access. Later increments subsequently added session, invitation, and parent-access persistence.
 - The additive `AddIdentityAndHouseholdPersistence` migration adds the three tables, unique provider-subject identity, unique account-household membership, and a composite foreign key requiring the linked profile to belong to the same household.
 - `GET /api/auth/me`, household list/bootstrap/read/update, and household-member list/create/update endpoints are mapped with explicit DTOs and stable problems.
 - Household bootstrap atomically creates the household, configuration, initial adult profile, and account link.
@@ -131,7 +131,7 @@ Exit criterion: complete. CI and multi-architecture image publication passed; th
 
 - **Implemented, deployed, and verified in staging on 2026-08-15.** Adult accounts can open stable household-scoped settings and members routes from the account menu.
 - Settings support household name, time zone, locale, and first-day-of-week updates. A successful name update refreshes authenticated context so the shared dashboard heading changes without a new sign-in.
-- Member administration lists active and inactive profiles; creates and edits child-only profiles; and deactivates or reactivates profiles without deleting historical records. Arbitrary linked-adult creation remains unavailable pending copyable invitation links.
+- Member administration lists active and inactive profiles; creates and edits child-only profiles; and deactivates or reactivates profiles without deleting historical records. Arbitrary linked-adult creation remains unavailable; adults join only through the copyable invitation-link flow added in Increment 5.
 - Existing backend household isolation remains fail-closed. The API rejects cross-household access as not found, protects the last active adult under a serializable transaction, and now rejects self-deactivation with `409 self_deactivation_requires_leave_flow` until a dedicated leave-household workflow exists.
 - All unsafe requests use the existing credentialed cookie and fresh antiforgery-token client. Frontend visibility is convenience only; the API continues to enforce adult authorization.
 - The responsive screens provide large touch targets, pointer and keyboard operation, labeled status/error states, focus-managed modal dialogs, and wall-display and phone coverage. The public demo photo remains the fallback because photo storage and privacy behavior are still deferred.
@@ -142,27 +142,30 @@ Exit criterion: complete. CI passed, the transient first GHCR upload failure suc
 
 ### Increment 5: adult invitations
 
-- **Implemented locally on 2026-08-15; deployment verification pending.** Adults can create, list, revoke, inspect, and accept seven-day invitations without an email-delivery vendor.
+- **Implemented on 2026-08-15 and deployed and verified in staging on 2026-08-16.** Adults can create, list, revoke, inspect, and accept seven-day invitations without an email-delivery vendor.
 - Each invitation is bound to a required normalized Google email. Creation returns a cryptographically random 256-bit base64url token exactly once; PostgreSQL stores only its SHA-256 hash.
 - Copyable links use `/invite#token=...`. The recipient page captures the fragment, immediately replaces browser history with `/invite`, and exchanges the token for the protected host-only `__Host-FamilyDashboard.PendingInvitation` cookie. The page declares `no-referrer`, stores nothing in browser storage, and never passes the secret through Google return URLs.
 - Anonymous preparation requires `application/json` and the exact configured frontend `Origin`. Acceptance requires a valid application session and antiforgery token, compares the verified account email, and clears the pending cookie on success or terminal failure.
 - Acceptance uses a serializable transaction to consume the invitation, create or reactivate the adult profile and membership, and select the household on the current session. Existing memberships are reused; memberships in other households remain unchanged; same-account concurrent retries are idempotent.
 - Household-scoped create/list/revoke endpoints require active adult membership. Cross-household requests retain the not-found isolation boundary. Invitation tokens and hashes are excluded from list and inspection responses.
 - No new runtime package or Azure resource is required. Existing ASP.NET Data Protection protects the pending cookie; Google login may request account selection while retaining identity scopes only.
-- The shared adult wall-display session can still perform these administrative actions until Increment 6 introduces backend parent-PIN elevation. This residual risk must remain explicit.
+- In the deployed Increment 5 revision, a shared adult wall-display session can still perform these administrative actions. Increment 6 now implements the backend parent-PIN boundary locally, but the staging risk remains until that revision is deployed and verified.
 - Local validation passes with 66 backend tests against PostgreSQL 18, 15 frontend component/API tests, and 14 Playwright cases across wall-display and phone projects.
 
-Exit criterion: local automated validation is complete; final completion requires CI, the additive migration and digest-pinned Azure deployment, Netlify publication, and proof that a second real Google account can join staging once while wrong-account, revoked, expired, and replay attempts fail safely.
+Exit criterion: complete. CI and multi-architecture image publication passed; the additive `AddHouseholdInvitations` migration and digest-pinned Azure deployment succeeded; and Netlify published the matching frontend. The owner verified a real email-bound invitation across two Google accounts, safe fragment removal, wrong-account rejection, acceptance into the correct household, household switching and refresh persistence, replay rejection, and revocation. Expiration has automated PostgreSQL/API coverage; a manual seven-day staging expiration was intentionally not claimed.
 
 ### Increment 6: shared display and parent access PIN
 
-- Add adult-only parent-PIN setup and reset.
-- Add shared-display enable, verify, lock, timeout, cooldown, and audit behavior.
-- Define and test the routine-action allowlist and parent-administration policy.
-- Keep parent elevation server-side and short lived; frontend visibility is not authorization.
-- Add Playwright coverage for children navigating routine features while administrative routes remain locked.
+- **Implemented locally on 2026-08-17; staging activation pending.** Private adult sessions can set or recover a six-digit household PIN, verify it, enable a named shared-display session, explicitly lock, and return to private mode.
+- The backend administration policy allows ordinary Google-authenticated adult sessions but requires a matching, unexpired five-minute elevation when `UserSession.IsSharedDisplay` is true. Elevation is scoped to one household and is cleared by selection changes, lock, logout, revocation, PIN replacement, or timeout.
+- Household settings, administrative member reads and mutations, and invitation administration use the policy. Household bootstrap and invitation acceptance require a private session. Dashboard navigation, selection, antiforgery, logout, and future explicitly allowlisted routine actions remain available while locked.
+- PINs use HMAC-SHA-256 with a backend-only 32-byte pepper followed by PBKDF2-HMAC-SHA-256, a unique 16-byte salt, a 600,000-iteration default, and constant-time comparison. Version and work-factor fields permit future upgrades. Plaintext PINs, hashes, salts, and peppers never enter API responses or audit rows.
+- Verification uses a per-session-and-household ASP.NET rate limiter plus authoritative PostgreSQL failure state. Five failures in ten minutes cause a 15-minute per-session cooldown; audit events contain event, outcome, actor, session, time, trace, and optional cooldown only.
+- The responsive parent-access page, masked keyboard input, large numeric keypad, shared-display badge, focused unlock gate, explicit lock, and status/error announcements support touch, mouse, keyboard, phone, and wall-display use.
+- No new NuGet or npm package is required. Azure reuses the private Key Vault and runtime identity; a separately seeded `parent-access-pepper-v1` secret is referenced only by the API and never supplied to the migration job or frontend.
+- Local validation passes 73 backend tests against PostgreSQL 18 with no skips, 17 frontend component/API tests, and 16 Playwright cases across wall-display and phone projects.
 
-Exit criterion: a shared display remains useful for routine family actions and cannot perform backend administrative mutations without recent parent-PIN verification.
+Exit criterion: local implementation is complete. Final completion requires the Key Vault secret, CI and image publication, successful additive migration, digest-pinned Azure deployment, matching Netlify publication, and manual staging/physical-display proof that locked shared sessions cannot administer while routine use remains available.
 
 ### Increment 7: staging and wall-display validation
 

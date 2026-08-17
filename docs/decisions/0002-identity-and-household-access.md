@@ -84,10 +84,12 @@ Route household resources explicitly:
 - `POST /api/invitations/prepare`
 - `GET /api/invitations/pending`
 - `POST /api/invitations/pending/accept`
-- `PUT /api/households/{householdId}/parent-access-pin`
-- `POST /api/households/{householdId}/shared-display`
+- `GET /api/households/{householdId}/parent-access`
+- `PUT /api/households/{householdId}/parent-access/pin`
+- `POST /api/households/{householdId}/parent-access/pin/recover`
 - `POST /api/households/{householdId}/parent-access/verify`
 - `POST /api/households/{householdId}/parent-access/lock`
+- `PUT /api/auth/session/shared-display`
 
 ### Frontend navigation
 

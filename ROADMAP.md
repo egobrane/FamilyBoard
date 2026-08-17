@@ -13,7 +13,8 @@
 - The first PostgreSQL point-in-time restore drill succeeded against a separate temporary target without changing staging; the verifier and restored server were removed afterward.
 - Identity Increment 4 is deployed and staging verified: authenticated frontend state, first-household bootstrap, per-session multi-household selection, dynamic account/household context, secure logout, and subsequent Google sign-in all work end to end.
 - Increment 4B is deployed and staging verified: adults can edit household and regional settings, list members, create/edit child profiles, and deactivate/reactivate historical profiles. The deployed backend prevents self-deactivation and preserves the last active adult.
-- Increment 5 is implemented locally: adults can create, list, copy, and revoke seven-day email-bound invitation links; recipients can inspect and atomically accept a single-use invitation after Google sign-in. CI and staging verification remain pending.
+- Increment 5 is deployed and staging verified: adults can create, list, copy, and revoke seven-day email-bound invitation links; recipients can safely prepare the fragment token and atomically accept once after Google sign-in. Wrong-account, replay, and revocation behavior were exercised in staging; expiration is covered automatically but has not been manually waited out in staging.
+- Increment 6 is implemented locally: shared-display mode, six-digit parent PINs, household-scoped five-minute elevation, per-session cooldown, audit events, protected administration, recovery through a recent private Google session, and responsive keypad UI are covered by PostgreSQL, component, and Playwright tests. Azure activation remains pending.
 - `Staging Selection Test Household` remains intentionally stored until household deletion or an approved cleanup workflow exists.
 - Validate the wall-display interaction model on physical hardware.
 
@@ -21,8 +22,7 @@
 
 - Rehearse application rollback and record recovery objectives before staging stores irreplaceable household data.
 - Verify a real Netlify Deploy Preview without sharing production credentials or broadening credentialed CORS.
-- Publish Increment 5, run its additive migration, and verify a real two-Google-account invitation, wrong-account rejection, revocation, replay rejection, and household switching in staging.
-- Add shared-display mode with a backend-enforced parent access PIN for administrative actions.
+- Seed the staging parent-access pepper in Key Vault, publish Increment 6, apply its additive migration, and verify PIN setup, shared mode, cooldown, expiry, recovery, and rollback protections on the physical wall display.
 - Add a read-only Google Calendar adapter and disposable cache strategy.
 - Validate routine child-accessible actions and parent-only administration on the physical wall display.
 

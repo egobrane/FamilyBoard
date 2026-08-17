@@ -11,7 +11,7 @@ flowchart LR
     Job -->|private TLS| PostgreSQL[(PostgreSQL Flexible Server 18)]
     API -->|private TLS| PostgreSQL
     API -->|managed identity, private link| Blob[(Data Protection Blob)]
-    API -->|managed identity, private link| Vault[Key Vault key and Google secret]
+    API -->|managed identity, private link| Vault[Key Vault key, Google secret, and PIN pepper]
     GitHub[GitHub Actions OIDC] --> Job
     GitHub --> API
 ```
@@ -49,7 +49,9 @@ The generated PostgreSQL password enters Bicep through `FAMILY_DASHBOARD_POSTGRE
 
 The API receives exact CORS origin `https://family.egobrane.net`, listens on port 8080, and uses TLS-required PostgreSQL connections. The frontend receives only public `VITE_API_BASE_URL=https://api.egobrane.net`. Azure Container Apps terminates public TLS at managed ingress, so the API container enables ASP.NET Core forwarded-header processing to preserve the original HTTPS scheme for security-sensitive absolute redirects such as the Google OAuth callback. Managed ingress is the only public route to the container target port.
 
-The API runtime identity can write only the Data Protection Blob container, wrap/unwrap only through the Key Vault key, and read the Google secret. The migration job receives none of these permissions. Storage shared-key access and public networking are disabled. Key Vault uses RBAC, soft deletion, purge protection, a private endpoint, and public networking disabled. The owner created the Google web OAuth client, placed its secret directly in Key Vault, and activated staging authentication on 2026-08-14. The secret remains absent from Git, GitHub, Netlify, container images, and browser-delivered configuration.
+The API runtime identity can write only the Data Protection Blob container, wrap/unwrap only through the Key Vault key, and read the Google and parent-access secrets. The migration job receives none of these permissions or secrets. Storage shared-key access and public networking are disabled. Key Vault uses RBAC, soft deletion, purge protection, a private endpoint, and public networking disabled. The owner created the Google web OAuth client, placed its secret directly in Key Vault, and activated staging authentication on 2026-08-14. Secrets remain absent from Git, GitHub, Netlify, container images, and browser-delivered configuration.
+
+Increment 6 adds no Azure resource. Before enabling it, generate a random 32-byte value, base64 encode it, store it in the existing vault as `parent-access-pepper-v1` through the secure Bicep parameter template, and then deploy the main template. The API readiness check fails when parent access is enabled without a valid pepper. The migration job deliberately receives neither `ParentAccess__Enabled` nor the pepper.
 
 ## DNS and managed TLS
 
@@ -64,6 +66,8 @@ GitHub issues immutable OIDC subjects for this repository. Azure must trust the 
 The workflow pins Azure Container Apps CLI extension `1.3.0b4` because the required job commands are currently delivered through that preview extension. Review and deliberately update the pin when Azure publishes a suitable stable version.
 
 For an application rollback, reactivate a healthy previous Container Apps revision or redeploy its prior digest. Database migrations are forward-only: use a forward fix when possible. If a migration irreversibly damages data, restore PostgreSQL point-in-time backup to a new server, validate it, then redirect the application through a reviewed infrastructure update. Never overwrite the original server during a restore drill.
+
+After any session has been activated as a shared display, do not roll the API back to pre-Increment-6 code: that code does not enforce the parent-PIN policy. Revoke every shared session first, or use a forward fix. The additive schema itself remains compatible with the previous API.
 
 ## Backup and recovery
 

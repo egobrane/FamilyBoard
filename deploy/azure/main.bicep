@@ -29,6 +29,9 @@ param enableGoogleAuthentication bool = false
 @description('Public Google OAuth client ID. The client secret remains in Key Vault.')
 param googleClientId string = ''
 
+@description('Enable only after parent-access-pepper-v1 exists in Key Vault.')
+param enableParentAccess bool = false
+
 @description('Exact immutable GitHub Actions OIDC subject for the protected staging environment.')
 param githubOidcSubject string
 
@@ -101,6 +104,8 @@ module containerApps 'modules/container-apps.bicep' = {
     enableGoogleAuthentication: enableGoogleAuthentication
     googleClientId: googleClientId
     googleClientSecretUri: authenticationSecurity.outputs.googleClientSecretUri
+    enableParentAccess: enableParentAccess
+    parentAccessPepperSecretUri: authenticationSecurity.outputs.parentAccessPepperSecretUri
     runtimeIdentityId: authenticationSecurity.outputs.runtimeIdentityId
     runtimeIdentityClientId: authenticationSecurity.outputs.runtimeIdentityClientId
     dataProtectionBlobUri: authenticationSecurity.outputs.dataProtectionBlobUri

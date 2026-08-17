@@ -32,6 +32,7 @@ interface AuthenticationContextValue {
   createHousehold: (request: CreateHouseholdRequest) => Promise<void>
   selectHousehold: (householdId: string) => Promise<void>
   logout: () => Promise<void>
+  refreshSession: () => Promise<void>
 }
 
 const AuthenticationContext = createContext<AuthenticationContextValue | null>(null)
@@ -136,6 +137,7 @@ export function AuthenticationProvider({ children }: { children: ReactNode }) {
     createHousehold,
     selectHousehold,
     logout,
+    refreshSession: () => load(false),
   }), [createHousehold, isMutating, load, logout, selectHousehold, state])
 
   return (

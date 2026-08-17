@@ -26,6 +26,17 @@ public static class ApiProblemCodes
     public const string InvitationEmailMismatch = "invitation_email_mismatch";
     public const string InvitationOriginNotAllowed = "invitation_origin_not_allowed";
     public const string InvitationConflict = "invitation_conflict";
+    public const string ParentAccessUnavailable = "parent_access_unavailable";
+    public const string ParentElevationRequired = "parent_elevation_required";
+    public const string ParentPinNotConfigured = "parent_pin_not_configured";
+    public const string ParentPinAlreadyConfigured = "parent_pin_already_configured";
+    public const string ParentPinInvalid = "parent_pin_invalid";
+    public const string ParentPinLocked = "parent_pin_locked";
+    public const string ParentPinRateLimited = "parent_pin_rate_limited";
+    public const string RecentAuthenticationRequired = "recent_authentication_required";
+    public const string PrivateSessionRequired = "private_session_required";
+    public const string SharedDisplayRequiresPin = "shared_display_requires_pin";
+    public const string ParentAccessConflict = "parent_access_conflict";
     public const string UnexpectedError = "unexpected_error";
 }
 

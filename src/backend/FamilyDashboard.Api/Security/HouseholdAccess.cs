@@ -20,4 +20,5 @@ public static class HouseholdAuthorizationPolicies
 {
     public const string Member = "HouseholdMember";
     public const string Adult = "HouseholdAdult";
+    public const string Administration = "HouseholdAdministration";
 }

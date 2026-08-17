@@ -30,6 +30,11 @@ spec:
                 secretKeyRef:
                   name: family-dashboard-secrets
                   key: connection-string
+            - name: ParentAccess__Pepper
+              valueFrom:
+                secretKeyRef:
+                  name: family-dashboard-secrets
+                  key: parent-access-pepper
           ports:
             - name: http
               containerPort: 8080

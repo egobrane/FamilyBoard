@@ -211,6 +211,55 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.ToTable("Households", (string)null);
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.HouseholdAccessPin", b =>
+                {
+                    b.Property<Guid>("HouseholdId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ChangedByUserAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<short>("HashVersion")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("PepperVersion")
+                        .HasColumnType("smallint");
+
+                    b.Property<byte[]>("PinHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<byte[]>("Salt")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("WorkFactor")
+                        .HasColumnType("integer");
+
+                    b.HasKey("HouseholdId");
+
+                    b.HasIndex("ChangedByUserAccountId");
+
+                    b.ToTable("HouseholdAccessPins", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_HouseholdAccessPins_ChangedAfterCreated", "\"ChangedAt\" >= \"CreatedAt\"");
+
+                            t.HasCheckConstraint("CK_HouseholdAccessPins_HashLength", "octet_length(\"PinHash\") = 32");
+
+                            t.HasCheckConstraint("CK_HouseholdAccessPins_SaltLength", "octet_length(\"Salt\") = 16");
+
+                            t.HasCheckConstraint("CK_HouseholdAccessPins_Versions", "\"HashVersion\" > 0 AND \"PepperVersion\" > 0 AND \"WorkFactor\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.HouseholdConfiguration", b =>
                 {
                     b.Property<Guid>("HouseholdId")
@@ -391,6 +440,54 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.ToTable("HouseholdMemberships", (string)null);
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.ParentAccessAuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CooldownUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("HouseholdId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("UserAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserSessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserAccountId");
+
+                    b.HasIndex("HouseholdId", "OccurredAt");
+
+                    b.HasIndex("UserSessionId", "OccurredAt");
+
+                    b.ToTable("ParentAccessAuditEvents", (string)null);
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Identity.ExternalIdentity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -483,6 +580,9 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Property<DateTimeOffset?>("AdministrativeElevationExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("AdministrativeElevationHouseholdId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -501,6 +601,15 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Property<DateTimeOffset>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("ParentAccessFailedAttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ParentAccessFailureWindowStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ParentAccessLockedUntil")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -514,6 +623,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
 
                     b.HasIndex("AbsoluteExpiresAt");
 
+                    b.HasIndex("UserAccountId", "AdministrativeElevationHouseholdId");
+
                     b.HasIndex("UserAccountId", "SelectedHouseholdId");
 
                     b.HasIndex("UserAccountId", "RevokedAt", "ExpiresAt");
@@ -522,7 +633,11 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_UserSessions_AbsoluteExpiration", "\"AbsoluteExpiresAt\" >= \"ExpiresAt\"");
 
+                            t.HasCheckConstraint("CK_UserSessions_AdministrativeElevation", "(\"AdministrativeElevationHouseholdId\" IS NULL AND \"AdministrativeElevationExpiresAt\" IS NULL) OR (\"AdministrativeElevationHouseholdId\" IS NOT NULL AND \"AdministrativeElevationExpiresAt\" IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_UserSessions_ExpiresAfterCreation", "\"ExpiresAt\" > \"CreatedAt\"");
+
+                            t.HasCheckConstraint("CK_UserSessions_ParentAccessFailures", "\"ParentAccessFailedAttemptCount\" >= 0");
                         });
                 });
 
@@ -747,6 +862,25 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Navigation("HouseholdMember");
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.HouseholdAccessPin", b =>
+                {
+                    b.HasOne("FamilyDashboard.Api.Domain.Identity.UserAccount", "ChangedByUserAccount")
+                        .WithMany("ChangedHouseholdAccessPins")
+                        .HasForeignKey("ChangedByUserAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.Household", "Household")
+                        .WithOne("AccessPin")
+                        .HasForeignKey("FamilyDashboard.Api.Domain.Households.HouseholdAccessPin", "HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUserAccount");
+
+                    b.Navigation("Household");
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.HouseholdConfiguration", b =>
                 {
                     b.HasOne("FamilyDashboard.Api.Domain.Households.Household", "Household")
@@ -830,6 +964,33 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Navigation("UserAccount");
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.ParentAccessAuditEvent", b =>
+                {
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.Household", "Household")
+                        .WithMany("ParentAccessAuditEvents")
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Identity.UserAccount", "UserAccount")
+                        .WithMany("ParentAccessAuditEvents")
+                        .HasForeignKey("UserAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Identity.UserSession", "UserSession")
+                        .WithMany("ParentAccessAuditEvents")
+                        .HasForeignKey("UserSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+
+                    b.Navigation("UserAccount");
+
+                    b.Navigation("UserSession");
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Identity.ExternalIdentity", b =>
                 {
                     b.HasOne("FamilyDashboard.Api.Domain.Identity.UserAccount", "UserAccount")
@@ -849,10 +1010,17 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.HouseholdMembership", "AdministrativeElevationHouseholdMembership")
+                        .WithMany()
+                        .HasForeignKey("UserAccountId", "AdministrativeElevationHouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("FamilyDashboard.Api.Domain.Households.HouseholdMembership", "SelectedHouseholdMembership")
                         .WithMany()
                         .HasForeignKey("UserAccountId", "SelectedHouseholdId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AdministrativeElevationHouseholdMembership");
 
                     b.Navigation("SelectedHouseholdMembership");
 
@@ -946,6 +1114,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
 
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Households.Household", b =>
                 {
+                    b.Navigation("AccessPin");
+
                     b.Navigation("ChoreDefinitions");
 
                     b.Navigation("Configuration");
@@ -955,6 +1125,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Navigation("Members");
 
                     b.Navigation("Memberships");
+
+                    b.Navigation("ParentAccessAuditEvents");
 
                     b.Navigation("Preferences");
 
@@ -978,15 +1150,24 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                 {
                     b.Navigation("AcceptedHouseholdInvitations");
 
+                    b.Navigation("ChangedHouseholdAccessPins");
+
                     b.Navigation("CreatedHouseholdInvitations");
 
                     b.Navigation("ExternalIdentities");
 
                     b.Navigation("HouseholdMemberships");
 
+                    b.Navigation("ParentAccessAuditEvents");
+
                     b.Navigation("RevokedHouseholdInvitations");
 
                     b.Navigation("UserSessions");
+                });
+
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Identity.UserSession", b =>
+                {
+                    b.Navigation("ParentAccessAuditEvents");
                 });
 
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.Reward", b =>

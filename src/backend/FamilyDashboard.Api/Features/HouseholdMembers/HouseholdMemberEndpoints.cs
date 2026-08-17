@@ -36,7 +36,7 @@ public static class HouseholdMemberEndpoints
             authorizationService,
             householdService,
             householdId,
-            requireAdult: false,
+            requireAdult: true,
             cancellationToken);
         if (authorizationFailure is not null)
         {
@@ -177,6 +177,17 @@ public static class HouseholdMemberEndpoints
             if (!adultAccess)
             {
                 return HouseholdEndpoints.AdultAccessRequired(context);
+            }
+
+            var administrationAccess = await HouseholdEndpoints.HasAccessAsync(
+                context,
+                authorizationService,
+                householdId,
+                HouseholdAuthorizationPolicies.Administration,
+                cancellationToken);
+            if (!administrationAccess)
+            {
+                return ParentAccess.ParentAccessEndpoints.ParentElevationRequired(context);
             }
         }
 

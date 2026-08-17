@@ -16,7 +16,7 @@ function userResponse(authenticated = true) {
     user: { id: '10000000-0000-0000-0000-000000000001', displayName: 'Ryan', primaryEmail: 'ryan@example.test' },
     households: [{ id: householdId, name: 'Test Family', memberId: '30000000-0000-0000-0000-000000000001', role: 'adult' }],
     selectedHouseholdId: householdId,
-    session: { expiresAt: '2026-08-28T20:05:38Z', isSharedDisplay: false, administrativeElevationExpiresAt: null },
+    session: { expiresAt: '2026-08-28T20:05:38Z', isSharedDisplay: false, deviceLabel: null, administrativeElevationHouseholdId: null, administrativeElevationExpiresAt: null },
   } : { title: 'Authentication is required.', status: 401, code: 'authentication_required' }
 }
 

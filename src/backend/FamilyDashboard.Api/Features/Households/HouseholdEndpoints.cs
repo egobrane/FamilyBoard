@@ -60,6 +60,14 @@ public static class HouseholdEndpoints
         }
 
         var session = await sessionService.FindCurrentForUpdateAsync(context.User, cancellationToken);
+        if (session?.IsSharedDisplay == true)
+        {
+            return Results.Problem(ApiProblems.Create(
+                context,
+                StatusCodes.Status403Forbidden,
+                ApiProblemCodes.PrivateSessionRequired,
+                "Use a private adult session to create a household."));
+        }
         var response = await householdService.CreateAsync(
             account,
             values!,
@@ -89,6 +97,26 @@ public static class HouseholdEndpoints
                 cancellationToken))
         {
             return HouseholdNotFound(context);
+        }
+
+        if (!await HasAccessAsync(
+                context,
+                authorizationService,
+                householdId,
+                HouseholdAuthorizationPolicies.Adult,
+                cancellationToken))
+        {
+            return AdultAccessRequired(context);
+        }
+
+        if (!await HasAccessAsync(
+                context,
+                authorizationService,
+                householdId,
+                HouseholdAuthorizationPolicies.Administration,
+                cancellationToken))
+        {
+            return ParentAccess.ParentAccessEndpoints.ParentElevationRequired(context);
         }
 
         var response = await householdService.GetAsync(
@@ -130,6 +158,16 @@ public static class HouseholdEndpoints
                 cancellationToken))
         {
             return AdultAccessRequired(context);
+        }
+
+        if (!await HasAccessAsync(
+                context,
+                authorizationService,
+                householdId,
+                HouseholdAuthorizationPolicies.Administration,
+                cancellationToken))
+        {
+            return ParentAccess.ParentAccessEndpoints.ParentElevationRequired(context);
         }
 
         if (!HouseholdValidation.TryValidate(request, out var patch, out var errors))

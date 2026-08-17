@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useParams } from 'react-router'
 import { useAuthentication } from '../authentication/AuthenticationContext'
+import { ParentAccessGate } from '../parent-access/ParentAccessGate'
 
 export function HouseholdAdminLayout() {
   const { householdId } = useParams()
@@ -78,9 +79,10 @@ export function HouseholdAdminLayout() {
             <NavLink to={`${basePath}/settings`}>Settings</NavLink>
             <NavLink to={`${basePath}/members`}>Members</NavLink>
             <NavLink to={`${basePath}/invitations`}>Invitations</NavLink>
+            <NavLink to={`${basePath}/parent-access`}>Parent access</NavLink>
           </nav>
         </header>
-        <Outlet />
+        <ParentAccessGate householdId={household.id}><Outlet /></ParentAccessGate>
       </div>
     </main>
   )

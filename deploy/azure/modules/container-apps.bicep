@@ -14,6 +14,8 @@ param enableCustomDomain bool
 param enableGoogleAuthentication bool
 param googleClientId string
 param googleClientSecretUri string
+param enableParentAccess bool
+param parentAccessPepperSecretUri string
 param runtimeIdentityId string
 param runtimeIdentityClientId string
 param dataProtectionBlobUri string
@@ -98,6 +100,12 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             keyVaultUrl: googleClientSecretUri
             identity: runtimeIdentityId
           }
+        ] : [], enableParentAccess ? [
+          {
+            name: 'parent-access-pepper'
+            keyVaultUrl: parentAccessPepperSecretUri
+            identity: runtimeIdentityId
+          }
         ] : [])
     }
     template: {
@@ -166,6 +174,15 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'Authentication__Google__ClientSecret'
               secretRef: 'google-client-secret'
+            }
+          ] : [], enableParentAccess ? [
+            {
+              name: 'ParentAccess__Enabled'
+              value: 'true'
+            }
+            {
+              name: 'ParentAccess__Pepper'
+              secretRef: 'parent-access-pepper'
             }
           ] : [])
           probes: [

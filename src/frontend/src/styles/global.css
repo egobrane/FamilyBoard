@@ -2,6 +2,64 @@
   box-sizing: border-box;
 }
 
+.shared-display-badge {
+  align-self: flex-start;
+  border-radius: 999px;
+  background: #fff1bf;
+  color: #583f00;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.35rem 0.65rem;
+}
+
+.parent-pin-panel,
+.parent-access-settings {
+  max-width: 38rem;
+}
+
+.parent-pin-panel form,
+.parent-access-settings form {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.25rem;
+}
+
+.parent-pin-panel input,
+.parent-access-settings input {
+  border: 2px solid var(--color-border, #ccd5cf);
+  border-radius: 0.8rem;
+  font: inherit;
+  font-size: 1.35rem;
+  min-height: 3.2rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(4.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.pin-keypad button {
+  min-height: 3.5rem;
+  border-radius: 0.8rem;
+  font: inherit;
+  font-weight: 800;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+@media (max-width: 600px) {
+  .pin-keypad {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 html {
   min-width: 20rem;
   min-height: 100%;

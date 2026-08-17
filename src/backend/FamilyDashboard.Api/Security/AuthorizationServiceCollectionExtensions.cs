@@ -20,11 +20,19 @@ public static class AuthorizationServiceCollectionExtensions
                 policy.RequireAuthenticatedUser();
                 policy.AddRequirements(new HouseholdAccessRequirement(HouseholdAccessLevel.Adult));
             });
+
+            options.AddPolicy(HouseholdAuthorizationPolicies.Administration, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.AddRequirements(new HouseholdAdministrationRequirement());
+            });
         });
 
         services.TryAddScoped<IHouseholdAccessEvaluator, EfHouseholdAccessEvaluator>();
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAuthorizationHandler, HouseholdAuthorizationHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IAuthorizationHandler, HouseholdAdministrationAuthorizationHandler>());
         return services;
     }
 }

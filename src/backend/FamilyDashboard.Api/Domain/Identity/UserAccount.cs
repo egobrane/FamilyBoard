@@ -17,4 +17,6 @@ public sealed class UserAccount
     public ICollection<HouseholdInvitation> CreatedHouseholdInvitations { get; set; } = [];
     public ICollection<HouseholdInvitation> AcceptedHouseholdInvitations { get; set; } = [];
     public ICollection<HouseholdInvitation> RevokedHouseholdInvitations { get; set; } = [];
+    public ICollection<HouseholdAccessPin> ChangedHouseholdAccessPins { get; set; } = [];
+    public ICollection<ParentAccessAuditEvent> ParentAccessAuditEvents { get; set; } = [];
 }

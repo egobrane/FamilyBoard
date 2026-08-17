@@ -13,10 +13,12 @@ import { HouseholdAdminLayout } from '../features/household-admin/HouseholdAdmin
 import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembersPage'
 import { HouseholdSettingsPage } from '../features/household-admin/HouseholdSettingsPage'
 import { HouseholdInvitationsPage } from '../features/invitations/HouseholdInvitationsPage'
+import { ParentAccessPage } from '../features/parent-access/ParentAccessPage'
 import { InvitationLandingPage } from '../features/invitations/InvitationLandingPage'
 import { HouseholdSelectionPage } from '../features/households/HouseholdSelectionPage'
 import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
 import { configuration } from '../lib/configuration'
+import { lockParentAccess } from '../lib/api'
 
 function formattedTime(date: Date) {
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
@@ -55,7 +57,7 @@ function StatusPage({ state, onRetry }: { state: AuthenticationState; onRetry: (
 }
 
 function HouseholdShell() {
-  const { state, isMutating, logout } = useAuthentication()
+  const { state, isMutating, logout, refreshSession } = useAuthentication()
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -73,6 +75,10 @@ function HouseholdShell() {
   if (!household) {
     return <Navigate replace to="/households/select" />
   }
+  const session = state.currentUser.session
+  const isParentElevated = session?.administrativeElevationHouseholdId === household.id
+    && session.administrativeElevationExpiresAt !== null
+    && new Date(session.administrativeElevationExpiresAt).getTime() > now.getTime()
 
   return (
     <div className="app-shell">
@@ -88,7 +94,16 @@ function HouseholdShell() {
             householdSettingsPath={household.role === 'adult'
               ? `/households/${household.id}/settings`
               : undefined}
+            parentAccessPath={household.role === 'adult'
+              ? `/households/${household.id}/parent-access`
+              : undefined}
+            isParentElevated={isParentElevated}
+            isSharedDisplay={session?.isSharedDisplay === true}
             isBusy={isMutating}
+            onLockParentAccess={async () => {
+              await lockParentAccess(household.id)
+              await refreshSession()
+            }}
             onLogout={logout}
           />
         </div>
@@ -139,6 +154,7 @@ function AuthenticatedRoutes() {
           <Route element={<HouseholdSettingsPage />} path="settings" />
           <Route element={<HouseholdMembersPage />} path="members" />
           <Route element={<HouseholdInvitationsPage />} path="invitations" />
+          <Route element={<ParentAccessPage />} path="parent-access" />
           <Route element={<Navigate replace to="settings" />} index />
         </Route>
       </Route>

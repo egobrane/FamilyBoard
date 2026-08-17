@@ -14,6 +14,8 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<HouseholdMember> HouseholdMembers => Set<HouseholdMember>();
     public DbSet<HouseholdMembership> HouseholdMemberships => Set<HouseholdMembership>();
     public DbSet<HouseholdInvitation> HouseholdInvitations => Set<HouseholdInvitation>();
+    public DbSet<HouseholdAccessPin> HouseholdAccessPins => Set<HouseholdAccessPin>();
+    public DbSet<ParentAccessAuditEvent> ParentAccessAuditEvents => Set<ParentAccessAuditEvent>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();

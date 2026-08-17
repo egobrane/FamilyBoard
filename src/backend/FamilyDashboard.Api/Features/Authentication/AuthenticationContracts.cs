@@ -16,6 +16,8 @@ public sealed record UserAccountResponse(
 public sealed record CurrentSessionResponse(
     DateTimeOffset ExpiresAt,
     bool IsSharedDisplay,
+    string? DeviceLabel,
+    Guid? AdministrativeElevationHouseholdId,
     DateTimeOffset? AdministrativeElevationExpiresAt);
 
 public sealed record AntiforgeryTokenResponse(

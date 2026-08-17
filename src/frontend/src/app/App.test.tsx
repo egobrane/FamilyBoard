@@ -30,6 +30,8 @@ function currentUser(overrides: Partial<CurrentUser> = {}): CurrentUser {
     session: {
       expiresAt: '2026-08-28T20:05:38Z',
       isSharedDisplay: false,
+      deviceLabel: null,
+      administrativeElevationHouseholdId: null,
       administrativeElevationExpiresAt: null,
     },
     ...overrides,

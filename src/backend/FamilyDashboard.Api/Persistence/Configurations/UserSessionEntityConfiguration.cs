@@ -12,6 +12,10 @@ public sealed class UserSessionEntityConfiguration : IEntityTypeConfiguration<Us
         {
             table.HasCheckConstraint("CK_UserSessions_ExpiresAfterCreation", "\"ExpiresAt\" > \"CreatedAt\"");
             table.HasCheckConstraint("CK_UserSessions_AbsoluteExpiration", "\"AbsoluteExpiresAt\" >= \"ExpiresAt\"");
+            table.HasCheckConstraint("CK_UserSessions_ParentAccessFailures", "\"ParentAccessFailedAttemptCount\" >= 0");
+            table.HasCheckConstraint(
+                "CK_UserSessions_AdministrativeElevation",
+                "(\"AdministrativeElevationHouseholdId\" IS NULL AND \"AdministrativeElevationExpiresAt\" IS NULL) OR (\"AdministrativeElevationHouseholdId\" IS NOT NULL AND \"AdministrativeElevationExpiresAt\" IS NOT NULL)");
         });
         builder.HasKey(session => session.Id);
         builder.Property(session => session.DeviceLabel).HasMaxLength(80);
@@ -28,6 +32,19 @@ public sealed class UserSessionEntityConfiguration : IEntityTypeConfiguration<Us
             {
                 session.UserAccountId,
                 session.SelectedHouseholdId,
+            })
+            .HasPrincipalKey(membership => new
+            {
+                membership.UserAccountId,
+                membership.HouseholdId,
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(session => session.AdministrativeElevationHouseholdMembership)
+            .WithMany()
+            .HasForeignKey(session => new
+            {
+                session.UserAccountId,
+                session.AdministrativeElevationHouseholdId,
             })
             .HasPrincipalKey(membership => new
             {

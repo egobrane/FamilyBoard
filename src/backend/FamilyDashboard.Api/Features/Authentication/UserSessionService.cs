@@ -150,6 +150,8 @@ public sealed class UserSessionService(
         }
 
         session.SelectedHouseholdId = householdId;
+        session.AdministrativeElevationHouseholdId = null;
+        session.AdministrativeElevationExpiresAt = null;
         await dbContext.SaveChangesAsync(cancellationToken);
         return new HouseholdSelectionResult(
             HouseholdSelectionStatus.Success,
@@ -176,6 +178,10 @@ public sealed class UserSessionService(
 
         session.RevokedAt = timeProvider.GetUtcNow();
         session.AdministrativeElevationExpiresAt = null;
+        session.AdministrativeElevationHouseholdId = null;
+        session.ParentAccessFailedAttemptCount = 0;
+        session.ParentAccessFailureWindowStartedAt = null;
+        session.ParentAccessLockedUntil = null;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

@@ -13,7 +13,7 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 - Google returns only to `https://api.egobrane.net/api/auth/callback/google` in staging.
 - The backend accepts only `openid profile email`, identifies accounts by Google `sub`, requires verified email, and does not request offline access.
 - Provider access tokens, refresh tokens, and authorization codes are never stored in the application database, application cookie, frontend bundle, or browser storage.
-- `UserSession` provides rolling idle expiration, a hard absolute expiration, last-seen throttling, revocation, shared-display state, and the reserved administrative-elevation expiry.
+- `UserSession` provides rolling idle expiration, a hard absolute expiration, last-seen throttling, revocation, shared-display state, household-scoped administrative elevation, and per-session parent-PIN cooldown state.
 - `PUT /api/auth/session/household` stores the selected active membership on the current `UserSession`; a composite database constraint prevents selecting a household owned only by another account.
 - `__Host-FamilyDashboard.Session` is host-only, `Secure`, `HttpOnly`, `Path=/`, and `SameSite=Lax`.
 - Unsafe cookie-authenticated requests require the synchronized `X-CSRF-TOKEN` antiforgery header.
@@ -36,7 +36,17 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 
 Netlify Deploy Preview origins are dynamic. Before authenticated previews are enabled, define whether they use a dedicated non-production backend, an explicit per-preview allowlist, or no authenticated API access. Broad wildcard credentialed CORS is not acceptable.
 
-Calendar/Tasks token storage, the exact parent-PIN protection parameters, and any future separately provisioned wall-display credential remain separate approval decisions. Azure Data Protection keys are persisted in private Blob Storage and wrapped by a versionless Key Vault key using the API runtime managed identity.
+Calendar/Tasks token storage and any future separately provisioned wall-display credential remain separate approval decisions. Azure Data Protection keys are persisted in private Blob Storage and wrapped by a versionless Key Vault key using the API runtime managed identity.
+
+## Shared-display parent access
+
+- Ordinary private adult sessions satisfy the household-administration policy through Google-backed application authentication. Shared-display sessions must additionally hold an unexpired five-minute elevation for the target household.
+- PIN setup and recovery require a private application session created by Google sign-in within the preceding ten minutes. Replacing an existing PIN requires current elevation. A forgotten PIN is recovered by signing out, signing in again on a private device, and choosing a new PIN.
+- A PIN contains exactly six digits. The backend HMACs it with a Key Vault-backed 32-byte pepper, then applies PBKDF2-HMAC-SHA-256 with a unique 16-byte salt and a 600,000-iteration default. PostgreSQL stores only the derived hash, salt, version, work factor, and actor/timestamps.
+- Five failed attempts in ten minutes place only that session into a 15-minute cooldown. The ASP.NET request limiter also bounds expensive verification work per session and household. Responses remain generic and cooldown responses include `Retry-After`.
+- Selecting another household, explicit lock, timeout, logout, session revocation, account disablement, PIN replacement, or recovery removes applicable elevation. Replacing or recovering a PIN clears other sessions' elevation but does not silently sign shared displays out.
+- Parent-access audit events include identifiers, event type, outcome, time, trace identifier, and optional cooldown expiry. They never contain PINs, hashes, salts, peppers, cookie values, antiforgery tokens, or request bodies.
+- Household settings, member administration, and invitation administration enforce the policy at the API. Bootstrap and invitation acceptance require a private session. The current routine allowlist consists of dashboard access, household selection, antiforgery retrieval, and logout; later chore and Calendar endpoints must be classified explicitly.
 
 ## Staging activation handoff
 

@@ -137,6 +137,7 @@ public static class InvitationEndpoints
         HttpContext context,
         InvitationService service,
         PendingInvitationCookieService cookieService,
+        UserSessionService sessionService,
         CancellationToken cancellationToken)
     {
         if (!cookieService.TryRead(context.Request, out var invitationId))
@@ -144,6 +145,11 @@ public static class InvitationEndpoints
         if (!context.User.TryGetUserAccountId(out var userAccountId)
             || !context.User.TryGetUserSessionId(out var sessionId))
             return HouseholdEndpoints.AccountUnavailable(context);
+        var session = await sessionService.FindCurrentAsync(context.User, cancellationToken);
+        if (session?.IsSharedDisplay == true)
+            return Problem(
+                context, 403, ApiProblemCodes.PrivateSessionRequired,
+                "Use a private adult session to accept an invitation.");
 
         var result = await service.AcceptAsync(
             invitationId, userAccountId, sessionId, cancellationToken);
@@ -184,6 +190,10 @@ public static class InvitationEndpoints
                 context, authorizationService, householdId,
                 HouseholdAuthorizationPolicies.Adult, cancellationToken))
             return HouseholdEndpoints.AdultAccessRequired(context);
+        if (!await HouseholdEndpoints.HasAccessAsync(
+                context, authorizationService, householdId,
+                HouseholdAuthorizationPolicies.Administration, cancellationToken))
+            return ParentAccess.ParentAccessEndpoints.ParentElevationRequired(context);
         return null;
     }
 

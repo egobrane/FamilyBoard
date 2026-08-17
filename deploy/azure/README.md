@@ -65,6 +65,21 @@ unset FAMILY_DASHBOARD_GOOGLE_CLIENT_SECRET
 
 Run that deployment only after creating the Google web OAuth client. Secret rotation uses the same exact deployment and creates a new Key Vault secret version. The main template references the versionless secret URI, so no application configuration change is required for rotation; roll out a new API revision to force a fresh secret resolution.
 
+Before enabling Increment 6, generate and save a random 32-byte parent-access pepper without printing it or placing it in shell history. Seed it as the separately named `parent-access-pepper-v1` secret through Azure Resource Manager, then unset the variable:
+
+```sh
+export FAMILY_DASHBOARD_PARENT_ACCESS_PEPPER="$(openssl rand -base64 32)"
+az deployment group create \
+  --name family-dashboard-staging-parent-access-secret \
+  --subscription b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8 \
+  --resource-group ryan-dev \
+  --mode Incremental \
+  --parameters deploy/azure/parent-access-secret.bicepparam
+unset FAMILY_DASHBOARD_PARENT_ACCESS_PEPPER
+```
+
+The generated value should also be retained in the owner's password manager for disaster recovery. Do not rotate or overwrite `parent-access-pepper-v1`: existing hashes cannot be verified after a pepper is lost. A future rotation uses a new versioned secret name and a reviewed reset or dual-pepper transition.
+
 The initial deployment leaves the custom API domain disabled. Record the `apiDefaultHostname`, `customDomainVerificationId`, `githubClientId`, `tenantId`, and `subscriptionId` outputs.
 
 Next create these DNS records with the DNS provider:

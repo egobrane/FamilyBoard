@@ -54,6 +54,56 @@ export interface ParentAccessState {
   lockedUntil: string | null
 }
 
+export interface CalendarConnectionResponse {
+  isAvailable: boolean
+  connectionId: string | null
+  status: 'connected' | 'reauthorizationRequired' | 'disconnected'
+  providerEmail: string | null
+  connectedAt: string | null
+  canManageConnection: boolean
+  activeSourceCount: number
+}
+
+export interface ProviderCalendarResponse {
+  id: string
+  name: string
+  timeZone: string | null
+  color: string | null
+  isPrimary: boolean
+  isSelected: boolean
+}
+
+export interface CalendarSourceResponse {
+  id: string
+  connectionId: string
+  externalCalendarId: string
+  name: string
+  timeZone: string | null
+  color: string | null
+  isActive: boolean
+  isOwnedByCurrentAdult: boolean
+}
+
+export interface CalendarEventResponse {
+  id: string
+  sourceId: string
+  calendarName: string
+  title: string
+  isAllDay: boolean
+  start: string
+  end: string
+  timeZone: string | null
+  location: string | null
+  color: string | null
+}
+
+export interface CalendarEventsResponse {
+  events: CalendarEventResponse[]
+  nextCursor: string | null
+  isStale: boolean
+  warnings: { sourceId: string; code: string; message: string }[]
+}
+
 export type CurrentSession = NonNullable<CurrentUser['session']>
 
 export interface CreateHouseholdRequest {
@@ -333,6 +383,65 @@ export function updateSharedDisplay(
     isSharedDisplay,
     deviceLabel,
   })
+}
+
+export function getCalendarConnection(householdId: string) {
+  return request<CalendarConnectionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/connection`,
+  )
+}
+
+export function beginCalendarAuthorization(householdId: string, returnPath: string) {
+  return unsafeRequest<{ authorizationUrl: string; expiresAt: string }>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/authorization`,
+    'POST',
+    { returnPath },
+  )
+}
+
+export function listProviderCalendars(householdId: string) {
+  return request<ProviderCalendarResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/provider-calendars`,
+  )
+}
+
+export function listCalendarSources(householdId: string) {
+  return request<CalendarSourceResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/sources`,
+  )
+}
+
+export function updateCalendarSources(
+  householdId: string,
+  connectionId: string,
+  externalCalendarIds: string[],
+) {
+  return unsafeRequest<CalendarSourceResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/sources`,
+    'PUT',
+    { connectionId, externalCalendarIds },
+  )
+}
+
+export function disconnectCalendar(householdId: string, connectionId: string) {
+  return unsafeRequest<void>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/disconnect`,
+    'POST',
+    { connectionId, confirmGlobalDisconnect: true },
+  )
+}
+
+export function listCalendarEvents(
+  householdId: string,
+  from: string,
+  to: string,
+  cursor?: string,
+) {
+  const parameters = new URLSearchParams({ from, to })
+  if (cursor) parameters.set('cursor', cursor)
+  return request<CalendarEventsResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/events?${parameters.toString()}`,
+  )
 }
 
 export function googleLoginUrl(returnUrl = '/', chooseAccount = false) {

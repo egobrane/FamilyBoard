@@ -1,4 +1,5 @@
 using FamilyDashboard.Api.Domain.Chores;
+using FamilyDashboard.Api.Domain.Integrations;
 using FamilyDashboard.Api.Domain.Rewards;
 
 namespace FamilyDashboard.Api.Domain.Households;
@@ -15,6 +16,7 @@ public sealed class Household
     public ICollection<HouseholdMember> Members { get; set; } = [];
     public ICollection<HouseholdMembership> Memberships { get; set; } = [];
     public ICollection<HouseholdInvitation> Invitations { get; set; } = [];
+    public ICollection<HouseholdCalendarSource> CalendarSources { get; set; } = [];
     public HouseholdAccessPin? AccessPin { get; set; }
     public ICollection<ParentAccessAuditEvent> ParentAccessAuditEvents { get; set; } = [];
     public ICollection<ApplicationPreference> Preferences { get; set; } = [];

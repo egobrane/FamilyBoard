@@ -41,8 +41,17 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `ParentAccess__MaximumFailures` | Public policy | Failures before cooldown; default five |
 | `ParentAccess__FailureWindow` | Public policy | Failed-attempt window; default ten minutes |
 | `ParentAccess__LockoutLifetime` | Public policy | Per-session cooldown; default 15 minutes |
+| `GoogleCalendar__Enabled` | Public configuration | Explicit read-only Calendar feature gate; disabled by default |
+| `GoogleCalendar__ClientId` | Public identifier | Separate Calendar OAuth web client ID |
+| `GoogleCalendar__ClientSecret` | Secret | Separate Calendar OAuth client secret; backend only |
+| `GoogleCalendar__CallbackUrl` | Public configuration | Exact backend Calendar OAuth callback URL |
+| `GoogleCalendar__AuthorizationLifetime` | Public policy | Protected OAuth state lifetime; default ten minutes |
+| `GoogleCalendar__FreshCacheLifetime` | Public policy | Fresh in-memory event-cache lifetime; default two minutes |
+| `GoogleCalendar__StaleCacheLifetime` | Public policy | Maximum stale fallback lifetime; default fifteen minutes |
+| `GoogleCalendar__MaximumCalendarsPerHousehold` | Public policy | Source-selection limit; default 25 |
+| `GoogleCalendar__MaximumEventsPerRequest` | Public policy | Normalized event cap; default 1,000 |
 
-Future OAuth client secrets, token-encryption keys, and signing keys belong only in backend runtime secret storage.
+Calendar OAuth access and refresh tokens are encrypted by the existing persisted Data Protection key ring before PostgreSQL storage. The separate Calendar client secret and all future signing keys belong only in backend runtime secret storage.
 
 ## Storage by environment
 

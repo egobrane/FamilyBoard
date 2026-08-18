@@ -27,7 +27,7 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 - Authentication identities are separate from household-member profiles. A child profile may have no login.
 - Google OAuth uses authorization-code flow through the backend.
 - OAuth client secrets and Google refresh tokens never reach browser JavaScript.
-- Google login and future Calendar authorization remain separate. Future Calendar refresh tokens require a separately reviewed encrypted store.
+- Google login and Calendar authorization remain separate clients and flows. Calendar authorization requests offline access and read-only Calendar scopes only; its refresh token is purpose-protected with the persisted Azure Data Protection key ring before PostgreSQL storage.
 - The backend enforces household membership and action-level authorization on every protected endpoint.
 - Frontend route guards are usability features, not security controls.
 - Secure, HTTP-only cookies are preferred for browser sessions.
@@ -36,7 +36,7 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 
 Netlify Deploy Preview origins are dynamic. Before authenticated previews are enabled, define whether they use a dedicated non-production backend, an explicit per-preview allowlist, or no authenticated API access. Broad wildcard credentialed CORS is not acceptable.
 
-Calendar/Tasks token storage and any future separately provisioned wall-display credential remain separate approval decisions. Azure Data Protection keys are persisted in private Blob Storage and wrapped by a versionless Key Vault key using the API runtime managed identity.
+Google Tasks token storage and any future separately provisioned wall-display credential remain separate approval decisions. Azure Data Protection keys are persisted in private Blob Storage and wrapped by a versionless Key Vault key using the API runtime managed identity.
 
 ## Shared-display parent access
 
@@ -63,3 +63,5 @@ The Google client and secret are external prerequisites and cannot be generated 
 Google sign-in was activated and verified on 2026-08-14. Azure Container Apps terminates public TLS before forwarding requests to Kestrel, so the API container sets `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`; this preserves the original HTTPS scheme when ASP.NET Core constructs the Google callback URL. The Container App is the only public path to the target port, which is the trust boundary for forwarded headers.
 
 The live OAuth challenge uses the exact callback `https://api.egobrane.net/api/auth/callback/google`, requests only `openid`, `email`, and `profile`, uses `response_type=code`, and does not request offline access. A real first-time sign-in created the application account and database-backed session, redirected to `https://family.egobrane.net/`, and returned the authenticated account through `/api/auth/me`. The same session remained valid after traffic moved to a functionally identical API revision, proving that persisted Azure Data Protection keys support cross-revision cookie continuity. A live antiforgery-protected logout returned `204`, the revoked session then received `401` from `/api/auth/me`, and a subsequent Google sign-in succeeded.
+
+Shared-display parent access was activated and verified in staging on 2026-08-18. The API reads `parent-access-pepper-v1` through its existing Key Vault reference; neither the migration job nor frontend receives it. Setup, replacement, recovery, failed-attempt cooldown, five-minute expiry, explicit lock, household-switch clearing, private-only bootstrap and invitation acceptance, and elevated exit from shared mode were exercised successfully. Routine dashboard navigation remained available while administrative APIs continued to fail closed until elevation. Physical wall-display, phone, touch, mouse, keyboard, and browser-storage inspection also passed.

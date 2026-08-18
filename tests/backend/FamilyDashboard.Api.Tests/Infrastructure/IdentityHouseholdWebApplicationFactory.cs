@@ -9,13 +9,22 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FamilyDashboard.Api.Tests.Infrastructure;
 
-internal sealed class IdentityHouseholdWebApplicationFactory(string connectionString)
+internal sealed class IdentityHouseholdWebApplicationFactory(
+    string connectionString,
+    bool enableCalendar = false,
+    Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:FamilyDashboard", connectionString);
         builder.UseSetting("ParentAccess:Enabled", "true");
+        builder.UseSetting("GoogleCalendar:Enabled", enableCalendar.ToString());
+        builder.UseSetting("GoogleCalendar:ClientId", enableCalendar ? "calendar-client-id" : "");
+        builder.UseSetting("GoogleCalendar:ClientSecret", enableCalendar ? "calendar-client-secret" : "");
+        builder.UseSetting("GoogleCalendar:CallbackUrl", enableCalendar
+            ? "https://api.example.test/api/integrations/google-calendar/callback"
+            : "");
         builder.UseSetting(
             "ParentAccess:Pepper",
             "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
@@ -32,6 +41,7 @@ internal sealed class IdentityHouseholdWebApplicationFactory(string connectionSt
                 .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
                     TestAuthenticationHandler.SchemeName,
                     _ => { });
+            configureServices?.Invoke(services);
         });
     }
 }

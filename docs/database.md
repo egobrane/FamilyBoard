@@ -2,7 +2,7 @@
 
 ## Ownership
 
-PostgreSQL stores product-owned household, chore, point, reward, and preference data. Google Calendar and Google Tasks data will remain externally owned; any future cache is disposable and isolated from this schema.
+PostgreSQL stores product-owned household, integration configuration, chore, point, reward, and preference data. Google Calendar and Google Tasks data remain externally owned; Calendar Increment 1 caches normalized event responses only in process memory and never persists events.
 
 ## Model
 
@@ -14,6 +14,8 @@ PostgreSQL stores product-owned household, chore, point, reward, and preference 
 - `HouseholdInvitation` stores an email-bound adult invitation lifecycle. It stores only a unique 32-byte SHA-256 token hash, never the raw copyable token; a partial unique index permits only one pending invitation per household and normalized email.
 - `HouseholdAccessPin` stores one salted, server-peppered PBKDF2 hash per household with algorithm, work-factor, and pepper version metadata. `ParentAccessAuditEvent` records only security-event metadata; neither table stores plaintext PINs or request bodies.
 - `UserSession` scopes administrative elevation to one household and stores per-session failed-attempt windows and cooldowns. Switching households, locking, logout, revocation, or PIN replacement clears applicable elevation.
+- `GoogleCalendarConnection` stores one adult-owned Calendar authorization, stable Google subject/email metadata, granted scopes, status, and Data-Protection-encrypted access/refresh tokens. It is separate from `ExternalIdentity` and Google sign-in.
+- `HouseholdCalendarSource` maps one stable Google calendar identifier to a household through its owning connection. A composite foreign key enforces that `OwnerUserAccountId` owns the connection; inactive rows preserve configuration history without owning calendar events.
 - Chore definitions belong to a household; assignments connect one definition to one member.
 - A completion is a unique reviewable record for one assignment.
 - Point transactions form an append-only signed ledger for each member.
@@ -30,7 +32,9 @@ Migration `AddSelectedHouseholdToUserSession` is additive. It adds a nullable se
 
 Migration `AddHouseholdInvitations` is additive. It creates the invitation table, actor and household relationships, terminal-state checks, exact hash-length and normalized-email checks, metadata lookup indexes, unique token hashes, and the partial pending-invitation uniqueness rule. It does not modify existing household, membership, or session rows. The migration ran successfully in Azure staging on 2026-08-16 before API revision `family-dashboard-staging-api--0000012` received traffic.
 
-Migration `AddHouseholdParentAccess` is additive. It creates the household PIN and audit tables, adds nullable elevation-household and cooldown fields to sessions, and constrains elevated households through the account-membership relationship. Existing sessions remain private, locked, and otherwise valid. The older API can read the expanded schema, but rolling back to pre-Increment-6 code after a shared display has been activated would remove PIN enforcement; revoke shared sessions or forward-fix instead.
+Migration `AddHouseholdParentAccess` is additive. It creates the household PIN and audit tables, adds nullable elevation-household and cooldown fields to sessions, and constrains elevated households through the account-membership relationship. Existing sessions remain private, locked, and otherwise valid. Azure execution `family-dashboard-staging-mig-j16fbps` applied migration `20260817143618_AddHouseholdParentAccess` successfully on 2026-08-17 before revision `family-dashboard-staging-api--0000014` received traffic. The older API can read the expanded schema, but rolling back to pre-Increment-6 code after a shared display has been activated would remove PIN enforcement; revoke shared sessions or forward-fix instead.
+
+Migration `AddGoogleCalendarReadOnlyIntegration` is additive. It creates adult-owned connection and household-source tables, enforces one connection per adult, requires protected refresh-token material for active connections, prevents duplicate source mappings, and constrains each source to the recorded connection owner. It stores no calendar events and changes no existing identity, household, or session row. Deploy it while Calendar remains disabled; the prior API ignores the new tables, so application rollback remains possible.
 
 ## Creating a migration
 

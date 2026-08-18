@@ -65,6 +65,22 @@ unset FAMILY_DASHBOARD_GOOGLE_CLIENT_SECRET
 
 Run that deployment only after creating the Google web OAuth client. Secret rotation uses the same exact deployment and creates a new Key Vault secret version. The main template references the versionless secret URI, so no application configuration change is required for rotation; roll out a new API revision to force a fresh secret resolution.
 
+Google Calendar uses a second OAuth web client and a separately named secret. After creating that client with exact callback `https://api.egobrane.net/api/integrations/google-calendar/callback`, seed its secret without printing it:
+
+```sh
+read -s FAMILY_DASHBOARD_GOOGLE_CALENDAR_CLIENT_SECRET
+export FAMILY_DASHBOARD_GOOGLE_CALENDAR_CLIENT_SECRET
+az deployment group create \
+  --name family-dashboard-staging-google-calendar-secret \
+  --subscription b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8 \
+  --resource-group ryan-dev \
+  --mode Incremental \
+  --parameters deploy/azure/google-calendar-secret.bicepparam
+unset FAMILY_DASHBOARD_GOOGLE_CALENDAR_CLIENT_SECRET
+```
+
+Set the public `googleCalendarClientId` and `enableGoogleCalendar=true` only after that deployment succeeds. Keep the sign-in and Calendar client IDs/secrets distinct. First deploy the Calendar migration and API image with the feature disabled; enabling later changes only Container App configuration and creates a new revision of the same reviewed image.
+
 Before enabling Increment 6, generate and save a random 32-byte parent-access pepper without printing it or placing it in shell history. Seed it as the separately named `parent-access-pepper-v1` secret through Azure Resource Manager, then unset the variable:
 
 ```sh

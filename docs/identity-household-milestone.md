@@ -156,7 +156,7 @@ Exit criterion: complete. CI and multi-architecture image publication passed; th
 
 ### Increment 6: shared display and parent access PIN
 
-- **Implemented locally on 2026-08-17; staging activation pending.** Private adult sessions can set or recover a six-digit household PIN, verify it, enable a named shared-display session, explicitly lock, and return to private mode.
+- **Implemented and deployed on 2026-08-17; staging and physical-display verification completed on 2026-08-18.** Private adult sessions can set or recover a six-digit household PIN, verify it, enable a named shared-display session, explicitly lock, and return to private mode.
 - The backend administration policy allows ordinary Google-authenticated adult sessions but requires a matching, unexpired five-minute elevation when `UserSession.IsSharedDisplay` is true. Elevation is scoped to one household and is cleared by selection changes, lock, logout, revocation, PIN replacement, or timeout.
 - Household settings, administrative member reads and mutations, and invitation administration use the policy. Household bootstrap and invitation acceptance require a private session. Dashboard navigation, selection, antiforgery, logout, and future explicitly allowlisted routine actions remain available while locked.
 - PINs use HMAC-SHA-256 with a backend-only 32-byte pepper followed by PBKDF2-HMAC-SHA-256, a unique 16-byte salt, a 600,000-iteration default, and constant-time comparison. Version and work-factor fields permit future upgrades. Plaintext PINs, hashes, salts, and peppers never enter API responses or audit rows.
@@ -165,17 +165,14 @@ Exit criterion: complete. CI and multi-architecture image publication passed; th
 - No new NuGet or npm package is required. Azure reuses the private Key Vault and runtime identity; a separately seeded `parent-access-pepper-v1` secret is referenced only by the API and never supplied to the migration job or frontend.
 - Local validation passes 73 backend tests against PostgreSQL 18 with no skips, 17 frontend component/API tests, and 16 Playwright cases across wall-display and phone projects.
 
-Exit criterion: local implementation is complete. Final completion requires the Key Vault secret, CI and image publication, successful additive migration, digest-pinned Azure deployment, matching Netlify publication, and manual staging/physical-display proof that locked shared sessions cannot administer while routine use remains available.
+Exit criterion: complete. CI and multi-architecture image publication passed; the Key Vault pepper deployment succeeded without exposing its value; the additive migration ran successfully; Azure revision `family-dashboard-staging-api--0000014` serves the matching immutable digest; and Netlify published the exact frontend commit. The owner verified setup, replacement, recovery, failure cooldown, explicit lock, household-switch and timeout revocation, private-action boundaries, routine locked-display use, and administration gating across the physical wall display, phone, touch, mouse, keyboard, and responsive layouts. Browser inspection found no PIN or privileged credential material in client-visible storage, URLs, source, or logs.
 
 ### Increment 7: staging and wall-display validation
 
-- Deploy an immutable backend image and migration job.
-- Configure exact Netlify and API origins plus Google redirect URIs.
-- Verify session persistence across API rollout and PWA refresh.
-- Exercise sign-in, setup, invitation, revocation, and sign-out on desktop, phone, and the physical wall display.
-- Record whether operational experience justifies a separately provisioned household-device credential.
+- **Completed on 2026-08-18.** The immutable image, migration, exact origins, Google redirect, session persistence, parent-access enforcement, and responsive physical-display workflows are recorded in staging evidence.
+- The accepted shared adult session plus parent-PIN boundary remains the near-term wall-display credential model; a separately provisioned household-device credential remains deferred until operational experience requires it.
 
-Exit criterion: staging evidence is recorded, parent-PIN authorization is verified on the physical display, and the residual risk of the shared adult session is explicitly accepted or replaced.
+Exit criterion: complete. Staging evidence is recorded, parent-PIN authorization is verified on the physical display, and the shared adult session's residual risk remains explicitly accepted behind the backend PIN boundary.
 
 ## Test strategy
 

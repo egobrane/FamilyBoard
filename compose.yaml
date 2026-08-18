@@ -49,6 +49,10 @@ services:
       Cors__AllowedOrigins__0: http://localhost:${FRONTEND_PORT:-5173}
       ParentAccess__Enabled: ${ParentAccess__Enabled:-false}
       ParentAccess__Pepper: ${ParentAccess__Pepper:-}
+      GoogleCalendar__Enabled: ${GoogleCalendar__Enabled:-false}
+      GoogleCalendar__ClientId: ${GoogleCalendar__ClientId:-}
+      GoogleCalendar__ClientSecret: ${GoogleCalendar__ClientSecret:-}
+      GoogleCalendar__CallbackUrl: ${GoogleCalendar__CallbackUrl:-}
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:

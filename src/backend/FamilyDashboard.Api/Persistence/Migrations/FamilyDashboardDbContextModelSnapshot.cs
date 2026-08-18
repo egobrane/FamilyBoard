@@ -641,6 +641,127 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Integrations.GoogleCalendarConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AccessTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ConnectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GrantedScopes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("LastSuccessfulRefreshAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProtectedAccessToken")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProtectedRefreshToken")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderEmailNormalized")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("ProviderSubject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserAccountId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserAccountId")
+                        .IsUnique();
+
+                    b.HasIndex("ProviderSubject", "Status");
+
+                    b.ToTable("GoogleCalendarConnections", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GoogleCalendarConnections_Tokens", "(\"Status\" = 'Active' AND \"ProtectedRefreshToken\" IS NOT NULL) OR \"Status\" <> 'Active'");
+                        });
+                });
+
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Integrations.HouseholdCalendarSource", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AddedByUserAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ExternalCalendarId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<Guid>("GoogleCalendarConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("HouseholdId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OwnerUserAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedByUserAccountId");
+
+                    b.HasIndex("GoogleCalendarConnectionId", "OwnerUserAccountId");
+
+                    b.HasIndex("HouseholdId", "IsActive");
+
+                    b.HasIndex("HouseholdId", "GoogleCalendarConnectionId", "ExternalCalendarId")
+                        .IsUnique();
+
+                    b.ToTable("HouseholdCalendarSources", (string)null);
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1027,6 +1148,45 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Navigation("UserAccount");
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Integrations.GoogleCalendarConnection", b =>
+                {
+                    b.HasOne("FamilyDashboard.Api.Domain.Identity.UserAccount", "UserAccount")
+                        .WithOne("GoogleCalendarConnection")
+                        .HasForeignKey("FamilyDashboard.Api.Domain.Integrations.GoogleCalendarConnection", "UserAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UserAccount");
+                });
+
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Integrations.HouseholdCalendarSource", b =>
+                {
+                    b.HasOne("FamilyDashboard.Api.Domain.Identity.UserAccount", "AddedByUserAccount")
+                        .WithMany("AddedHouseholdCalendarSources")
+                        .HasForeignKey("AddedByUserAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.Household", "Household")
+                        .WithMany("CalendarSources")
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Integrations.GoogleCalendarConnection", "GoogleCalendarConnection")
+                        .WithMany("HouseholdSources")
+                        .HasForeignKey("GoogleCalendarConnectionId", "OwnerUserAccountId")
+                        .HasPrincipalKey("Id", "UserAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AddedByUserAccount");
+
+                    b.Navigation("GoogleCalendarConnection");
+
+                    b.Navigation("Household");
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointTransaction", b =>
                 {
                     b.HasOne("FamilyDashboard.Api.Domain.Chores.ChoreCompletion", "ChoreCompletion")
@@ -1116,6 +1276,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                 {
                     b.Navigation("AccessPin");
 
+                    b.Navigation("CalendarSources");
+
                     b.Navigation("ChoreDefinitions");
 
                     b.Navigation("Configuration");
@@ -1150,11 +1312,15 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                 {
                     b.Navigation("AcceptedHouseholdInvitations");
 
+                    b.Navigation("AddedHouseholdCalendarSources");
+
                     b.Navigation("ChangedHouseholdAccessPins");
 
                     b.Navigation("CreatedHouseholdInvitations");
 
                     b.Navigation("ExternalIdentities");
+
+                    b.Navigation("GoogleCalendarConnection");
 
                     b.Navigation("HouseholdMemberships");
 
@@ -1168,6 +1334,11 @@ namespace FamilyDashboard.Api.Persistence.Migrations
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Identity.UserSession", b =>
                 {
                     b.Navigation("ParentAccessAuditEvents");
+                });
+
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Integrations.GoogleCalendarConnection", b =>
+                {
+                    b.Navigation("HouseholdSources");
                 });
 
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.Reward", b =>

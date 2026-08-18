@@ -9,6 +9,8 @@ import {
 import { AuthenticationErrorPage } from '../features/authentication/AuthenticationErrorPage'
 import { WelcomePage } from '../features/authentication/WelcomePage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { CalendarPage } from '../features/calendar/CalendarPage'
+import { HouseholdCalendarsPage } from '../features/calendar/HouseholdCalendarsPage'
 import { HouseholdAdminLayout } from '../features/household-admin/HouseholdAdminLayout'
 import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembersPage'
 import { HouseholdSettingsPage } from '../features/household-admin/HouseholdSettingsPage'
@@ -150,11 +152,13 @@ function AuthenticatedRoutes() {
     <Routes>
       <Route element={<HouseholdShell />}>
         <Route element={<DashboardHome />} path="/" />
+        <Route element={<><CalendarPage /><NavigationBar /></>} path="/calendar" />
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
           <Route element={<HouseholdSettingsPage />} path="settings" />
           <Route element={<HouseholdMembersPage />} path="members" />
           <Route element={<HouseholdInvitationsPage />} path="invitations" />
           <Route element={<ParentAccessPage />} path="parent-access" />
+          <Route element={<HouseholdCalendarsPage />} path="calendars" />
           <Route element={<Navigate replace to="settings" />} index />
         </Route>
       </Route>

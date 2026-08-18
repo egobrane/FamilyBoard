@@ -177,7 +177,7 @@ Target commit: `eaccfd8fb122651e8ae282344a929b0c8f1432e4` (`Deplying onboarding 
 - The owner created `Staging Selection Test Household` through the authenticated, antiforgery-protected API. The account could switch between both households in both directions, and the selected household persisted after refresh.
 - `Staging Selection Test Household` remains intentionally stored in staging because household deletion is not implemented. Removing it requires a separately reviewed cleanup or deletion workflow.
 
-Identity Increment 4 is proven end to end in staging. A real Netlify Deploy Preview and physical wall-display validation remain separate outstanding checks.
+Identity Increment 4 is proven end to end in staging. At this checkpoint, a real Netlify Deploy Preview and physical wall-display validation remained separate; the physical validation was later completed with Increment 6.
 
 ## Identity Increment 4B staging verification: 2026-08-15
 
@@ -194,7 +194,7 @@ Target commit: `3b5c3dbe7269868f8b33275103a6235f9172c7fa` (`Added household and 
 - The owner confirmed that authenticated household settings and member administration loaded successfully, then created child profiles and successfully deactivated and reactivated them. Historical records were retained as designed.
 - The self-deactivation path is hidden for the current adult in the UI and has deployed automated API/PostgreSQL coverage for `409 self_deactivation_requires_leave_flow`. A fresh direct authenticated staging request was not attempted during this evidence refresh because no controllable signed-in browser session was available; staging data was not modified to manufacture the check.
 
-Identity Increment 4B is proven end to end in staging. A real Netlify Deploy Preview, direct staging proof of the self-deactivation ProblemDetails contract, and physical wall-display validation remain separate outstanding checks.
+Identity Increment 4B is proven end to end in staging. At this checkpoint, a real Netlify Deploy Preview, direct staging proof of the self-deactivation ProblemDetails contract, and physical wall-display validation remained separate; the physical validation was later completed with Increment 6.
 
 ## Identity Increment 5 staging verification: 2026-08-17
 
@@ -212,4 +212,23 @@ Target commit: `9051cc741c2a389e3316cb6f1b211c9dc6fa6dea` (`Set up invitation fu
 - The owner also completed the prescribed staging checks for wrong-account rejection, replay rejection after successful consumption, and revocation. Those terminal paths failed safely without adding an unintended membership. Seven-day expiration is covered by deployed automated API/PostgreSQL tests but was not manually waited out in staging, so no real-time expiration claim is made here.
 - This refresh could not independently replay the authenticated browser journey because no connected browser session was available. The manual invitation observations above are owner-confirmed; repository, public deployment, API, and Azure evidence were independently refreshed.
 
-Identity Increment 5 is proven end to end in staging. A manually elapsed invitation-expiration check, real Netlify Deploy Preview, direct staging proof of the self-deactivation ProblemDetails contract, and physical wall-display validation remain separate outstanding checks.
+Identity Increment 5 is proven end to end in staging. A manually elapsed invitation-expiration check, real Netlify Deploy Preview, and direct staging proof of the self-deactivation ProblemDetails contract remain outstanding. Physical wall-display validation was later completed with Increment 6.
+
+## Identity Increment 6 staging verification: 2026-08-18
+
+Target commit: `2847e2b03944307734fba7585f3980dc7c6fe022` (`Adding support for parent access pin to allow administrative actions to be locked behind normal access.`).
+
+- Local `main` is clean and matches `origin/main` at the target commit.
+- [Continuous Integration run 32062641094](https://github.com/egobrane/FamilyBoard/actions/runs/32062641094), [Publish Backend Image run 32062641213](https://github.com/egobrane/FamilyBoard/actions/runs/32062641213), and [Azure staging deployment run 32063307881](https://github.com/egobrane/FamilyBoard/actions/runs/32063307881) all completed successfully for the exact commit.
+- Public tag `sha-2847e2b` resolves to multi-architecture OCI digest `sha256:ab848c7964f60eda378def3faff127533d54ccfc498195cd18446f9e5dd8c5ce` with `linux/amd64`, `linux/arm64`, and attestation manifests.
+- Migration execution `family-dashboard-staging-mig-j16fbps` succeeded using that digest. Retained Log Analytics output records `Applying migration '20260817143618_AddHouseholdParentAccess'` and insertion of that migration with EF Core version `10.0.10`.
+- The migration again emitted `libgssapi_krb5.so.2` load warnings before successfully applying the schema. They remain non-blocking but should be removed or suppressed if they begin obscuring actionable migration failures.
+- Azure revision `family-dashboard-staging-api--0000014` is healthy, provisioned, receives 100% of traffic, and runs the exact published digest with `minReplicas` zero. Parent access is enabled and reads secret reference `parent-access-pepper` from versionless Key Vault URI `parent-access-pepper-v1`; no secret value was retrieved during verification.
+- The secure parent-access deployment reports `Succeeded`. This proves the ARM deployment and application reference without opening the private Key Vault data plane or exposing the pepper.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is `Ready` on version 18 in Central US with `Standard_B1ms`, 32 GiB storage, seven-day retention, geo-redundant backup disabled, public access disabled, and UTF-8 database `family_dashboard` present.
+- Public liveness and database-backed readiness return HTTP 200 `Healthy`. An unauthenticated `/api/auth/me` request returns HTTP 401 ProblemDetails with code `authentication_required`.
+- Netlify production deploy `6a83663b72454f0008b05d36` is `ready`, targets the exact commit, and serves `https://family.egobrane.net`. Its compiled bundle contains `https://api.egobrane.net` and the parent-access routes, with no localhost API origin.
+- The owner verified PIN setup and replacement, shared-mode refresh persistence, routine locked-dashboard access, administration gating, generic incorrect-PIN behavior, correct verification, explicit lock, household-switch clearing, five-minute expiry, private-only bootstrap and invitation acceptance, elevated shared-mode exit, recent-private-session recovery, failed-attempt cooldown, logout, and subsequent Google sign-in.
+- The owner also verified the physical wall display, phone, responsive layout, touch, mouse, and keyboard flows. Browser inspection found no PIN, hash, salt, pepper, OAuth secret, database credential, or signing material in URLs, browser storage, frontend source, or logs.
+
+Identity Increment 6 and the accepted shared-display boundary are proven end to end in staging. The remaining operational work is a deliberate rollback rehearsal before irreplaceable household data is stored and a real Netlify Deploy Preview with an explicitly safe authentication strategy.

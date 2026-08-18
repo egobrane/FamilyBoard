@@ -7,7 +7,7 @@ flowchart LR
     Browser[Touchscreen and browser PWA] -->|HTTPS JSON| API[ASP.NET Core API]
     Native[Future native clients] -.->|HTTPS JSON| API
     API --> PostgreSQL[(PostgreSQL)]
-    API -. future server-side access .-> Google[Google APIs]
+    API -->|server-side read-only OAuth| Google[Google Calendar API]
     Netlify[Netlify static hosting] --> Browser
     GHCR[GHCR backend image] --> Containers[Azure Container Apps or K3s]
     Containers --> API
@@ -30,11 +30,11 @@ Future browser and native clients will use stable JSON endpoints with backend-en
 
 ## External data
 
-Google Calendar and Google Tasks remain their own sources of truth. Future integrations will use backend service interfaces, stable external identifiers, and disposable caches. They will not copy external data into the product-owned chore/reward schema.
+Google Calendar and Google Tasks remain their own sources of truth. Calendar Increment 1 uses a backend provider interface, stable calendar identifiers, encrypted backend-only OAuth tokens, and a two-minute in-memory cache with a fifteen-minute stale fallback. It stores no event rows and performs no background synchronization or webhook registration.
 
 ## Touch-first frontend
 
-The initial UI uses semantic React components and plain CSS design tokens. It targets 48-pixel minimum touch areas, visible keyboard focus, responsive layout, reduced motion, and no essential hover behavior. It has no global state, router, component framework, or offline mutation system.
+The UI uses semantic React components, React Router, and plain CSS design tokens. It targets 48-pixel minimum touch areas, visible keyboard focus, responsive layout, reduced motion, and no essential hover behavior. It has no component framework or offline mutation system.
 
 ## Deployment boundaries
 

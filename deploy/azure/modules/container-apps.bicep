@@ -14,6 +14,9 @@ param enableCustomDomain bool
 param enableGoogleAuthentication bool
 param googleClientId string
 param googleClientSecretUri string
+param enableGoogleCalendar bool
+param googleCalendarClientId string
+param googleCalendarClientSecretUri string
 param enableParentAccess bool
 param parentAccessPepperSecretUri string
 param runtimeIdentityId string
@@ -106,6 +109,12 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             keyVaultUrl: parentAccessPepperSecretUri
             identity: runtimeIdentityId
           }
+        ] : [], enableGoogleCalendar ? [
+          {
+            name: 'google-calendar-client-secret'
+            keyVaultUrl: googleCalendarClientSecretUri
+            identity: runtimeIdentityId
+          }
         ] : [])
     }
     template: {
@@ -183,6 +192,23 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'ParentAccess__Pepper'
               secretRef: 'parent-access-pepper'
+            }
+          ] : [], enableGoogleCalendar ? [
+            {
+              name: 'GoogleCalendar__Enabled'
+              value: 'true'
+            }
+            {
+              name: 'GoogleCalendar__ClientId'
+              value: googleCalendarClientId
+            }
+            {
+              name: 'GoogleCalendar__ClientSecret'
+              secretRef: 'google-calendar-client-secret'
+            }
+            {
+              name: 'GoogleCalendar__CallbackUrl'
+              value: 'https://${apiHostname}/api/integrations/google-calendar/callback'
             }
           ] : [])
           probes: [

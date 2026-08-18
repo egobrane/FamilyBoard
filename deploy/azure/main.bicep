@@ -29,6 +29,12 @@ param enableGoogleAuthentication bool = false
 @description('Public Google OAuth client ID. The client secret remains in Key Vault.')
 param googleClientId string = ''
 
+@description('Enable only after the separate Google Calendar client secret exists in Key Vault.')
+param enableGoogleCalendar bool = false
+
+@description('Public client ID for the separate Google Calendar OAuth web client.')
+param googleCalendarClientId string = ''
+
 @description('Enable only after parent-access-pepper-v1 exists in Key Vault.')
 param enableParentAccess bool = false
 
@@ -104,6 +110,9 @@ module containerApps 'modules/container-apps.bicep' = {
     enableGoogleAuthentication: enableGoogleAuthentication
     googleClientId: googleClientId
     googleClientSecretUri: authenticationSecurity.outputs.googleClientSecretUri
+    enableGoogleCalendar: enableGoogleCalendar
+    googleCalendarClientId: googleCalendarClientId
+    googleCalendarClientSecretUri: authenticationSecurity.outputs.googleCalendarClientSecretUri
     enableParentAccess: enableParentAccess
     parentAccessPepperSecretUri: authenticationSecurity.outputs.parentAccessPepperSecretUri
     runtimeIdentityId: authenticationSecurity.outputs.runtimeIdentityId

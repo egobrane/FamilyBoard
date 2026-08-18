@@ -37,6 +37,21 @@ public static class ApiProblemCodes
     public const string PrivateSessionRequired = "private_session_required";
     public const string SharedDisplayRequiresPin = "shared_display_requires_pin";
     public const string ParentAccessConflict = "parent_access_conflict";
+    public const string GoogleCalendarUnavailable = "google_calendar_unavailable";
+    public const string CalendarConnectionRequired = "calendar_connection_required";
+    public const string CalendarReauthorizationRequired = "calendar_reauthorization_required";
+    public const string CalendarAuthorizationExpired = "calendar_authorization_expired";
+    public const string CalendarAuthorizationDenied = "calendar_authorization_denied";
+    public const string CalendarAuthorizationFailed = "calendar_authorization_failed";
+    public const string CalendarOfflineAccessRequired = "calendar_offline_access_required";
+    public const string CalendarScopeMissing = "calendar_scope_missing";
+    public const string CalendarProviderUnavailable = "calendar_provider_unavailable";
+    public const string CalendarProviderRateLimited = "calendar_provider_rate_limited";
+    public const string CalendarSourceNotFound = "calendar_source_not_found";
+    public const string CalendarSourceConflict = "calendar_source_conflict";
+    public const string CalendarDisconnectConfirmationRequired = "calendar_disconnect_confirmation_required";
+    public const string CalendarRangeInvalid = "calendar_range_invalid";
+    public const string CalendarCursorInvalid = "calendar_cursor_invalid";
     public const string UnexpectedError = "unexpected_error";
 }
 

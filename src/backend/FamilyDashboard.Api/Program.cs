@@ -1,5 +1,6 @@
 using FamilyDashboard.Api.Configuration;
 using FamilyDashboard.Api.Features.Authentication;
+using FamilyDashboard.Api.Features.Calendar;
 using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Features.Invitations;
@@ -23,6 +24,28 @@ builder.Services.AddSingleton<InvitationTokenService>();
 builder.Services.AddSingleton<PendingInvitationCookieService>();
 builder.Services.AddScoped<ParentAccessService>();
 builder.Services.AddSingleton<ParentPinHasher>();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient(nameof(GoogleCalendarProviderClient));
+builder.Services.AddScoped<IGoogleCalendarProviderClient, GoogleCalendarProviderClient>();
+builder.Services.AddScoped<GoogleCalendarService>();
+builder.Services.AddSingleton<CalendarTokenProtector>();
+builder.Services.AddSingleton<CalendarStateProtector>();
+builder.Services.AddSingleton<CalendarCorrelationCookieService>();
+builder.Services.AddOptions<GoogleCalendarConfiguration>()
+    .Bind(builder.Configuration.GetSection(GoogleCalendarConfiguration.SectionName))
+    .Validate(options => !options.Enabled || (
+        !string.IsNullOrWhiteSpace(options.ClientId)
+        && !string.IsNullOrWhiteSpace(options.ClientSecret)
+        && Uri.TryCreate(options.CallbackUrl, UriKind.Absolute, out var callback)
+        && (callback.Scheme == Uri.UriSchemeHttps
+            || (callback.Scheme == Uri.UriSchemeHttp && callback.IsLoopback))
+        && options.AuthorizationLifetime > TimeSpan.Zero
+        && options.FreshCacheLifetime > TimeSpan.Zero
+        && options.StaleCacheLifetime >= options.FreshCacheLifetime
+        && options.MaximumCalendarsPerHousehold is > 0 and <= 100
+        && options.MaximumEventsPerRequest is > 0 and <= 2500),
+        "Google Calendar configuration is incomplete or invalid.")
+    .ValidateOnStart();
 builder.Services.AddOptions<ParentAccessConfiguration>()
     .Bind(builder.Configuration.GetSection(ParentAccessConfiguration.SectionName))
     .Validate(options =>
@@ -156,6 +179,7 @@ app.MapHouseholdEndpoints();
 app.MapHouseholdMemberEndpoints();
 app.MapInvitationEndpoints();
 app.MapParentAccessEndpoints();
+app.MapGoogleCalendarEndpoints();
 
 await app.RunAsync();
 

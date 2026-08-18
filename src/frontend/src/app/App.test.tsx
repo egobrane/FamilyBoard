@@ -54,14 +54,35 @@ afterEach(() => {
 
 describe('App', () => {
   it('renders the authenticated touch-first dashboard with household context', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(currentUser())))
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path.endsWith('/calendar/events')) return jsonResponse({
+        events: [{
+          id: 'event-1',
+          sourceId: '40000000-0000-0000-0000-000000000001',
+          calendarName: 'Family',
+          title: 'Dentist appointment',
+          isAllDay: false,
+          start: '2026-08-18T14:00:00Z',
+          end: '2026-08-18T15:00:00Z',
+          timeZone: 'America/New_York',
+          location: null,
+          color: '#73b49a',
+        }],
+        nextCursor: null,
+        isStale: false,
+        warnings: [],
+      })
+      throw new Error(`Unexpected request: ${path}`)
+    }))
     renderApp()
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Bamford-Fahie-Waltz Family' })).toBeInTheDocument()
     expect(screen.getByRole('main')).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: /primary/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
-    expect(screen.getByText('Dentist appointment')).toBeInTheDocument()
+    expect(await screen.findByText('Dentist appointment')).toBeInTheDocument()
     expect(screen.getAllByText('Oliver').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Zoey').length).toBeGreaterThan(0)
     expect(screen.getByText('Feed Milo')).toBeInTheDocument()
@@ -167,7 +188,14 @@ describe('App', () => {
 
   it('provides keyboard and pointer navigation for the ready dashboard', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(currentUser())))
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path.endsWith('/calendar/events')) return jsonResponse({
+        events: [], nextCursor: null, isStale: false, warnings: [],
+      })
+      throw new Error(`Unexpected request: ${path}`)
+    }))
     renderApp()
     const calendarLink = await screen.findByRole('link', { name: 'Calendar' })
 
@@ -175,7 +203,7 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: /skip to content/i })).toHaveFocus()
     await user.click(calendarLink)
 
-    await waitFor(() => expect(calendarLink).toHaveAttribute('aria-current', 'location'))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Calendar' })).toHaveAttribute('aria-current', 'page'))
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
   })
 })

@@ -86,6 +86,51 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({ status: 204 })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/events`) {
+      await route.fulfill({ json: {
+        events: [{
+          id: 'school-drop-off',
+          sourceId: '50000000-0000-0000-0000-000000000001',
+          calendarName: 'Family',
+          title: 'School drop-off',
+          isAllDay: false,
+          start: '2026-08-18T12:00:00Z',
+          end: '2026-08-18T12:30:00Z',
+          timeZone: 'America/New_York',
+          location: null,
+          color: '#73b49a',
+        }],
+        nextCursor: null,
+        isStale: false,
+        warnings: [],
+      } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/connection`) {
+      await route.fulfill({ json: {
+        isAvailable: true,
+        connectionId: '40000000-0000-0000-0000-000000000001',
+        status: 'connected',
+        providerEmail: 'calendar@example.test',
+        connectedAt: '2026-08-18T12:00:00Z',
+        canManageConnection: true,
+        activeSourceCount: 1,
+      } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/provider-calendars`) {
+      await route.fulfill({ json: [
+        { id: 'family@example.test', name: 'Family', timeZone: 'America/New_York', color: '#73b49a', isPrimary: true, isSelected: true },
+        { id: 'school@example.test', name: 'School', timeZone: 'America/New_York', color: '#4285f4', isPrimary: false, isSelected: false },
+      ] })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/sources`) {
+      await route.fulfill({ json: route.request().method() === 'PUT'
+        ? [{ id: 'source-1', connectionId: '40000000-0000-0000-0000-000000000001', externalCalendarId: 'family@example.test', name: 'Family', isActive: true, isOwnedByCurrentAdult: true }]
+        : [] })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/parent-access`) {
       await route.fulfill({ json: parentAccess })
       return
@@ -234,6 +279,24 @@ test('primary navigation responds to pointer clicks', async ({ page }) => {
   await expect(page).toHaveURL(/#rewards-preview$/)
   await expect(rewardsLink).toHaveAttribute('aria-current', 'location')
   await expect(page.locator('#rewards-preview')).toBeVisible()
+})
+
+test('calendar navigation and household source selection work with touch-sized controls', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Calendar', exact: true }).click()
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(page.getByRole('heading', { name: 'Family calendar' })).toBeVisible()
+  await expect(page.getByText('School drop-off')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Calendar settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Google Calendar' })).toBeVisible()
+  await page.getByRole('checkbox', { name: /School/ }).check()
+  await page.getByRole('button', { name: 'Save visible calendars' }).click()
+  await expect(page.getByText('Household calendars saved.')).toBeVisible()
+
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+    .toEqual([])
 })
 
 test('account menu supports keyboard access and signs out through the API', async ({ page }) => {

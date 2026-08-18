@@ -1,4 +1,5 @@
 using FamilyDashboard.Api.Domain.Households;
+using FamilyDashboard.Api.Domain.Integrations;
 
 namespace FamilyDashboard.Api.Domain.Identity;
 
@@ -19,4 +20,6 @@ public sealed class UserAccount
     public ICollection<HouseholdInvitation> RevokedHouseholdInvitations { get; set; } = [];
     public ICollection<HouseholdAccessPin> ChangedHouseholdAccessPins { get; set; } = [];
     public ICollection<ParentAccessAuditEvent> ParentAccessAuditEvents { get; set; } = [];
+    public GoogleCalendarConnection? GoogleCalendarConnection { get; set; }
+    public ICollection<HouseholdCalendarSource> AddedHouseholdCalendarSources { get; set; } = [];
 }

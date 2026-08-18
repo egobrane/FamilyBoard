@@ -2,7 +2,7 @@
 
 Family Dashboard is a touch-first household organization platform designed for wall displays, phones, tablets, and desktop browsers.
 
-The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household increments now add persistent households, backend Google sign-in, revocable application sessions, authenticated onboarding, per-session household selection, household administration, email-bound adult invitation links, and the local implementation of shared-display parent-PIN elevation. Calendar, task, chore, and reward workflows remain intentionally deferred.
+The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household increments now add persistent households, backend Google sign-in, revocable application sessions, authenticated onboarding, per-session household selection, household administration, email-bound adult invitation links, and shared-display parent-PIN elevation. Google Calendar Increment 1 adds a separately authorized, read-only calendar connection and disposable request cache; event mutation, tasks, chore, and reward workflows remain deferred.
 
 ## Repository
 
@@ -30,6 +30,7 @@ The migration service runs once before the development API starts. See [developm
 - [Database and migrations](docs/database.md)
 - [Testing](docs/testing.md)
 - [Authentication boundary](docs/authentication.md)
+- [Google Calendar integration](docs/google-calendar.md)
 - [Identity and household milestone](docs/identity-household-milestone.md)
 - [Netlify deployment](docs/deployment/netlify.md)
 - [Backend container publication](docs/deployment/backend-container.md)
@@ -41,4 +42,4 @@ The migration service runs once before the development API starts. See [developm
 
 ## Current scope
 
-Health, Google-login initiation, and invitation prepare/inspection endpoints are anonymously usable; invitation preparation additionally requires JSON from the exact configured frontend origin. Dashboard feature cards still use mock data, while account identity, household setup, selected-household context, and the household heading come from the authenticated API. Identity and Household Management Increments 1–5 are deployed and verified in staging. Increment 6 is implemented locally: an adult can configure a household PIN, mark a session as a shared display, and temporarily unlock backend-enforced administration while routine dashboard access remains available. Staging activation still requires the Key Vault pepper, additive migration, immutable image deployment, matching Netlify build, and physical wall-display verification. No Google provider tokens, PINs, or PIN hashes reach the frontend.
+Health, Google-login initiation, and invitation prepare/inspection endpoints are anonymously usable; invitation preparation additionally requires JSON from the exact configured frontend origin. Account identity, household setup, selected-household context, household heading, and configured calendar events come from the authenticated API; chore, reward, weather, and photo content remains placeholder data. Identity and Household Management Increments 1–6 are deployed and verified in staging. Calendar Increment 1 is implemented behind a disabled-by-default backend feature gate and requires separate Google/Azure activation after its image and additive migration are reviewed. OAuth codes and tokens, PINs, PIN hashes, and peppers never reach the frontend.

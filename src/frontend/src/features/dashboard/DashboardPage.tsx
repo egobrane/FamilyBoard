@@ -1,30 +1,12 @@
 import type { CSSProperties } from 'react'
 import { DashboardCard } from '../../components/DashboardCard'
-import { chorePreviews, demoHouseholdPhotoUrl, familyMembers, scheduleItems } from './mockDashboardData'
+import { DashboardCalendarCard } from '../calendar/DashboardCalendarCard'
+import { chorePreviews, demoHouseholdPhotoUrl, familyMembers } from './mockDashboardData'
 
 export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
   return (
     <main className="dashboard" id="main-content">
-      <DashboardCard
-        className="schedule-card"
-        eyebrow="Wednesday, August 5"
-        id="calendar-preview"
-        title="Today"
-        action={<span className="status-pill">4 plans</span>}
-      >
-        <ol className="schedule-list">
-          {scheduleItems.map((item) => (
-            <li className="schedule-item" key={item.id}>
-              <time className="schedule-item__time">{item.time}</time>
-              <span className={`schedule-item__marker marker--${item.color}`} aria-hidden="true" />
-              <span className="schedule-item__details">
-                <strong>{item.title}</strong>
-                <span>{item.person}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </DashboardCard>
+      <DashboardCalendarCard />
 
       <DashboardCard
         className="welcome-card"

@@ -11,7 +11,7 @@ flowchart LR
     Job -->|private TLS| PostgreSQL[(PostgreSQL Flexible Server 18)]
     API -->|private TLS| PostgreSQL
     API -->|managed identity, private link| Blob[(Data Protection Blob)]
-    API -->|managed identity, private link| Vault[Key Vault key, Google secret, and PIN pepper]
+    API -->|managed identity, private link| Vault[Key Vault key, sign-in secret, Calendar secret, and PIN pepper]
     GitHub[GitHub Actions OIDC] --> Job
     GitHub --> API
 ```
@@ -52,6 +52,8 @@ The API receives exact CORS origin `https://family.egobrane.net`, listens on por
 The API runtime identity can write only the Data Protection Blob container, wrap/unwrap only through the Key Vault key, and read the Google and parent-access secrets. The migration job receives none of these permissions or secrets. Storage shared-key access and public networking are disabled. Key Vault uses RBAC, soft deletion, purge protection, a private endpoint, and public networking disabled. The owner created the Google web OAuth client, placed its secret directly in Key Vault, and activated staging authentication on 2026-08-14. Secrets remain absent from Git, GitHub, Netlify, container images, and browser-delivered configuration.
 
 Increment 6 adds no Azure resource. Before enabling it, generate a random 32-byte value, base64 encode it, store it in the existing vault as `parent-access-pepper-v1` through the secure Bicep parameter template, and then deploy the main template. The API readiness check fails when parent access is enabled without a valid pepper. The migration job deliberately receives neither `ParentAccess__Enabled` nor the pepper.
+
+Calendar Increment 1 reuses the runtime identity, private Key Vault, Blob-backed Data Protection key ring, Container App, and PostgreSQL server. It adds only a separate Key Vault secret reference named `google-calendar-client-secret` and public Calendar client settings. The migration and migration job receive no Calendar client secret. Keep `enableGoogleCalendar=false` while deploying and migrating the first image; activate only after the separate Google web client, exact callback, consent scopes, and Key Vault secret are ready. See [Google Calendar Increment 1](../google-calendar.md).
 
 ## DNS and managed TLS
 

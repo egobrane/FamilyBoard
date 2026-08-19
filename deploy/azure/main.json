@@ -1,0 +1,1402 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "11003653152793135263"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for every regional Family Dashboard resource."
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "staging",
+      "allowedValues": [
+        "staging"
+      ]
+    },
+    "backendImage": {
+      "type": "string",
+      "metadata": {
+        "description": "Immutable public GHCR image reference, preferably pinned by digest."
+      }
+    },
+    "postgresAdminPassword": {
+      "type": "securestring",
+      "minLength": 16,
+      "metadata": {
+        "description": "Generated PostgreSQL administrator password. Never commit or log this value."
+      }
+    },
+    "enableCustomDomain": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable only after the custom-domain CNAME and TXT validation records resolve."
+      }
+    },
+    "apiHostname": {
+      "type": "string",
+      "defaultValue": "api.egobrane.net"
+    },
+    "frontendOrigin": {
+      "type": "string",
+      "defaultValue": "https://family.egobrane.net"
+    },
+    "githubRepository": {
+      "type": "string",
+      "defaultValue": "egobrane/FamilyBoard"
+    },
+    "enableGoogleAuthentication": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable only after the Google client secret exists in Key Vault."
+      }
+    },
+    "googleClientId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Public Google OAuth client ID. The client secret remains in Key Vault."
+      }
+    },
+    "enableGoogleCalendar": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable only after the separate Google Calendar client secret exists in Key Vault."
+      }
+    },
+    "googleCalendarClientId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Public client ID for the separate Google Calendar OAuth web client."
+      }
+    },
+    "enableParentAccess": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable only after parent-access-pepper-v1 exists in Key Vault."
+      }
+    },
+    "githubOidcSubject": {
+      "type": "string",
+      "metadata": {
+        "description": "Exact immutable GitHub Actions OIDC subject for the protected staging environment."
+      }
+    }
+  },
+  "variables": {
+    "prefix": "family-dashboard",
+    "nameStem": "[format('{0}-{1}', variables('prefix'), parameters('environmentName'))]",
+    "resourceTags": {
+      "application": "[variables('prefix')]",
+      "environment": "[parameters('environmentName')]",
+      "managed-by": "bicep",
+      "repository": "[parameters('githubRepository')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-network', variables('nameStem'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nameStem": {
+            "value": "[variables('nameStem')]"
+          },
+          "tags": {
+            "value": "[variables('resourceTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "13142238862300904082"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "nameStem": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-vnet', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.42.0.0/16"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "[format('{0}-aca-subnet', parameters('nameStem'))]",
+                    "properties": {
+                      "addressPrefix": "10.42.0.0/24",
+                      "delegations": [
+                        {
+                          "name": "container-apps-environments",
+                          "properties": {
+                            "serviceName": "Microsoft.App/environments"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "[format('{0}-postgres-subnet', parameters('nameStem'))]",
+                    "properties": {
+                      "addressPrefix": "10.42.1.0/28",
+                      "delegations": [
+                        {
+                          "name": "postgres-flexible-servers",
+                          "properties": {
+                            "serviceName": "Microsoft.DBforPostgreSQL/flexibleServers"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "[format('{0}-private-endpoints-subnet', parameters('nameStem'))]",
+                    "properties": {
+                      "addressPrefix": "10.42.2.0/27",
+                      "privateEndpointNetworkPolicies": "Disabled"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}.postgres.database.azure.com', parameters('nameStem'))]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', format('{0}.postgres.database.azure.com', parameters('nameStem')), format('{0}-vnet-link', parameters('nameStem')))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-vnet', parameters('nameStem')))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', format('{0}.postgres.database.azure.com', parameters('nameStem')))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-vnet', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', format('privatelink.blob.{0}', environment().suffixes.storage), format('{0}-blob-vnet-link', parameters('nameStem')))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-vnet', parameters('nameStem')))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-vnet', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2024-06-01",
+              "name": "privatelink.vaultcore.azure.net",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2024-06-01",
+              "name": "[format('{0}/{1}', 'privatelink.vaultcore.azure.net', format('{0}-key-vault-vnet-link', parameters('nameStem')))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-vnet', parameters('nameStem')))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', format('{0}-vnet', parameters('nameStem')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "containerAppsSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', format('{0}-vnet', parameters('nameStem')), format('{0}-aca-subnet', parameters('nameStem')))]"
+            },
+            "postgresSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', format('{0}-vnet', parameters('nameStem')), format('{0}-postgres-subnet', parameters('nameStem')))]"
+            },
+            "postgresPrivateDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', format('{0}.postgres.database.azure.com', parameters('nameStem')))]"
+            },
+            "privateEndpointsSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', format('{0}-vnet', parameters('nameStem')), format('{0}-private-endpoints-subnet', parameters('nameStem')))]"
+            },
+            "blobPrivateDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', format('privatelink.blob.{0}', environment().suffixes.storage))]"
+            },
+            "keyVaultPrivateDnsZoneId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', 'privatelink.vaultcore.azure.net')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-monitoring', variables('nameStem'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nameStem": {
+            "value": "[variables('nameStem')]"
+          },
+          "tags": {
+            "value": "[variables('resourceTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "4929495724209177379"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "nameStem": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}-logs', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "retentionInDays": 30,
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                },
+                "sku": {
+                  "name": "PerGB2018"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "workspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-logs', parameters('nameStem')))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-postgres', variables('nameStem'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nameStem": {
+            "value": "[variables('nameStem')]"
+          },
+          "tags": {
+            "value": "[variables('resourceTags')]"
+          },
+          "delegatedSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem'))), '2025-04-01').outputs.postgresSubnetId.value]"
+          },
+          "privateDnsZoneId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem'))), '2025-04-01').outputs.postgresPrivateDnsZoneId.value]"
+          },
+          "administratorPassword": {
+            "value": "[parameters('postgresAdminPassword')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "10168621042148576143"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "nameStem": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "delegatedSubnetId": {
+              "type": "string"
+            },
+            "privateDnsZoneId": {
+              "type": "string"
+            },
+            "administratorPassword": {
+              "type": "securestring"
+            }
+          },
+          "variables": {
+            "serverName": "[format('{0}-pg-{1}', parameters('nameStem'), uniqueString(subscription().subscriptionId, resourceGroup().id))]",
+            "administratorLogin": "familydashboardadmin",
+            "databaseName": "family_dashboard"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "apiVersion": "2024-08-01",
+              "name": "[variables('serverName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_B1ms",
+                "tier": "Burstable"
+              },
+              "properties": {
+                "administratorLogin": "[variables('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorPassword')]",
+                "version": "18",
+                "authConfig": {
+                  "activeDirectoryAuth": "Disabled",
+                  "passwordAuth": "Enabled"
+                },
+                "backup": {
+                  "backupRetentionDays": 7,
+                  "geoRedundantBackup": "Disabled"
+                },
+                "highAvailability": {
+                  "mode": "Disabled"
+                },
+                "network": {
+                  "delegatedSubnetResourceId": "[parameters('delegatedSubnetId')]",
+                  "privateDnsZoneArmResourceId": "[parameters('privateDnsZoneId')]",
+                  "publicNetworkAccess": "Disabled"
+                },
+                "storage": {
+                  "autoGrow": "Enabled",
+                  "storageSizeGB": 32
+                }
+              }
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+              "apiVersion": "2024-08-01",
+              "name": "[format('{0}/{1}', variables('serverName'), variables('databaseName'))]",
+              "properties": {
+                "charset": "UTF8",
+                "collation": "en_US.utf8"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('serverName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "serverName": {
+              "type": "string",
+              "value": "[variables('serverName')]"
+            },
+            "fullyQualifiedDomainName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('serverName')), '2024-08-01').fullyQualifiedDomainName]"
+            },
+            "administratorLogin": {
+              "type": "string",
+              "value": "[variables('administratorLogin')]"
+            },
+            "databaseName": {
+              "type": "string",
+              "value": "[variables('databaseName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-authentication-security', variables('nameStem'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nameStem": {
+            "value": "[variables('nameStem')]"
+          },
+          "tags": {
+            "value": "[variables('resourceTags')]"
+          },
+          "privateEndpointsSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem'))), '2025-04-01').outputs.privateEndpointsSubnetId.value]"
+          },
+          "blobPrivateDnsZoneId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem'))), '2025-04-01').outputs.blobPrivateDnsZoneId.value]"
+          },
+          "keyVaultPrivateDnsZoneId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem'))), '2025-04-01').outputs.keyVaultPrivateDnsZoneId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "2435774969408506934"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "nameStem": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "privateEndpointsSubnetId": {
+              "type": "string"
+            },
+            "blobPrivateDnsZoneId": {
+              "type": "string"
+            },
+            "keyVaultPrivateDnsZoneId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "suffix": "[uniqueString(subscription().subscriptionId, resourceGroup().id)]",
+            "storageAccountName": "[format('familydb{0}', variables('suffix'))]",
+            "keyVaultName": "[format('familydb-{0}', variables('suffix'))]",
+            "blobContributorRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+            "keyVaultCryptoUserRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '12338af0-0e69-4776-bea7-57ae8d297424')]",
+            "keyVaultSecretsUserRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('{0}-runtime', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": false,
+                "defaultToOAuthAuthentication": true,
+                "minimumTlsVersion": "TLS1_2",
+                "publicNetworkAccess": "Disabled",
+                "supportsHttpsTrafficOnly": true
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+              "properties": {
+                "deleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 7
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'data-protection')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2024-11-01",
+              "name": "[variables('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "tenantId": "[tenant().tenantId]",
+                "enablePurgeProtection": true,
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "publicNetworkAccess": "Disabled",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/keys",
+              "apiVersion": "2024-11-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'data-protection')]",
+              "properties": {
+                "attributes": {
+                  "enabled": true
+                },
+                "kty": "RSA",
+                "keySize": 2048,
+                "keyOps": [
+                  "wrapKey",
+                  "unwrapKey"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-blob-pe', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('privateEndpointsSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('{0}-blob-connection', parameters('nameStem'))]",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                      "groupIds": [
+                        "blob"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('{0}-blob-pe', parameters('nameStem')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "blob",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('blobPrivateDnsZoneId')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-blob-pe', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-key-vault-pe', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('privateEndpointsSubnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('{0}-key-vault-connection', parameters('nameStem'))]",
+                    "properties": {
+                      "privateLinkServiceId": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                      "groupIds": [
+                        "vault"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}/{1}', format('{0}-key-vault-pe', parameters('nameStem')), 'default')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "vault",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('keyVaultPrivateDnsZoneId')]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', format('{0}-key-vault-pe', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), variables('blobContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('blobContributorRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), variables('keyVaultCryptoUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('keyVaultCryptoUserRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), variables('keyVaultSecretsUserRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('keyVaultSecretsUserRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "runtimeIdentityId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem')))]"
+            },
+            "runtimeIdentityClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-runtime', parameters('nameStem'))), '2023-01-31').clientId]"
+            },
+            "dataProtectionBlobUri": {
+              "type": "string",
+              "value": "[format('https://{0}.blob.{1}/data-protection/keys.xml', variables('storageAccountName'), environment().suffixes.storage)]"
+            },
+            "dataProtectionKeyIdentifier": {
+              "type": "string",
+              "value": "[format('{0}keys/{1}', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri, 'data-protection')]"
+            },
+            "googleClientSecretUri": {
+              "type": "string",
+              "value": "[format('{0}secrets/google-client-secret', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri)]"
+            },
+            "googleCalendarClientSecretUri": {
+              "type": "string",
+              "value": "[format('{0}secrets/google-calendar-client-secret', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri)]"
+            },
+            "parentAccessPepperSecretUri": {
+              "type": "string",
+              "value": "[format('{0}secrets/parent-access-pepper-v1', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri)]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('keyVaultName')]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-container-apps', variables('nameStem'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nameStem": {
+            "value": "[variables('nameStem')]"
+          },
+          "tags": {
+            "value": "[variables('resourceTags')]"
+          },
+          "infrastructureSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem'))), '2025-04-01').outputs.containerAppsSubnetId.value]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', variables('nameStem'))), '2025-04-01').outputs.workspaceId.value]"
+          },
+          "backendImage": {
+            "value": "[parameters('backendImage')]"
+          },
+          "postgresConnectionString": {
+            "value": "[format('Host={0};Port=5432;Database={1};Username={2};Password={3};SSL Mode=Require;Trust Server Certificate=false', reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgres', variables('nameStem'))), '2025-04-01').outputs.fullyQualifiedDomainName.value, reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgres', variables('nameStem'))), '2025-04-01').outputs.databaseName.value, reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgres', variables('nameStem'))), '2025-04-01').outputs.administratorLogin.value, parameters('postgresAdminPassword'))]"
+          },
+          "frontendOrigin": {
+            "value": "[parameters('frontendOrigin')]"
+          },
+          "apiHostname": {
+            "value": "[parameters('apiHostname')]"
+          },
+          "enableCustomDomain": {
+            "value": "[parameters('enableCustomDomain')]"
+          },
+          "enableGoogleAuthentication": {
+            "value": "[parameters('enableGoogleAuthentication')]"
+          },
+          "googleClientId": {
+            "value": "[parameters('googleClientId')]"
+          },
+          "googleClientSecretUri": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.googleClientSecretUri.value]"
+          },
+          "enableGoogleCalendar": {
+            "value": "[parameters('enableGoogleCalendar')]"
+          },
+          "googleCalendarClientId": {
+            "value": "[parameters('googleCalendarClientId')]"
+          },
+          "googleCalendarClientSecretUri": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.googleCalendarClientSecretUri.value]"
+          },
+          "enableParentAccess": {
+            "value": "[parameters('enableParentAccess')]"
+          },
+          "parentAccessPepperSecretUri": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.parentAccessPepperSecretUri.value]"
+          },
+          "runtimeIdentityId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.runtimeIdentityId.value]"
+          },
+          "runtimeIdentityClientId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.runtimeIdentityClientId.value]"
+          },
+          "dataProtectionBlobUri": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.dataProtectionBlobUri.value]"
+          },
+          "dataProtectionKeyIdentifier": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.dataProtectionKeyIdentifier.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "15079170404921337072"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "nameStem": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "infrastructureSubnetId": {
+              "type": "string"
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string"
+            },
+            "backendImage": {
+              "type": "string"
+            },
+            "postgresConnectionString": {
+              "type": "securestring"
+            },
+            "frontendOrigin": {
+              "type": "string"
+            },
+            "apiHostname": {
+              "type": "string"
+            },
+            "enableCustomDomain": {
+              "type": "bool"
+            },
+            "enableGoogleAuthentication": {
+              "type": "bool"
+            },
+            "googleClientId": {
+              "type": "string"
+            },
+            "googleClientSecretUri": {
+              "type": "string"
+            },
+            "enableGoogleCalendar": {
+              "type": "bool"
+            },
+            "googleCalendarClientId": {
+              "type": "string"
+            },
+            "googleCalendarClientSecretUri": {
+              "type": "string"
+            },
+            "enableParentAccess": {
+              "type": "bool"
+            },
+            "parentAccessPepperSecretUri": {
+              "type": "string"
+            },
+            "runtimeIdentityId": {
+              "type": "string"
+            },
+            "runtimeIdentityClientId": {
+              "type": "string"
+            },
+            "dataProtectionBlobUri": {
+              "type": "string"
+            },
+            "dataProtectionKeyIdentifier": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}-env', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', last(split(parameters('logAnalyticsWorkspaceId'), '/'))), '2023-09-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', last(split(parameters('logAnalyticsWorkspaceId'), '/'))), '2023-09-01').primarySharedKey]"
+                  }
+                },
+                "vnetConfiguration": {
+                  "infrastructureSubnetId": "[parameters('infrastructureSubnetId')]",
+                  "internal": false
+                },
+                "workloadProfiles": [
+                  {
+                    "name": "Consumption",
+                    "workloadProfileType": "Consumption"
+                  }
+                ]
+              }
+            },
+            {
+              "condition": "[parameters('enableCustomDomain')]",
+              "type": "Microsoft.App/managedEnvironments/managedCertificates",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}/{1}', format('{0}-env', parameters('nameStem')), format('{0}-api-certificate', parameters('nameStem')))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subjectName": "[parameters('apiHostname')]",
+                "domainControlValidation": "CNAME"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}-api', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', parameters('runtimeIdentityId'))]": {}
+                }
+              },
+              "properties": {
+                "environmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]",
+                "workloadProfileName": "Consumption",
+                "configuration": {
+                  "activeRevisionsMode": "Multiple",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 8080,
+                    "transport": "auto",
+                    "allowInsecure": false,
+                    "customDomains": "[if(parameters('enableCustomDomain'), createArray(createObject('name', parameters('apiHostname'), 'bindingType', 'SniEnabled', 'certificateId', resourceId('Microsoft.App/managedEnvironments/managedCertificates', format('{0}-env', parameters('nameStem')), format('{0}-api-certificate', parameters('nameStem'))))), createArray())]"
+                  },
+                  "secrets": "[concat(createArray(createObject('name', 'postgres-connection', 'value', parameters('postgresConnectionString'))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'google-client-secret', 'keyVaultUrl', parameters('googleClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'parent-access-pepper', 'keyVaultUrl', parameters('parentAccessPepperSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'google-calendar-client-secret', 'keyVaultUrl', parameters('googleCalendarClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()))]"
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "api",
+                      "image": "[parameters('backendImage')]",
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId'))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()))]",
+                      "probes": [
+                        {
+                          "type": "Startup",
+                          "httpGet": {
+                            "path": "/health/live",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                          },
+                          "initialDelaySeconds": 3,
+                          "periodSeconds": 5,
+                          "failureThreshold": 30,
+                          "timeoutSeconds": 3
+                        },
+                        {
+                          "type": "Liveness",
+                          "httpGet": {
+                            "path": "/health/live",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                          },
+                          "periodSeconds": 15,
+                          "failureThreshold": 3,
+                          "timeoutSeconds": 3
+                        },
+                        {
+                          "type": "Readiness",
+                          "httpGet": {
+                            "path": "/health/ready",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                          },
+                          "periodSeconds": 10,
+                          "failureThreshold": 6,
+                          "timeoutSeconds": 3
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 2,
+                    "rules": [
+                      {
+                        "name": "http-requests",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "50"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]",
+                "[resourceId('Microsoft.App/managedEnvironments/managedCertificates', format('{0}-env', parameters('nameStem')), format('{0}-api-certificate', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/jobs",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}-mig', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "environmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]",
+                "workloadProfileName": "Consumption",
+                "configuration": {
+                  "triggerType": "Manual",
+                  "replicaTimeout": 1800,
+                  "replicaRetryLimit": 1,
+                  "manualTriggerConfig": {
+                    "parallelism": 1,
+                    "replicaCompletionCount": 1
+                  },
+                  "secrets": [
+                    {
+                      "name": "postgres-connection",
+                      "value": "[parameters('postgresConnectionString')]"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "migration",
+                      "image": "[parameters('backendImage')]",
+                      "args": [
+                        "--migrate"
+                      ],
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "ASPNETCORE_ENVIRONMENT",
+                          "value": "Staging"
+                        },
+                        {
+                          "name": "ConnectionStrings__FamilyDashboard",
+                          "secretRef": "postgres-connection"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "apiName": {
+              "type": "string",
+              "value": "[format('{0}-api', parameters('nameStem'))]"
+            },
+            "apiDefaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/containerApps', format('{0}-api', parameters('nameStem'))), '2025-01-01').configuration.ingress.fqdn]"
+            },
+            "customDomainVerificationId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem'))), '2025-01-01').customDomainConfiguration.customDomainVerificationId]"
+            },
+            "migrationJobName": {
+              "type": "string",
+              "value": "[format('{0}-mig', parameters('nameStem'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-monitoring', variables('nameStem')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-network', variables('nameStem')))]",
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-postgres', variables('nameStem')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-deployment-identity', variables('nameStem'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "nameStem": {
+            "value": "[variables('nameStem')]"
+          },
+          "tags": {
+            "value": "[variables('resourceTags')]"
+          },
+          "githubOidcSubject": {
+            "value": "[parameters('githubOidcSubject')]"
+          },
+          "apiName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.apiName.value]"
+          },
+          "migrationJobName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.migrationJobName.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "17876742867657080262"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "nameStem": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "githubOidcSubject": {
+              "type": "string"
+            },
+            "apiName": {
+              "type": "string"
+            },
+            "migrationJobName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "containerAppsContributorRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '358470bc-b998-42bd-ab17-a7e34c199c0f')]",
+            "containerAppsJobsContributorRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4e3d2b60-56ae-4dc6-a233-09c8e5a82e68')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('{0}-github', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials",
+              "apiVersion": "2023-01-31",
+              "name": "[format('{0}/{1}', format('{0}-github', parameters('nameStem')), 'github-staging-environment')]",
+              "properties": {
+                "issuer": "https://token.actions.githubusercontent.com",
+                "subject": "[parameters('githubOidcSubject')]",
+                "audiences": [
+                  "api://AzureADTokenExchange"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.App/containerApps', parameters('apiName'))]",
+              "name": "[guid(resourceId('Microsoft.App/containerApps', parameters('apiName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), variables('containerAppsContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('containerAppsContributorRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.App/jobs', parameters('migrationJobName'))]",
+              "name": "[guid(resourceId('Microsoft.App/jobs', parameters('migrationJobName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), variables('containerAppsJobsContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('containerAppsJobsContributorRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "clientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), '2023-01-31').clientId]"
+            },
+            "principalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), '2023-01-31').principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "apiName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.apiName.value]"
+    },
+    "apiDefaultHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.apiDefaultHostname.value]"
+    },
+    "apiCustomHostname": {
+      "type": "string",
+      "value": "[if(parameters('enableCustomDomain'), parameters('apiHostname'), '')]"
+    },
+    "customDomainVerificationId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.customDomainVerificationId.value]"
+    },
+    "migrationJobName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.migrationJobName.value]"
+    },
+    "postgresServerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgres', variables('nameStem'))), '2025-04-01').outputs.serverName.value]"
+    },
+    "postgresFullyQualifiedDomainName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-postgres', variables('nameStem'))), '2025-04-01').outputs.fullyQualifiedDomainName.value]"
+    },
+    "githubClientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-deployment-identity', variables('nameStem'))), '2025-04-01').outputs.clientId.value]"
+    },
+    "githubPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-deployment-identity', variables('nameStem'))), '2025-04-01').outputs.principalId.value]"
+    },
+    "runtimeIdentityClientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.runtimeIdentityClientId.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.keyVaultName.value]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.storageAccountName.value]"
+    },
+    "tenantId": {
+      "type": "string",
+      "value": "[tenant().tenantId]"
+    },
+    "subscriptionId": {
+      "type": "string",
+      "value": "[subscription().subscriptionId]"
+    }
+  }
+}

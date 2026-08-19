@@ -3,6 +3,7 @@ using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Domain.Integrations;
 using FamilyDashboard.Api.Features.Calendar;
+using FamilyDashboard.Api.Features.Common;
 using FamilyDashboard.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,90 @@ namespace FamilyDashboard.Api.Tests.Calendar;
 [Collection("PostgreSQL integration")]
 public sealed class GoogleCalendarServiceTests
 {
+    [PostgreSqlFact]
+    public async Task CanonicalGoogleEmailScopeAllowsEncryptedCalendarConnection()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = Dependencies.Create();
+        var account = new UserAccount
+        {
+            DisplayName = "Calendar Owner",
+            PrimaryEmail = "owner@example.test",
+        };
+        database.DbContext.UserAccounts.Add(account);
+        await database.DbContext.SaveChangesAsync();
+
+        var sessionId = Guid.NewGuid();
+        var householdId = Guid.NewGuid();
+        var (state, _) = dependencies.StateProtector.CreateAuthorization(
+            account.Id, sessionId, householdId, $"/households/{householdId:D}/calendars");
+        var provider = new FakeProvider
+        {
+            ExchangeResult = new GoogleCalendarTokenResult(
+                "calendar-access-token",
+                "calendar-refresh-token",
+                DateTimeOffset.UtcNow.AddHours(1),
+                [
+                    GoogleCalendarScopes.OpenId,
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    GoogleCalendarScopes.CalendarListReadOnly,
+                    GoogleCalendarScopes.EventsReadOnly,
+                ],
+                "calendar-subject",
+                "Calendar.Owner@Example.Test"),
+        };
+        var service = dependencies.Service(database, provider);
+
+        var result = await service.CompleteAuthorizationAsync(
+            "authorization-code", state, account.Id, sessionId, CancellationToken.None);
+
+        Assert.Equal(householdId, result.HouseholdId);
+        database.DbContext.ChangeTracker.Clear();
+        var connection = await database.DbContext.GoogleCalendarConnections.SingleAsync();
+        Assert.Equal(GoogleCalendarConnectionStatus.Active, connection.Status);
+        Assert.Equal("calendar.owner@example.test", connection.ProviderEmailNormalized);
+        Assert.DoesNotContain("calendar-access-token", connection.ProtectedAccessToken);
+        Assert.DoesNotContain("calendar-refresh-token", connection.ProtectedRefreshToken);
+        Assert.Equal("calendar-access-token", dependencies.TokenProtector.Unprotect(
+            connection.Id, "access-token", connection.ProtectedAccessToken!));
+        Assert.Equal("calendar-refresh-token", dependencies.TokenProtector.Unprotect(
+            connection.Id, "refresh-token", connection.ProtectedRefreshToken!));
+    }
+
+    [PostgreSqlFact]
+    public async Task MissingCalendarDataScopeStillFailsClosed()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = Dependencies.Create();
+        var userAccountId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        var householdId = Guid.NewGuid();
+        var (state, _) = dependencies.StateProtector.CreateAuthorization(
+            userAccountId, sessionId, householdId, $"/households/{householdId:D}/calendars");
+        var provider = new FakeProvider
+        {
+            ExchangeResult = new GoogleCalendarTokenResult(
+                "calendar-access-token",
+                "calendar-refresh-token",
+                DateTimeOffset.UtcNow.AddHours(1),
+                [
+                    GoogleCalendarScopes.OpenId,
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    GoogleCalendarScopes.CalendarListReadOnly,
+                ],
+                "calendar-subject",
+                "owner@example.test"),
+        };
+        var service = dependencies.Service(database, provider);
+
+        var exception = await Assert.ThrowsAsync<CalendarOperationException>(() =>
+            service.CompleteAuthorizationAsync(
+                "authorization-code", state, userAccountId, sessionId, CancellationToken.None));
+
+        Assert.Equal(ApiProblemCodes.CalendarScopeMissing, exception.Code);
+        Assert.Empty(await database.DbContext.GoogleCalendarConnections.ToArrayAsync());
+    }
+
     [PostgreSqlFact]
     public async Task ExpiredAccessTokenRefreshesAndEventsRemainProviderOwned()
     {
@@ -145,9 +230,14 @@ public sealed class GoogleCalendarServiceTests
             _services = services;
             TokenProtector = new CalendarTokenProtector(
                 services.GetRequiredService<IDataProtectionProvider>());
+            StateProtector = new CalendarStateProtector(
+                services.GetRequiredService<IDataProtectionProvider>(),
+                TimeProvider.System,
+                _options);
         }
 
         public CalendarTokenProtector TokenProtector { get; }
+        public CalendarStateProtector StateProtector { get; }
 
         public static Dependencies Create()
         {
@@ -160,10 +250,7 @@ public sealed class GoogleCalendarServiceTests
                 database.DbContext,
                 provider,
                 TokenProtector,
-                new CalendarStateProtector(
-                    _services.GetRequiredService<IDataProtectionProvider>(),
-                    TimeProvider.System,
-                    _options),
+                StateProtector,
                 _cache,
                 _options,
                 TimeProvider.System);
@@ -180,10 +267,11 @@ public sealed class GoogleCalendarServiceTests
         public int RefreshCount { get; private set; }
         public bool FailRevocation { get; init; }
         public GoogleProviderEventPage Events { get; init; } = new([], null);
+        public GoogleCalendarTokenResult? ExchangeResult { get; init; }
 
         public string CreateAuthorizationUrl(string state) => throw new NotSupportedException();
         public Task<GoogleCalendarTokenResult> ExchangeCodeAsync(string code, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
+            Task.FromResult(ExchangeResult ?? throw new NotSupportedException());
         public Task<IReadOnlyList<GoogleProviderCalendar>> ListCalendarsAsync(
             string accessToken, CancellationToken cancellationToken) => throw new NotSupportedException();
 

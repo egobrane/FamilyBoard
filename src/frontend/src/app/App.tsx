@@ -150,6 +150,7 @@ function AuthenticatedRoutes() {
 
   return (
     <Routes>
+      <Route element={<AuthenticationErrorPage />} path="/auth/error" />
       <Route element={<HouseholdShell />}>
         <Route element={<DashboardHome />} path="/" />
         <Route element={<><CalendarPage /><NavigationBar /></>} path="/calendar" />

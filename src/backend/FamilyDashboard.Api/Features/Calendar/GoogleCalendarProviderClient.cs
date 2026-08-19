@@ -19,6 +19,7 @@ public static class GoogleCalendarScopes
     public const string CalendarListReadOnly = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
     public const string EventsReadOnly = "https://www.googleapis.com/auth/calendar.events.readonly";
     public static readonly string[] Required = [OpenId, Email, CalendarListReadOnly, EventsReadOnly];
+    public static readonly string[] RequiredCalendarDataAccess = [CalendarListReadOnly, EventsReadOnly];
 }
 
 public sealed record GoogleCalendarTokenResult(

@@ -108,6 +108,21 @@ describe('App', () => {
     expect(screen.queryByText('Dentist appointment')).not.toBeInTheDocument()
   })
 
+  it('shows safe Calendar callback failures to an authenticated adult', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(currentUser())))
+    renderApp('/auth/error?code=calendar_scope_missing')
+
+    expect(await screen.findByRole('heading', {
+      name: 'Google Calendar permissions were incomplete.',
+    })).toBeInTheDocument()
+    expect(screen.getByText(/no connection was saved/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Return to Calendar settings' })).toHaveAttribute(
+      'href',
+      '/households/20000000-0000-0000-0000-000000000001/calendars',
+    )
+    expect(screen.queryByText('calendar_scope_missing')).not.toBeInTheDocument()
+  })
+
   it('routes an authenticated account with no household into atomic setup', async () => {
     const user = userEvent.setup()
     let hasHousehold = false

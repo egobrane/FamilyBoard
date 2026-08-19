@@ -76,7 +76,10 @@ public sealed class GoogleCalendarService(
         }
 
         var token = await provider.ExchangeCodeAsync(code, cancellationToken);
-        var missingScopes = GoogleCalendarScopes.Required
+        // Google may return the canonical userinfo.email scope for the requested OpenID
+        // "email" alias. Identity is validated from the signed ID token above this seam;
+        // only the Calendar data-access scopes require exact granted-scope validation here.
+        var missingScopes = GoogleCalendarScopes.RequiredCalendarDataAccess
             .Except(token.Scopes, StringComparer.Ordinal)
             .ToArray();
         if (missingScopes.Length > 0)

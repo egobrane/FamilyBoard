@@ -61,6 +61,33 @@ public sealed class CalendarEndpointTests
     }
 
     [PostgreSqlFact]
+    public async Task EventCreationAuthorizationUsesIncrementalWriteScope()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = await AddAccountAsync(database, "Owner", "write-scope-calendar@example.test");
+        await using var factory = new IdentityHouseholdWebApplicationFactory(
+            Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!,
+            enableCalendar: true,
+            enableCalendarEventCreation: true);
+        using var client = Client(factory, account.Id);
+        var household = await BootstrapAsync(client, "Writable Calendar Household");
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/calendar/authorization",
+            new BeginCalendarAuthorizationRequest(
+                $"/households/{household.Id}/calendars",
+                CalendarAuthorizationCapabilities.EventCreation));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<BeginCalendarAuthorizationResponse>();
+        Assert.NotNull(result);
+        var decoded = Uri.UnescapeDataString(result.AuthorizationUrl);
+        Assert.Contains(GoogleCalendarScopes.EventsWrite, decoded);
+        Assert.Contains(GoogleCalendarScopes.CalendarListReadOnly, decoded);
+        Assert.DoesNotContain(GoogleCalendarScopes.EventsReadOnly, decoded);
+    }
+
+    [PostgreSqlFact]
     public async Task CrossHouseholdAndLockedSharedDisplayFailClosed()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();

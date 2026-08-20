@@ -52,6 +52,13 @@ public static class ApiProblemCodes
     public const string CalendarDisconnectConfirmationRequired = "calendar_disconnect_confirmation_required";
     public const string CalendarRangeInvalid = "calendar_range_invalid";
     public const string CalendarCursorInvalid = "calendar_cursor_invalid";
+    public const string CalendarAccountMismatch = "calendar_account_mismatch";
+    public const string CalendarEventCreationUnavailable = "calendar_event_creation_unavailable";
+    public const string CalendarWriteAuthorizationRequired = "calendar_write_authorization_required";
+    public const string CalendarEventCreationTargetInvalid = "calendar_event_creation_target_invalid";
+    public const string CalendarIdempotencyConflict = "calendar_idempotency_conflict";
+    public const string CalendarEventCreationRateLimited = "calendar_event_creation_rate_limited";
+    public const string HouseholdSelectionRequired = "household_selection_required";
     public const string UnexpectedError = "unexpected_error";
 }
 

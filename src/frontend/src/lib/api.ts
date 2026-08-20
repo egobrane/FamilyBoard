@@ -62,6 +62,8 @@ export interface CalendarConnectionResponse {
   connectedAt: string | null
   canManageConnection: boolean
   activeSourceCount: number
+  eventCreationAvailable: boolean
+  eventCreationAuthorized: boolean
 }
 
 export interface ProviderCalendarResponse {
@@ -71,6 +73,9 @@ export interface ProviderCalendarResponse {
   color: string | null
   isPrimary: boolean
   isSelected: boolean
+  accessRole: string
+  canCreateEvents: boolean
+  isEventCreationTarget: boolean
 }
 
 export interface CalendarSourceResponse {
@@ -82,6 +87,34 @@ export interface CalendarSourceResponse {
   color: string | null
   isActive: boolean
   isOwnedByCurrentAdult: boolean
+  isEventCreationTarget: boolean
+}
+
+export interface CalendarEventCreationTargetResponse {
+  isAvailable: boolean
+  isAuthorized: boolean
+  sourceId: string | null
+  name: string | null
+  timeZone: string | null
+  color: string | null
+}
+
+export interface CreateCalendarEventRequest {
+  sourceId: string
+  idempotencyKey: string
+  attributedMemberId: string | null
+  title: string
+  location: string | null
+  notes: string | null
+  isAllDay: boolean
+  start: string
+  end: string
+  timeZone: string | null
+}
+
+export interface CreatedCalendarEventResponse extends CalendarEventResponse {
+  attributedMemberId: string
+  recoveredExistingEvent: boolean
 }
 
 export interface CalendarEventResponse {
@@ -391,11 +424,15 @@ export function getCalendarConnection(householdId: string) {
   )
 }
 
-export function beginCalendarAuthorization(householdId: string, returnPath: string) {
+export function beginCalendarAuthorization(
+  householdId: string,
+  returnPath: string,
+  capability: 'readOnly' | 'eventCreation' = 'readOnly',
+) {
   return unsafeRequest<{ authorizationUrl: string; expiresAt: string }>(
     `/api/households/${encodeURIComponent(householdId)}/calendar/authorization`,
     'POST',
-    { returnPath },
+    { returnPath, capability },
   )
 }
 
@@ -420,6 +457,34 @@ export function updateCalendarSources(
     `/api/households/${encodeURIComponent(householdId)}/calendar/sources`,
     'PUT',
     { connectionId, externalCalendarIds },
+  )
+}
+
+export function getCalendarEventCreationTarget(householdId: string) {
+  return request<CalendarEventCreationTargetResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/event-creation-target`,
+  )
+}
+
+export function updateCalendarEventCreationTarget(
+  householdId: string,
+  sourceId: string | null,
+) {
+  return unsafeRequest<CalendarEventCreationTargetResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/event-creation-target`,
+    'PUT',
+    { sourceId },
+  )
+}
+
+export function createCalendarEvent(
+  householdId: string,
+  body: CreateCalendarEventRequest,
+) {
+  return unsafeRequest<CreatedCalendarEventResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/events`,
+    'POST',
+    body,
   )
 }
 

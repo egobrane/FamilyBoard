@@ -22,6 +22,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<GoogleCalendarConnection> GoogleCalendarConnections => Set<GoogleCalendarConnection>();
     public DbSet<HouseholdCalendarSource> HouseholdCalendarSources => Set<HouseholdCalendarSource>();
+    public DbSet<CalendarEventCreationReceipt> CalendarEventCreationReceipts => Set<CalendarEventCreationReceipt>();
     public DbSet<ApplicationPreference> ApplicationPreferences => Set<ApplicationPreference>();
     public DbSet<ChoreDefinition> ChoreDefinitions => Set<ChoreDefinition>();
     public DbSet<ChoreAssignment> ChoreAssignments => Set<ChoreAssignment>();

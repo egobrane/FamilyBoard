@@ -33,7 +33,7 @@ builder.Services.AddSingleton<CalendarStateProtector>();
 builder.Services.AddSingleton<CalendarCorrelationCookieService>();
 builder.Services.AddOptions<GoogleCalendarConfiguration>()
     .Bind(builder.Configuration.GetSection(GoogleCalendarConfiguration.SectionName))
-    .Validate(options => !options.Enabled || (
+    .Validate(options => (!options.EventCreationEnabled || options.Enabled) && (!options.Enabled || (
         !string.IsNullOrWhiteSpace(options.ClientId)
         && !string.IsNullOrWhiteSpace(options.ClientSecret)
         && Uri.TryCreate(options.CallbackUrl, UriKind.Absolute, out var callback)
@@ -43,7 +43,7 @@ builder.Services.AddOptions<GoogleCalendarConfiguration>()
         && options.FreshCacheLifetime > TimeSpan.Zero
         && options.StaleCacheLifetime >= options.FreshCacheLifetime
         && options.MaximumCalendarsPerHousehold is > 0 and <= 100
-        && options.MaximumEventsPerRequest is > 0 and <= 2500),
+        && options.MaximumEventsPerRequest is > 0 and <= 2500)),
         "Google Calendar configuration is incomplete or invalid.")
     .ValidateOnStart();
 builder.Services.AddOptions<ParentAccessConfiguration>()
@@ -90,11 +90,17 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (context, cancellationToken) =>
     {
         context.HttpContext.Response.Headers.RetryAfter = "60";
+        var isCalendarCreation = context.HttpContext.Request.Path.Value?.EndsWith(
+            "/calendar/events", StringComparison.Ordinal) == true;
         var problem = FamilyDashboard.Api.Features.Common.ApiProblems.Create(
             context.HttpContext,
             StatusCodes.Status429TooManyRequests,
-            FamilyDashboard.Api.Features.Common.ApiProblemCodes.ParentPinRateLimited,
-            "Too many parent PIN attempts. Try again shortly.");
+            isCalendarCreation
+                ? FamilyDashboard.Api.Features.Common.ApiProblemCodes.CalendarEventCreationRateLimited
+                : FamilyDashboard.Api.Features.Common.ApiProblemCodes.ParentPinRateLimited,
+            isCalendarCreation
+                ? "Too many calendar events were submitted. Try again shortly."
+                : "Too many parent PIN attempts. Try again shortly.");
         problem.Extensions["retryAfterSeconds"] = 60;
         await Results.Problem(problem).ExecuteAsync(context.HttpContext);
     };
@@ -106,6 +112,22 @@ builder.Services.AddRateLimiter(options =>
         var householdId = context.Request.RouteValues["householdId"]?.ToString() ?? "unknown";
         return RateLimitPartition.GetFixedWindowLimiter(
             $"{sessionId}:{householdId}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
+    options.AddPolicy("calendar-event-creation", context =>
+    {
+        var sessionId = context.User.FindFirst(FamilyDashboardClaimTypes.UserSessionId)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString()
+            ?? "unknown";
+        var householdId = context.Request.RouteValues["householdId"]?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"calendar:{sessionId}:{householdId}",
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,

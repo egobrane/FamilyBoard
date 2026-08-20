@@ -83,6 +83,47 @@ public sealed class CalendarPersistenceTests
         await Assert.ThrowsAsync<DbUpdateException>(() => database.DbContext.SaveChangesAsync());
     }
 
+    [PostgreSqlFact]
+    public async Task HouseholdAllowsOnlyOneActiveEventCreationTarget()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount { DisplayName = "Calendar Adult", PrimaryEmail = "target@example.test" };
+        var household = new Household { Name = "Target Family" };
+        household.Configuration = new HouseholdConfiguration { HouseholdId = household.Id };
+        var connection = Connection(account.Id, "target-subject");
+        database.DbContext.AddRange(account, household, connection);
+        await database.DbContext.SaveChangesAsync();
+        database.DbContext.HouseholdCalendarSources.AddRange(
+            new HouseholdCalendarSource
+            {
+                HouseholdId = household.Id,
+                GoogleCalendarConnectionId = connection.Id,
+                OwnerUserAccountId = account.Id,
+                ExternalCalendarId = "one@example.test",
+                DisplayNameSnapshot = "One",
+                AddedByUserAccountId = account.Id,
+                IsActive = true,
+                IsEventCreationTarget = true,
+                EventCreationEnabledAt = DateTimeOffset.UtcNow,
+                EventCreationEnabledByUserAccountId = account.Id,
+            },
+            new HouseholdCalendarSource
+            {
+                HouseholdId = household.Id,
+                GoogleCalendarConnectionId = connection.Id,
+                OwnerUserAccountId = account.Id,
+                ExternalCalendarId = "two@example.test",
+                DisplayNameSnapshot = "Two",
+                AddedByUserAccountId = account.Id,
+                IsActive = true,
+                IsEventCreationTarget = true,
+                EventCreationEnabledAt = DateTimeOffset.UtcNow,
+                EventCreationEnabledByUserAccountId = account.Id,
+            });
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => database.DbContext.SaveChangesAsync());
+    }
+
     private static GoogleCalendarConnection Connection(Guid userAccountId, string subject) => new()
     {
         UserAccountId = userAccountId,

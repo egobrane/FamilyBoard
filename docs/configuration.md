@@ -41,7 +41,8 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `ParentAccess__MaximumFailures` | Public policy | Failures before cooldown; default five |
 | `ParentAccess__FailureWindow` | Public policy | Failed-attempt window; default ten minutes |
 | `ParentAccess__LockoutLifetime` | Public policy | Per-session cooldown; default 15 minutes |
-| `GoogleCalendar__Enabled` | Public configuration | Explicit read-only Calendar feature gate; disabled by default |
+| `GoogleCalendar__Enabled` | Public configuration | Explicit Calendar integration feature gate; disabled by default |
+| `GoogleCalendar__EventCreationEnabled` | Public configuration | Separate controlled event-creation gate; disabled by default even when Calendar reads are enabled |
 | `GoogleCalendar__ClientId` | Public identifier | Separate Calendar OAuth web client ID |
 | `GoogleCalendar__ClientSecret` | Secret | Separate Calendar OAuth client secret; backend only |
 | `GoogleCalendar__CallbackUrl` | Public configuration | Exact backend Calendar OAuth callback URL |

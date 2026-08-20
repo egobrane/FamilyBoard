@@ -10,6 +10,7 @@ import { AuthenticationErrorPage } from '../features/authentication/Authenticati
 import { WelcomePage } from '../features/authentication/WelcomePage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
+import { CreateCalendarEventPage } from '../features/calendar/CreateCalendarEventPage'
 import { HouseholdCalendarsPage } from '../features/calendar/HouseholdCalendarsPage'
 import { HouseholdAdminLayout } from '../features/household-admin/HouseholdAdminLayout'
 import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembersPage'
@@ -154,6 +155,7 @@ function AuthenticatedRoutes() {
       <Route element={<HouseholdShell />}>
         <Route element={<DashboardHome />} path="/" />
         <Route element={<><CalendarPage /><NavigationBar /></>} path="/calendar" />
+        <Route element={<CreateCalendarEventPage />} path="/calendar/new" />
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
           <Route element={<HouseholdSettingsPage />} path="settings" />
           <Route element={<HouseholdMembersPage />} path="members" />

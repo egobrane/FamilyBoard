@@ -1,5 +1,6 @@
 using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Domain.Rewards;
+using FamilyDashboard.Api.Domain.Integrations;
 
 namespace FamilyDashboard.Api.Domain.Households;
 
@@ -20,4 +21,5 @@ public sealed class HouseholdMember
     public ICollection<ChoreAssignment> ChoreAssignments { get; set; } = [];
     public ICollection<PointTransaction> PointTransactions { get; set; } = [];
     public ICollection<RewardRedemption> RewardRedemptions { get; set; } = [];
+    public ICollection<CalendarEventCreationReceipt> AttributedCalendarEventCreations { get; set; } = [];
 }

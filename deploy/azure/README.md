@@ -81,6 +81,8 @@ unset FAMILY_DASHBOARD_GOOGLE_CALENDAR_CLIENT_SECRET
 
 Set the public `googleCalendarClientId` and `enableGoogleCalendar=true` only after that deployment succeeds. Keep the sign-in and Calendar client IDs/secrets distinct. First deploy the Calendar migration and API image with the feature disabled; enabling later changes only Container App configuration and creates a new revision of the same reviewed image.
 
+Controlled Calendar event creation has its own `enableGoogleCalendarEventCreation` parameter. Keep it `false` while applying the additive migration. After the existing Calendar OAuth client's consent configuration includes the exact `calendar.events` scope, set it to `true` and redeploy the same reviewed backend digest. No additional Azure secret is required.
+
 Before enabling Increment 6, generate and save a random 32-byte parent-access pepper without printing it or placing it in shell history. Seed it as the separately named `parent-access-pepper-v1` secret through Azure Resource Manager, then unset the variable:
 
 ```sh

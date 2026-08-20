@@ -87,6 +87,30 @@ test.beforeEach(async ({ page }) => {
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/events`) {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON() as {
+          sourceId: string
+          title: string
+          start: string
+          end: string
+          timeZone: string
+        }
+        await route.fulfill({ status: 201, json: {
+          id: 'created-event',
+          sourceId: body.sourceId,
+          calendarName: 'Family',
+          title: body.title,
+          isAllDay: false,
+          start: body.start,
+          end: body.end,
+          timeZone: body.timeZone,
+          location: null,
+          color: '#73b49a',
+          attributedMemberId: authenticatedUser.households[0].memberId,
+          recoveredExistingEvent: false,
+        } })
+        return
+      }
       await route.fulfill({ json: {
         events: [{
           id: 'school-drop-off',
@@ -115,20 +139,33 @@ test.beforeEach(async ({ page }) => {
         connectedAt: '2026-08-18T12:00:00Z',
         canManageConnection: true,
         activeSourceCount: 1,
+        eventCreationAvailable: true,
+        eventCreationAuthorized: true,
+      } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/event-creation-target`) {
+      await route.fulfill({ json: {
+        isAvailable: true,
+        isAuthorized: true,
+        sourceId: '50000000-0000-0000-0000-000000000001',
+        name: 'Family',
+        timeZone: 'America/New_York',
+        color: '#73b49a',
       } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/provider-calendars`) {
       await route.fulfill({ json: [
-        { id: 'family@example.test', name: 'Family', timeZone: 'America/New_York', color: '#73b49a', isPrimary: true, isSelected: true },
-        { id: 'school@example.test', name: 'School', timeZone: 'America/New_York', color: '#4285f4', isPrimary: false, isSelected: false },
+        { id: 'family@example.test', name: 'Family', timeZone: 'America/New_York', color: '#73b49a', isPrimary: true, isSelected: true, accessRole: 'owner', canCreateEvents: true, isEventCreationTarget: true },
+        { id: 'school@example.test', name: 'School', timeZone: 'America/New_York', color: '#4285f4', isPrimary: false, isSelected: false, accessRole: 'reader', canCreateEvents: false, isEventCreationTarget: false },
       ] })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/sources`) {
       await route.fulfill({ json: route.request().method() === 'PUT'
-        ? [{ id: 'source-1', connectionId: '40000000-0000-0000-0000-000000000001', externalCalendarId: 'family@example.test', name: 'Family', isActive: true, isOwnedByCurrentAdult: true }]
-        : [] })
+        ? [{ id: '50000000-0000-0000-0000-000000000001', connectionId: '40000000-0000-0000-0000-000000000001', externalCalendarId: 'family@example.test', name: 'Family', isActive: true, isOwnedByCurrentAdult: true, isEventCreationTarget: true }]
+        : [{ id: '50000000-0000-0000-0000-000000000001', connectionId: '40000000-0000-0000-0000-000000000001', externalCalendarId: 'family@example.test', name: 'Family', isActive: true, isOwnedByCurrentAdult: true, isEventCreationTarget: true }] })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/parent-access`) {
@@ -293,6 +330,20 @@ test('calendar navigation and household source selection work with touch-sized c
   await page.getByRole('checkbox', { name: /School/ }).check()
   await page.getByRole('button', { name: 'Save visible calendars' }).click()
   await expect(page.getByText('Household calendars saved.')).toBeVisible()
+
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+    .toEqual([])
+})
+
+test('controlled event creation is keyboard accessible and returns to the calendar', async ({ page }) => {
+  await page.goto('/calendar')
+  await page.getByRole('link', { name: 'Add event' }).click()
+  await expect(page.getByRole('heading', { name: 'Add a family event' })).toBeVisible()
+  await page.getByLabel('Event title').fill('Dentist appointment')
+  await page.getByRole('button', { name: 'Add to calendar' }).click()
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(page.getByText('Event added to Google Calendar.')).toBeVisible()
 
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))

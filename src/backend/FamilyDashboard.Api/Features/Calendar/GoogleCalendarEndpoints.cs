@@ -26,8 +26,15 @@ public static class GoogleCalendarEndpoints
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapPost("/api/households/{householdId:guid}/calendar/disconnect", DisconnectAsync)
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
+        endpoints.MapGet("/api/households/{householdId:guid}/calendar/event-creation-target", GetEventCreationTargetAsync)
+            .RequireAuthorization();
+        endpoints.MapPut("/api/households/{householdId:guid}/calendar/event-creation-target", UpdateEventCreationTargetAsync)
+            .RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapGet("/api/households/{householdId:guid}/calendar/events", ListEventsAsync)
             .RequireAuthorization();
+        endpoints.MapPost("/api/households/{householdId:guid}/calendar/events", CreateEventAsync)
+            .RequireAuthorization().RequireFamilyDashboardAntiforgery()
+            .RequireRateLimiting("calendar-event-creation");
         return endpoints;
     }
 
@@ -56,8 +63,11 @@ public static class GoogleCalendarEndpoints
             if (!ReturnUrlValidator.TryNormalize(request?.ReturnPath, out var returnPath))
                 return Problem(context, 400, ApiProblemCodes.InvalidReturnUrl,
                     "The return path is invalid.");
+            var capability = string.IsNullOrWhiteSpace(request?.Capability)
+                ? CalendarAuthorizationCapabilities.ReadOnly
+                : request.Capability;
             var result = service.BeginAuthorization(
-                householdId, userId.UserAccountId!.Value, sessionId, returnPath);
+                householdId, userId.UserAccountId!.Value, sessionId, returnPath, capability);
             correlationCookie.Write(context.Response, result.State, result.Response.ExpiresAt);
             return Results.Ok(result.Response);
         });
@@ -166,6 +176,59 @@ public static class GoogleCalendarEndpoints
                     "Both from and to are required.");
             return Results.Ok(await service.ListEventsAsync(
                 householdId, from.Value, to.Value, cursor, cancellationToken));
+        });
+
+    private static async Task<IResult> GetEventCreationTargetAsync(
+        Guid householdId, HttpContext context, IAuthorizationService authorization,
+        GoogleCalendarService service, CancellationToken cancellationToken) =>
+        await RunAsync(context, async () =>
+        {
+            var userId = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Member, cancellationToken);
+            return userId.Result ?? Results.Ok(await service.GetEventCreationTargetAsync(
+                householdId, cancellationToken));
+        });
+
+    private static async Task<IResult> UpdateEventCreationTargetAsync(
+        Guid householdId, UpdateCalendarEventCreationTargetRequest? request,
+        HttpContext context, IAuthorizationService authorization,
+        GoogleCalendarService service, CancellationToken cancellationToken) =>
+        await RunAsync(context, async () =>
+        {
+            var userId = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Administration, cancellationToken);
+            if (userId.Result is not null) return userId.Result;
+            if (request is null)
+                return HouseholdEndpoints.ValidationFailed(context,
+                    new Dictionary<string, string[]> { ["sourceId"] = ["A target selection is required."] });
+            return Results.Ok(await service.UpdateEventCreationTargetAsync(
+                householdId, userId.UserAccountId!.Value, request, cancellationToken));
+        });
+
+    private static async Task<IResult> CreateEventAsync(
+        Guid householdId, CreateCalendarEventRequest? request,
+        HttpContext context, IAuthorizationService authorization,
+        GoogleCalendarService service, CancellationToken cancellationToken) =>
+        await RunAsync(context, async () =>
+        {
+            var userId = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Member, cancellationToken);
+            if (userId.Result is not null) return userId.Result;
+            if (request is null)
+                return HouseholdEndpoints.ValidationFailed(context,
+                    new Dictionary<string, string[]> { ["event"] = ["Event details are required."] });
+            if (!context.User.TryGetUserSessionId(out var sessionId))
+                return HouseholdEndpoints.AccountUnavailable(context);
+            var created = await service.CreateEventAsync(
+                householdId,
+                userId.UserAccountId!.Value,
+                sessionId,
+                request,
+                context.TraceIdentifier,
+                cancellationToken);
+            return Results.Created(
+                $"/api/households/{householdId:D}/calendar/events/{Uri.EscapeDataString(created.Id)}",
+                created);
         });
 
     private static async Task<(Guid? UserAccountId, IResult? Result)> RequireAccessAsync(

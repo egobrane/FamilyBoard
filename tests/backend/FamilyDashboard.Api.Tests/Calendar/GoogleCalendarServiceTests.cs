@@ -4,12 +4,14 @@ using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Domain.Integrations;
 using FamilyDashboard.Api.Features.Calendar;
 using FamilyDashboard.Api.Features.Common;
+using FamilyDashboard.Api.Persistence;
 using FamilyDashboard.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 
 namespace FamilyDashboard.Api.Tests.Calendar;
 
@@ -163,8 +165,125 @@ public sealed class GoogleCalendarServiceTests
         Assert.False(await database.DbContext.HouseholdCalendarSources.Select(source => source.IsActive).SingleAsync());
     }
 
+    [PostgreSqlFact]
+    public async Task CreateEventUsesProviderAsSourceOfTruthAndReplaysIdempotently()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = Dependencies.Create(enableEventCreation: true);
+        var seeded = await SeedAsync(database, dependencies.TokenProtector, enableEventCreation: true);
+        var provider = new FakeProvider
+        {
+            Calendars =
+            [
+                new GoogleProviderCalendar(
+                    "family@example.test", "Family", "America/New_York", "#73b49a", false, "owner"),
+            ],
+        };
+        var service = dependencies.Service(database, provider);
+        var request = new CreateCalendarEventRequest(
+            seeded.Source.Id,
+            Guid.NewGuid(),
+            null,
+            "School concert",
+            "Auditorium",
+            "Bring tickets",
+            false,
+            "2026-08-20T18:00:00-04:00",
+            "2026-08-20T20:00:00-04:00",
+            "America/New_York");
+
+        var first = await service.CreateEventAsync(
+            seeded.Household.Id, seeded.Account.Id, seeded.Session.Id,
+            request, "trace-one", CancellationToken.None);
+        database.DbContext.ChangeTracker.Clear();
+        var replay = await service.CreateEventAsync(
+            seeded.Household.Id, seeded.Account.Id, seeded.Session.Id,
+            request, "trace-two", CancellationToken.None);
+
+        Assert.False(first.RecoveredExistingEvent);
+        Assert.True(replay.RecoveredExistingEvent);
+        Assert.Equal(first.Id, replay.Id);
+        Assert.Equal(1, provider.CreateCount);
+        Assert.Equal(1, provider.GetCount);
+        var receipt = await database.DbContext.CalendarEventCreationReceipts.SingleAsync();
+        Assert.Equal(CalendarEventCreationReceiptStatus.Succeeded, receipt.Status);
+        Assert.Equal(first.Id, receipt.ProviderEventId);
+        Assert.Equal(request.AttributedMemberId ?? seeded.Member.Id, receipt.AttributedHouseholdMemberId);
+        Assert.DoesNotContain(database.DbContext.Model.GetEntityTypes(), entity =>
+            entity.ClrType.Name is "CalendarEvent" or "GoogleCalendarEvent");
+    }
+
+    [PostgreSqlFact]
+    public async Task ConcurrentDuplicateEventRequestsConvergeOnOneReceiptAndProviderId()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = Dependencies.Create(enableEventCreation: true);
+        var seeded = await SeedAsync(database, dependencies.TokenProtector, enableEventCreation: true);
+        database.DbContext.ChangeTracker.Clear();
+        var provider = new FakeProvider
+        {
+            Calendars =
+            [
+                new GoogleProviderCalendar(
+                    "family@example.test", "Family", "America/New_York", "#73b49a", false, "owner"),
+            ],
+        };
+        var options = new DbContextOptionsBuilder<FamilyDashboardDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!)
+            .Options;
+        await using var firstContext = new FamilyDashboardDbContext(options);
+        await using var secondContext = new FamilyDashboardDbContext(options);
+        var request = new CreateCalendarEventRequest(
+            seeded.Source.Id, Guid.NewGuid(), null, "Family dinner", null, null, false,
+            "2026-08-20T18:00:00-04:00", "2026-08-20T19:00:00-04:00", "America/New_York");
+
+        var results = await Task.WhenAll(
+            dependencies.Service(firstContext, provider).CreateEventAsync(
+                seeded.Household.Id, seeded.Account.Id, seeded.Session.Id,
+                request, "trace-one", CancellationToken.None),
+            dependencies.Service(secondContext, provider).CreateEventAsync(
+                seeded.Household.Id, seeded.Account.Id, seeded.Session.Id,
+                request, "trace-two", CancellationToken.None));
+
+        Assert.Equal(results[0].Id, results[1].Id);
+        database.DbContext.ChangeTracker.Clear();
+        Assert.Equal(1, await database.DbContext.CalendarEventCreationReceipts.CountAsync());
+    }
+
+    [PostgreSqlFact]
+    public async Task SharedDisplayRequiresExplicitActiveHouseholdMemberAttribution()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = Dependencies.Create(enableEventCreation: true);
+        var seeded = await SeedAsync(database, dependencies.TokenProtector, enableEventCreation: true);
+        seeded.Session.IsSharedDisplay = true;
+        database.DbContext.UserSessions.Update(seeded.Session);
+        await database.DbContext.SaveChangesAsync();
+        database.DbContext.ChangeTracker.Clear();
+        var service = dependencies.Service(database, new FakeProvider
+        {
+            Calendars =
+            [
+                new GoogleProviderCalendar(
+                    "family@example.test", "Family", "America/New_York", "#73b49a", false, "owner"),
+            ],
+        });
+        var request = new CreateCalendarEventRequest(
+            seeded.Source.Id, Guid.NewGuid(), null, "Shared event", null, null, false,
+            "2026-08-20T18:00:00-04:00", "2026-08-20T19:00:00-04:00", "America/New_York");
+
+        var exception = await Assert.ThrowsAsync<CalendarOperationException>(() =>
+            service.CreateEventAsync(
+                seeded.Household.Id, seeded.Account.Id, seeded.Session.Id,
+                request, "shared-trace", CancellationToken.None));
+
+        Assert.Equal(ApiProblemCodes.ValidationFailed, exception.Code);
+        Assert.Empty(await database.DbContext.CalendarEventCreationReceipts.ToArrayAsync());
+    }
+
     private static async Task<Seeded> SeedAsync(
-        PostgreSqlTestDatabase database, CalendarTokenProtector tokenProtector)
+        PostgreSqlTestDatabase database, CalendarTokenProtector tokenProtector,
+        bool enableEventCreation = false)
     {
         var account = new UserAccount { DisplayName = "Calendar Owner", PrimaryEmail = "owner@example.test" };
         var household = new Household { Name = "Calendar Household" };
@@ -193,7 +312,9 @@ public sealed class GoogleCalendarServiceTests
             ProtectedAccessToken = tokenProtector.Protect(Guid.Empty, "unused", "placeholder"),
             ProtectedRefreshToken = "temporary",
             AccessTokenExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-5),
-            GrantedScopes = string.Join(' ', GoogleCalendarScopes.Required),
+            GrantedScopes = string.Join(' ', enableEventCreation
+                ? GoogleCalendarScopes.ForCapability(CalendarAuthorizationCapabilities.EventCreation)
+                : GoogleCalendarScopes.Required),
         };
         connection.ProtectedAccessToken = tokenProtector.Protect(
             connection.Id, "access-token", "expired-access-token");
@@ -208,26 +329,47 @@ public sealed class GoogleCalendarServiceTests
             DisplayNameSnapshot = "Family",
             Color = "#73b49a",
             AddedByUserAccountId = account.Id,
+            IsEventCreationTarget = enableEventCreation,
+            EventCreationEnabledAt = enableEventCreation ? DateTimeOffset.UtcNow : null,
+            EventCreationEnabledByUserAccountId = enableEventCreation ? account.Id : null,
         };
-        database.DbContext.AddRange(account, household, connection, source);
+        var session = new UserSession
+        {
+            UserAccountId = account.Id,
+            SelectedHouseholdId = household.Id,
+            CreatedAt = DateTimeOffset.UtcNow,
+            LastSeenAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(1),
+            AbsoluteExpiresAt = DateTimeOffset.UtcNow.AddDays(2),
+        };
+        database.DbContext.AddRange(account, household, connection, source, session);
         await database.DbContext.SaveChangesAsync();
         database.DbContext.ChangeTracker.Clear();
-        return new Seeded(account, household, connection);
+        return new Seeded(account, household, member, connection, source, session);
     }
 
     private sealed record Seeded(
-        UserAccount Account, Household Household, GoogleCalendarConnection Connection);
+        UserAccount Account,
+        Household Household,
+        HouseholdMember Member,
+        GoogleCalendarConnection Connection,
+        HouseholdCalendarSource Source,
+        UserSession Session);
 
     private sealed class Dependencies : IDisposable
     {
         private readonly ServiceProvider _services;
         private readonly MemoryCache _cache = new(new MemoryCacheOptions());
-        private readonly IOptions<GoogleCalendarConfiguration> _options = Options.Create(
-            new GoogleCalendarConfiguration { Enabled = true });
+        private readonly IOptions<GoogleCalendarConfiguration> _options;
 
-        private Dependencies(ServiceProvider services)
+        private Dependencies(ServiceProvider services, bool enableEventCreation)
         {
             _services = services;
+            _options = Options.Create(new GoogleCalendarConfiguration
+            {
+                Enabled = true,
+                EventCreationEnabled = enableEventCreation,
+            });
             TokenProtector = new CalendarTokenProtector(
                 services.GetRequiredService<IDataProtectionProvider>());
             StateProtector = new CalendarStateProtector(
@@ -239,15 +381,25 @@ public sealed class GoogleCalendarServiceTests
         public CalendarTokenProtector TokenProtector { get; }
         public CalendarStateProtector StateProtector { get; }
 
-        public static Dependencies Create()
+        public static Dependencies Create(bool enableEventCreation = false)
         {
             var services = new ServiceCollection().AddDataProtection().Services.BuildServiceProvider();
-            return new Dependencies(services);
+            return new Dependencies(services, enableEventCreation);
         }
 
         public GoogleCalendarService Service(
             PostgreSqlTestDatabase database, IGoogleCalendarProviderClient provider) => new(
                 database.DbContext,
+                provider,
+                TokenProtector,
+                StateProtector,
+                _cache,
+                _options,
+                TimeProvider.System);
+
+        public GoogleCalendarService Service(
+            FamilyDashboardDbContext dbContext, IGoogleCalendarProviderClient provider) => new(
+                dbContext,
                 provider,
                 TokenProtector,
                 StateProtector,
@@ -269,11 +421,18 @@ public sealed class GoogleCalendarServiceTests
         public GoogleProviderEventPage Events { get; init; } = new([], null);
         public GoogleCalendarTokenResult? ExchangeResult { get; init; }
 
-        public string CreateAuthorizationUrl(string state) => throw new NotSupportedException();
+        public int CreateCount { get; private set; }
+        public int GetCount { get; private set; }
+        public IReadOnlyList<GoogleProviderCalendar> Calendars { get; init; } = [];
+        private readonly ConcurrentDictionary<string, GoogleProviderEvent> _createdEvents = [];
+
+        public string CreateAuthorizationUrl(
+            string state, string capability = CalendarAuthorizationCapabilities.ReadOnly) =>
+            throw new NotSupportedException();
         public Task<GoogleCalendarTokenResult> ExchangeCodeAsync(string code, CancellationToken cancellationToken) =>
             Task.FromResult(ExchangeResult ?? throw new NotSupportedException());
         public Task<IReadOnlyList<GoogleProviderCalendar>> ListCalendarsAsync(
-            string accessToken, CancellationToken cancellationToken) => throw new NotSupportedException();
+            string accessToken, CancellationToken cancellationToken) => Task.FromResult(Calendars);
 
         public Task<GoogleCalendarRefreshResult> RefreshAsync(
             string refreshToken, CancellationToken cancellationToken)
@@ -289,6 +448,25 @@ public sealed class GoogleCalendarServiceTests
         {
             Assert.Equal("refreshed-access-token", accessToken);
             return Task.FromResult(Events);
+        }
+
+        public Task<GoogleProviderEvent> CreateEventAsync(
+            string accessToken, string calendarId, GoogleProviderCreateEvent request,
+            CancellationToken cancellationToken)
+        {
+            CreateCount++;
+            var created = new GoogleProviderEvent(
+                request.Id, request.Title, request.IsAllDay, request.Start, request.End,
+                request.TimeZone, request.Location);
+            return Task.FromResult(_createdEvents.GetOrAdd(request.Id, created));
+        }
+
+        public Task<GoogleProviderEvent> GetEventAsync(
+            string accessToken, string calendarId, string eventId,
+            CancellationToken cancellationToken)
+        {
+            GetCount++;
+            return Task.FromResult(_createdEvents[eventId]);
         }
 
         public Task RevokeAsync(string token, CancellationToken cancellationToken) =>

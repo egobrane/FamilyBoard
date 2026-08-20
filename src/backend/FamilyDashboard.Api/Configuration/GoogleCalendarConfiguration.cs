@@ -5,6 +5,7 @@ public sealed class GoogleCalendarConfiguration
     public const string SectionName = "GoogleCalendar";
 
     public bool Enabled { get; init; }
+    public bool EventCreationEnabled { get; init; }
     public string ClientId { get; init; } = string.Empty;
     public string ClientSecret { get; init; } = string.Empty;
     public string CallbackUrl { get; init; } = string.Empty;

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { useAuthentication } from '../authentication/AuthenticationContext'
 import {
   ApiError,
+  getCalendarEventCreationTarget,
   listCalendarEvents,
   type CalendarEventsResponse,
 } from '../../lib/api'
@@ -18,6 +19,7 @@ function rangeForNextWeek() {
 }
 
 export function CalendarPage() {
+  const location = useLocation()
   const { state } = useAuthentication()
   const household = state.status === 'authenticated'
     ? state.currentUser.households.find((item) => item.id === state.currentUser.selectedHouseholdId)
@@ -29,6 +31,10 @@ export function CalendarPage() {
     result: CalendarEventsResponse | null
     failure: string | null
   }>({ key: '', result: null, failure: null })
+  const [creation, setCreation] = useState<{ key: string; isReady: boolean }>({
+    key: '',
+    isReady: false,
+  })
 
   useEffect(() => {
     if (!household) return
@@ -48,6 +54,22 @@ export function CalendarPage() {
     return () => { active = false }
   }, [household, range.from, range.to, requestKey])
 
+  useEffect(() => {
+    if (!household) return
+    let active = true
+    void getCalendarEventCreationTarget(household.id)
+      .then((target) => {
+        if (active) setCreation({
+          key: household.id,
+          isReady: target.isAvailable && target.isAuthorized && target.sourceId !== null,
+        })
+      })
+      .catch(() => {
+        if (active) setCreation({ key: household.id, isReady: false })
+      })
+    return () => { active = false }
+  }, [household])
+
   if (!household) return null
   const loading = response.key !== requestKey
   const result = loading ? null : response.result
@@ -60,12 +82,20 @@ export function CalendarPage() {
           <h2>Family calendar</h2>
           <p>Read-only plans from the Google calendars your household has chosen.</p>
         </div>
-        {household.role === 'adult' && (
-          <Link className="secondary-action" to={`/households/${household.id}/calendars`}>
-            Calendar settings
-          </Link>
-        )}
+        <div className="calendar-page__actions">
+          {creation.key === household.id && creation.isReady && (
+            <Link className="primary-action" to="/calendar/new">Add event</Link>
+          )}
+          {household.role === 'adult' && (
+            <Link className="secondary-action" to={`/households/${household.id}/calendars`}>
+              Calendar settings
+            </Link>
+          )}
+        </div>
       </header>
+      {location.state?.calendarEventCreated === true && (
+        <CalendarStatusBanner kind="success">Event added to Google Calendar.</CalendarStatusBanner>
+      )}
       {loading && <CalendarStatusBanner>Loading family plans…</CalendarStatusBanner>}
       {failure && <CalendarStatusBanner kind="error">{failure}</CalendarStatusBanner>}
       {result?.isStale && (

@@ -61,10 +61,14 @@ describe('calendar integration', () => {
         isAvailable: true, connectionId: '40000000-0000-0000-0000-000000000001',
         status: 'connected', providerEmail: 'calendar@example.test', connectedAt: '2026-08-18T12:00:00Z',
         canManageConnection: true, activeSourceCount: 1,
+        eventCreationAvailable: false, eventCreationAuthorized: false,
+      })
+      if (path.endsWith('/calendar/event-creation-target')) return jsonResponse({
+        isAvailable: false, isAuthorized: false, sourceId: null, name: null, timeZone: null, color: null,
       })
       if (path.endsWith('/calendar/provider-calendars')) return jsonResponse([
-        { id: 'primary@example.test', name: 'Family', timeZone: 'America/New_York', color: '#4285f4', isPrimary: true, isSelected: true },
-        { id: 'school@example.test', name: 'School', timeZone: 'America/New_York', color: '#73b49a', isPrimary: false, isSelected: false },
+        { id: 'primary@example.test', name: 'Family', timeZone: 'America/New_York', color: '#4285f4', isPrimary: true, isSelected: true, accessRole: 'owner', canCreateEvents: false, isEventCreationTarget: false },
+        { id: 'school@example.test', name: 'School', timeZone: 'America/New_York', color: '#73b49a', isPrimary: false, isSelected: false, accessRole: 'reader', canCreateEvents: false, isEventCreationTarget: false },
       ])
       if (path.endsWith('/calendar/sources') && init?.method === 'PUT') return jsonResponse([
         { id: 'source-1', connectionId: '40000000-0000-0000-0000-000000000001', externalCalendarId: 'primary@example.test', name: 'Family', isActive: true, isOwnedByCurrentAdult: true },
@@ -92,5 +96,57 @@ describe('calendar integration', () => {
         }),
       }),
     )
+  })
+
+  it('creates an event with credentials, antiforgery, and an idempotency key', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path === '/api/auth/antiforgery') return jsonResponse({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/calendar/event-creation-target')) return jsonResponse({
+        isAvailable: true,
+        isAuthorized: true,
+        sourceId: '50000000-0000-0000-0000-000000000001',
+        name: 'Family',
+        timeZone: 'America/New_York',
+        color: '#4285f4',
+      })
+      if (path.endsWith('/calendar/events') && init?.method === 'POST') return jsonResponse({
+        id: 'provider-event-id',
+        sourceId: '50000000-0000-0000-0000-000000000001',
+        calendarName: 'Family',
+        title: 'Dentist appointment',
+        isAllDay: false,
+        start: '2026-08-20T10:00:00-04:00',
+        end: '2026-08-20T11:00:00-04:00',
+        timeZone: 'America/New_York',
+        location: null,
+        color: '#4285f4',
+        attributedMemberId: currentUser().households[0].memberId,
+        recoveredExistingEvent: false,
+      }, 201)
+      if (path.endsWith('/calendar/events')) return jsonResponse({ events: [], nextCursor: null, isStale: false, warnings: [] })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter initialEntries={['/calendar/new']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
+
+    await user.type(await screen.findByLabelText('Event title'), 'Dentist appointment')
+    await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
+
+    expect(await screen.findByText('Event added to Google Calendar.')).toBeInTheDocument()
+    const createCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST'
+      && String(init.body).includes('Dentist appointment'))
+    expect(createCall).toBeDefined()
+    expect(createCall?.[1]).toEqual(expect.objectContaining({
+      credentials: 'include',
+      headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'csrf' }),
+    }))
+    expect(JSON.parse(String(createCall?.[1]?.body))).toEqual(expect.objectContaining({
+      sourceId: '50000000-0000-0000-0000-000000000001',
+      title: 'Dentist appointment',
+      idempotencyKey: expect.any(String),
+    }))
   })
 })

@@ -12,6 +12,7 @@ namespace FamilyDashboard.Api.Tests.Infrastructure;
 internal sealed class IdentityHouseholdWebApplicationFactory(
     string connectionString,
     bool enableCalendar = false,
+    bool enableCalendarEventCreation = false,
     Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<Program>
 {
@@ -20,6 +21,9 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
         builder.UseSetting("ConnectionStrings:FamilyDashboard", connectionString);
         builder.UseSetting("ParentAccess:Enabled", "true");
         builder.UseSetting("GoogleCalendar:Enabled", enableCalendar.ToString());
+        builder.UseSetting(
+            "GoogleCalendar:EventCreationEnabled",
+            enableCalendarEventCreation.ToString());
         builder.UseSetting("GoogleCalendar:ClientId", enableCalendar ? "calendar-client-id" : "");
         builder.UseSetting("GoogleCalendar:ClientSecret", enableCalendar ? "calendar-client-secret" : "");
         builder.UseSetting("GoogleCalendar:CallbackUrl", enableCalendar

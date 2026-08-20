@@ -9,7 +9,9 @@ docker build \
   --tag family-dashboard-api:local .
 ```
 
-`.github/workflows/publish-backend.yml` publishes AMD64 and ARM64 images on `main`, semantic-version tags, or manual dispatch. It authenticates to GHCR with the repository-scoped `GITHUB_TOKEN` and emits SHA/version tags, SBOM data, and provenance.
+`.github/workflows/publish-backend.yml` publishes AMD64 and ARM64 images on relevant `main` changes, semantic-version tags, or manual dispatch. It authenticates to GHCR with the repository-scoped `GITHUB_TOKEN` and emits SHA/version tags, SBOM data, and provenance.
+
+Main-branch publication is intentionally limited to backend application files, backend tests, the solution and shared .NET dependency/build inputs, the backend Docker context controls, and the publication workflow itself. Frontend-only, documentation-only, Netlify-only, and deployment-parameter-only changes continue through normal CI but do not create a redundant backend image. Release tags and `workflow_dispatch` remain explicit publication paths regardless of ordinary change classification. When adding a new shared build input, update this allowlist in the same change; incorrectly omitting a backend-relevant input could otherwise leave GHCR stale even though CI is green.
 
 Production deployments should select an immutable digest or SHA tag. Do not deploy `latest` when reproducibility matters.
 

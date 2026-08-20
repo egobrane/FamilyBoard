@@ -22,4 +22,6 @@ public sealed class UserAccount
     public ICollection<ParentAccessAuditEvent> ParentAccessAuditEvents { get; set; } = [];
     public GoogleCalendarConnection? GoogleCalendarConnection { get; set; }
     public ICollection<HouseholdCalendarSource> AddedHouseholdCalendarSources { get; set; } = [];
+    public ICollection<HouseholdCalendarSource> EnabledCalendarEventCreationSources { get; set; } = [];
+    public ICollection<CalendarEventCreationReceipt> RequestedCalendarEventCreations { get; set; } = [];
 }

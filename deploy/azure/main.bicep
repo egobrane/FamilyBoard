@@ -32,6 +32,9 @@ param googleClientId string = ''
 @description('Enable only after the separate Google Calendar client secret exists in Key Vault.')
 param enableGoogleCalendar bool = false
 
+@description('Enable only after Calendar write scopes are approved and Increment 2 is deployed and migrated.')
+param enableGoogleCalendarEventCreation bool = false
+
 @description('Public client ID for the separate Google Calendar OAuth web client.')
 param googleCalendarClientId string = ''
 
@@ -111,6 +114,7 @@ module containerApps 'modules/container-apps.bicep' = {
     googleClientId: googleClientId
     googleClientSecretUri: authenticationSecurity.outputs.googleClientSecretUri
     enableGoogleCalendar: enableGoogleCalendar
+    enableGoogleCalendarEventCreation: enableGoogleCalendarEventCreation
     googleCalendarClientId: googleCalendarClientId
     googleCalendarClientSecretUri: authenticationSecurity.outputs.googleCalendarClientSecretUri
     enableParentAccess: enableParentAccess

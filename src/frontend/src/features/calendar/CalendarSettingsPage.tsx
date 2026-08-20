@@ -4,10 +4,12 @@ import {
   ApiError,
   beginCalendarAuthorization,
   disconnectCalendar,
+  getCalendarEventCreationTarget,
   getCalendarConnection,
   listCalendarSources,
   listProviderCalendars,
   updateCalendarSources,
+  updateCalendarEventCreationTarget,
   type CalendarConnectionResponse,
   type CalendarSourceResponse,
   type ProviderCalendarResponse,
@@ -20,6 +22,7 @@ export function CalendarSettingsPage({ householdId }: { householdId: string }) {
   const [calendars, setCalendars] = useState<ProviderCalendarResponse[]>([])
   const [sources, setSources] = useState<CalendarSourceResponse[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [eventCreationTargetId, setEventCreationTargetId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(
@@ -35,17 +38,20 @@ export function CalendarSettingsPage({ householdId }: { householdId: string }) {
       const status = await getCalendarConnection(householdId)
       setConnection(status)
       if (status.status === 'connected') {
-        const [available, configured] = await Promise.all([
+        const [available, configured, target] = await Promise.all([
           listProviderCalendars(householdId),
           listCalendarSources(householdId),
+          getCalendarEventCreationTarget(householdId),
         ])
         setCalendars(available)
         setSources(configured)
         setSelected(new Set(available.filter((item) => item.isSelected).map((item) => item.id)))
+        setEventCreationTargetId(target.sourceId ?? '')
       } else {
         setCalendars([])
         setSources([])
         setSelected(new Set())
+        setEventCreationTargetId('')
       }
       setError(null)
     } catch (caught) {
@@ -76,6 +82,22 @@ export function CalendarSettingsPage({ householdId }: { householdId: string }) {
       window.location.assign(result.authorizationUrl)
     } catch {
       setError('Google Calendar authorization could not be started.')
+      setBusy(false)
+    }
+  }
+
+  async function authorizeEventCreation() {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await beginCalendarAuthorization(
+        householdId,
+        `/households/${householdId}/calendars`,
+        'eventCreation',
+      )
+      window.location.assign(result.authorizationUrl)
+    } catch {
+      setError('Google Calendar event creation authorization could not be started.')
       setBusy(false)
     }
   }
@@ -115,13 +137,34 @@ export function CalendarSettingsPage({ householdId }: { householdId: string }) {
     }
   }
 
+  async function saveEventCreationTarget() {
+    setBusy(true)
+    setError(null)
+    try {
+      const target = await updateCalendarEventCreationTarget(
+        householdId,
+        eventCreationTargetId || null,
+      )
+      setEventCreationTargetId(target.sourceId ?? '')
+      setMessage(target.sourceId
+        ? 'Calendar for new family events saved.'
+        : 'Event creation is turned off for this household.')
+    } catch (caught) {
+      setError(caught instanceof ApiError && caught.problem.code === 'calendar_event_creation_target_invalid'
+        ? 'Choose a calendar where this Google account can add events.'
+        : 'The event creation calendar could not be saved.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (loading) return <CalendarStatusBanner>Loading calendar settings…</CalendarStatusBanner>
 
   return (
     <section className="admin-panel calendar-settings" aria-labelledby="calendar-settings-title">
       <div className="admin-panel__heading">
         <div>
-          <p className="eyebrow">Read-only integration</p>
+          <p className="eyebrow">Google Calendar integration</p>
           <h3 id="calendar-settings-title">Google Calendar</h3>
           <p>Calendar authorization is separate from the Google account used to sign in.</p>
         </div>
@@ -179,6 +222,49 @@ export function CalendarSettingsPage({ householdId }: { householdId: string }) {
           <button className="primary-action" disabled={busy} onClick={() => void saveSources()} type="button">
             {busy ? 'Saving…' : 'Save visible calendars'}
           </button>
+          {connection.eventCreationAvailable && (
+            <section className="calendar-creation-settings" aria-labelledby="calendar-creation-title">
+              <div>
+                <p className="eyebrow">Controlled event creation</p>
+                <h4 id="calendar-creation-title">Add family events</h4>
+                <p>Event creation needs separate Google permission. Family Dashboard still cannot edit or delete events.</p>
+              </div>
+              {!connection.eventCreationAuthorized ? (
+                <button
+                  className="secondary-action"
+                  disabled={busy}
+                  onClick={() => void authorizeEventCreation()}
+                  type="button"
+                >
+                  {busy ? 'Opening Google…' : 'Authorize event creation'}
+                </button>
+              ) : (
+                <div className="calendar-creation-target">
+                  <label htmlFor="calendar-creation-target">Calendar for new events</label>
+                  <select
+                    id="calendar-creation-target"
+                    onChange={(event) => setEventCreationTargetId(event.target.value)}
+                    value={eventCreationTargetId}
+                  >
+                    <option value="">Do not allow event creation</option>
+                    {sources
+                      .filter((source) => source.isActive && source.isOwnedByCurrentAdult)
+                      .filter((source) => calendars.some((calendar) =>
+                        calendar.id === source.externalCalendarId && calendar.canCreateEvents))
+                      .map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
+                  </select>
+                  <button
+                    className="secondary-action"
+                    disabled={busy}
+                    onClick={() => void saveEventCreationTarget()}
+                    type="button"
+                  >
+                    {busy ? 'Saving…' : 'Save event calendar'}
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
           {sources.some((source) => !source.isOwnedByCurrentAdult && source.isActive) && (
             <p className="admin-note">This household also includes calendars connected by another adult. Only that adult can reconnect or disconnect their Google account.</p>
           )}

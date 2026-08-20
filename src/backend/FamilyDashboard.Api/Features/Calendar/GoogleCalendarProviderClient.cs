@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using System.Globalization;
 using FamilyDashboard.Api.Configuration;
 using Google;
 using Google.Apis.Auth.OAuth2;
@@ -18,8 +19,15 @@ public static class GoogleCalendarScopes
     public const string Email = "email";
     public const string CalendarListReadOnly = "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
     public const string EventsReadOnly = "https://www.googleapis.com/auth/calendar.events.readonly";
+    public const string EventsWrite = "https://www.googleapis.com/auth/calendar.events";
     public static readonly string[] Required = [OpenId, Email, CalendarListReadOnly, EventsReadOnly];
     public static readonly string[] RequiredCalendarDataAccess = [CalendarListReadOnly, EventsReadOnly];
+    public static readonly string[] RequiredEventCreation = [CalendarListReadOnly, EventsWrite];
+
+    public static string[] ForCapability(string capability) =>
+        capability == CalendarAuthorizationCapabilities.EventCreation
+            ? [OpenId, Email, CalendarListReadOnly, EventsWrite]
+            : Required;
 }
 
 public sealed record GoogleCalendarTokenResult(
@@ -31,11 +39,21 @@ public sealed record GoogleCalendarTokenResult(
     string ProviderEmail);
 
 public sealed record GoogleCalendarRefreshResult(string AccessToken, DateTimeOffset ExpiresAt);
-public sealed record GoogleProviderCalendar(string Id, string Name, string? TimeZone, string? Color, bool IsPrimary);
+public sealed record GoogleProviderCalendar(
+    string Id, string Name, string? TimeZone, string? Color, bool IsPrimary, string AccessRole);
 public sealed record GoogleProviderEvent(
     string Id, string Title, bool IsAllDay, string Start, string End,
     string? TimeZone, string? Location);
 public sealed record GoogleProviderEventPage(IReadOnlyList<GoogleProviderEvent> Events, string? NextPageToken);
+public sealed record GoogleProviderCreateEvent(
+    string Id,
+    string Title,
+    string? Location,
+    string? Notes,
+    bool IsAllDay,
+    string Start,
+    string End,
+    string? TimeZone);
 
 public enum GoogleCalendarProviderFailure
 {
@@ -55,13 +73,18 @@ public sealed class GoogleCalendarProviderException(
 
 public interface IGoogleCalendarProviderClient
 {
-    string CreateAuthorizationUrl(string state);
+    string CreateAuthorizationUrl(string state, string capability = CalendarAuthorizationCapabilities.ReadOnly);
     Task<GoogleCalendarTokenResult> ExchangeCodeAsync(string code, CancellationToken cancellationToken);
     Task<GoogleCalendarRefreshResult> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
     Task<IReadOnlyList<GoogleProviderCalendar>> ListCalendarsAsync(string accessToken, CancellationToken cancellationToken);
     Task<GoogleProviderEventPage> ListEventsAsync(
         string accessToken, string calendarId, DateTimeOffset rangeStart, DateTimeOffset rangeEnd,
         string? pageToken, int maximumResults, CancellationToken cancellationToken);
+    Task<GoogleProviderEvent> CreateEventAsync(
+        string accessToken, string calendarId, GoogleProviderCreateEvent request,
+        CancellationToken cancellationToken);
+    Task<GoogleProviderEvent> GetEventAsync(
+        string accessToken, string calendarId, string eventId, CancellationToken cancellationToken);
     Task RevokeAsync(string token, CancellationToken cancellationToken);
 }
 
@@ -72,14 +95,15 @@ public sealed class GoogleCalendarProviderClient(
 {
     private readonly GoogleCalendarConfiguration _configuration = options.Value;
 
-    public string CreateAuthorizationUrl(string state)
+    public string CreateAuthorizationUrl(
+        string state, string capability = CalendarAuthorizationCapabilities.ReadOnly)
     {
         var query = new Dictionary<string, string?>
         {
             ["client_id"] = _configuration.ClientId,
             ["redirect_uri"] = _configuration.CallbackUrl,
             ["response_type"] = "code",
-            ["scope"] = string.Join(' ', GoogleCalendarScopes.Required),
+            ["scope"] = string.Join(' ', GoogleCalendarScopes.ForCapability(capability)),
             ["access_type"] = "offline",
             ["include_granted_scopes"] = "true",
             ["prompt"] = "consent select_account",
@@ -164,10 +188,71 @@ public sealed class GoogleCalendarProviderClient(
                     item.SummaryOverride ?? item.Summary ?? "Untitled calendar",
                     item.TimeZone,
                     item.BackgroundColor,
-                    item.Primary == true)));
+                    item.Primary == true,
+                    item.AccessRole ?? "reader")));
                 request.PageToken = response.NextPageToken;
             } while (!string.IsNullOrEmpty(request.PageToken));
             return results;
+        }
+        catch (GoogleApiException exception)
+        {
+            throw Map(exception);
+        }
+    }
+
+    public async Task<GoogleProviderEvent> CreateEventAsync(
+        string accessToken, string calendarId, GoogleProviderCreateEvent request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var service = CreateService(accessToken);
+            var eventResource = new Google.Apis.Calendar.v3.Data.Event
+            {
+                Id = request.Id,
+                Summary = request.Title,
+                Location = request.Location,
+                Description = request.Notes,
+                Start = request.IsAllDay
+                    ? new Google.Apis.Calendar.v3.Data.EventDateTime { Date = request.Start }
+                    : new Google.Apis.Calendar.v3.Data.EventDateTime
+                    {
+                        DateTimeDateTimeOffset = DateTimeOffset.Parse(
+                            request.Start, CultureInfo.InvariantCulture),
+                        TimeZone = request.TimeZone,
+                    },
+                End = request.IsAllDay
+                    ? new Google.Apis.Calendar.v3.Data.EventDateTime { Date = request.End }
+                    : new Google.Apis.Calendar.v3.Data.EventDateTime
+                    {
+                        DateTimeDateTimeOffset = DateTimeOffset.Parse(
+                            request.End, CultureInfo.InvariantCulture),
+                        TimeZone = request.TimeZone,
+                    },
+                Reminders = new Google.Apis.Calendar.v3.Data.Event.RemindersData { UseDefault = true },
+            };
+            var created = await service.Events.Insert(eventResource, calendarId)
+                .ExecuteAsync(cancellationToken);
+            return ToProviderEvent(created);
+        }
+        catch (GoogleApiException exception) when (exception.HttpStatusCode == HttpStatusCode.Conflict)
+        {
+            return await GetEventAsync(accessToken, calendarId, request.Id, cancellationToken);
+        }
+        catch (GoogleApiException exception)
+        {
+            throw Map(exception);
+        }
+    }
+
+    public async Task<GoogleProviderEvent> GetEventAsync(
+        string accessToken, string calendarId, string eventId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var service = CreateService(accessToken);
+            return ToProviderEvent(await service.Events.Get(calendarId, eventId)
+                .ExecuteAsync(cancellationToken));
         }
         catch (GoogleApiException exception)
         {
@@ -260,6 +345,22 @@ public sealed class GoogleCalendarProviderClient(
             HttpStatusCode.TooManyRequests => GoogleCalendarProviderFailure.RateLimited,
             _ => GoogleCalendarProviderFailure.Unavailable,
         }, "Google Calendar was unavailable.", exception);
+
+    private static GoogleProviderEvent ToProviderEvent(Google.Apis.Calendar.v3.Data.Event item)
+    {
+        if (item.Start is null || item.End is null)
+            throw new GoogleCalendarProviderException(
+                GoogleCalendarProviderFailure.InvalidResponse,
+                "Google returned an event without a valid range.");
+        return new GoogleProviderEvent(
+            item.Id,
+            string.IsNullOrWhiteSpace(item.Summary) ? "Untitled event" : item.Summary,
+            item.Start.Date is not null,
+            item.Start.Date ?? item.Start.DateTimeDateTimeOffset?.ToString("O") ?? string.Empty,
+            item.End.Date ?? item.End.DateTimeDateTimeOffset?.ToString("O") ?? string.Empty,
+            item.Start.TimeZone,
+            item.Location);
+    }
 
     private static CalendarService CreateService(string accessToken) => new(new BaseClientService.Initializer
     {

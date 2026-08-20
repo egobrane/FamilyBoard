@@ -15,15 +15,18 @@
 - Increment 4B is deployed and staging verified: adults can edit household and regional settings, list members, create/edit child profiles, and deactivate/reactivate historical profiles. The deployed backend prevents self-deactivation and preserves the last active adult.
 - Increment 5 is deployed and staging verified: adults can create, list, copy, and revoke seven-day email-bound invitation links; recipients can safely prepare the fragment token and atomically accept once after Google sign-in. Wrong-account, replay, and revocation behavior were exercised in staging; expiration is covered automatically but has not been manually waited out in staging.
 - Increment 6 is deployed and staging verified: shared-display mode, six-digit parent PINs, household-scoped five-minute elevation, per-session cooldown, audit events, protected administration, recent-private-session recovery, and the responsive keypad work across the physical wall display, phone, touch, mouse, and keyboard.
-- Google Calendar Increment 1 is implemented locally pending deployment and activation: calendar authorization remains separate from sign-in, OAuth tokens are encrypted backend-only, adults select household-visible calendars, and routine dashboard/calendar reads use request-time Google retrieval with a short disposable cache.
+- Google Calendar Increment 1 is deployed and staging verified: calendar authorization remains separate from sign-in, OAuth tokens are encrypted backend-only, adults select household-visible calendars, routine dashboard/calendar reads use request-time Google retrieval with a short disposable cache, and disconnect leaves Google events unchanged.
+- Backend image publication is hardened so backend-relevant main changes still publish while frontend-only, documentation-only, and deployment-parameter-only changes avoid redundant GHCR images; version tags and manual dispatch remain supported.
+- Google Calendar Increment 2 is implemented behind a separate disabled-by-default gate: incremental write authorization, one adult-configured writable household calendar, idempotent create-only API behavior, shared-display member attribution, and a responsive event form. Migration, consent activation, deployment, and staging verification remain before completion.
 - `Staging Selection Test Household` remains intentionally stored until household deletion or an approved cleanup workflow exists.
 
 ## Next
 
 - Rehearse application rollback and record recovery objectives before staging stores irreplaceable household data; revoke shared sessions before any rollback to pre-parent-access code.
 - Verify a real Netlify Deploy Preview without sharing production credentials or broadening credentialed CORS.
-- Review, publish, migrate, and deploy Calendar Increment 1 with `GoogleCalendar__Enabled=false`; then create the separate Google web client, seed its Key Vault secret, activate the existing image, and complete the staging verification checklist.
-- Record Calendar consent verification status and verify refresh, revocation, stale-cache, multi-household, and locked shared-display behavior before treating the increment as deployed.
+- Deploy the additive Calendar event-creation migration and reviewed backend digest with `GoogleCalendar__EventCreationEnabled=false`, update Google consent configuration for `calendar.events`, then activate and verify controlled creation in staging.
+- Verify private-adult and locked shared-display creation, required member attribution, exact writable-calendar targeting, duplicate-submit recovery, revoked authorization, all-day/timed/daylight-saving validation, responsive input, and absence of sensitive values in browser storage, URLs, logs, or frontend assets.
+- Record Google OAuth consent verification status before broad public use and retain manual revocation, recurrence, daylight-saving, shared-display, multi-household, and responsive checks in the release checklist.
 
 ## Later
 

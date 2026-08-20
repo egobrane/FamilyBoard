@@ -1,4 +1,4 @@
-# Google Calendar Increment 1
+# Google Calendar Integration
 
 ## Boundary and ownership
 
@@ -50,7 +50,7 @@ Controls retain large touch targets, visible focus, keyboard operation, screen-r
 
 ## Configuration and activation
 
-Calendar is disabled by default. Deploy the additive migration and API image while disabled, then:
+Calendar remains disabled by default in a new environment. Azure staging completed this activation sequence:
 
 1. In the approved Google Cloud project, enable Google Calendar API and create a separate Web application OAuth client. Add exactly `https://api.egobrane.net/api/integrations/google-calendar/callback` as its staging redirect URI.
 2. Configure the OAuth consent screen for the four scopes above. Keep the application in testing with explicit test users until verification requirements and refresh-token lifetime are understood; sensitive Calendar scopes may require Google verification for wider use.
@@ -73,6 +73,43 @@ K3s may enable the same settings through runtime ConfigMap/Secret values. The Ca
 - Disconnect and confirm all of that adult's household sources deactivate, replay fails, and Google events remain unchanged.
 - Inspect browser storage, URLs, frontend source/maps, API responses, Netlify, Azure logs, and application logs for OAuth codes/tokens, client secrets, descriptions, attendees, and protected personal fields.
 - Verify wall-display, phone, tablet, touch, mouse, keyboard, screen-reader, cold-start, partial-provider-failure, and stale-cache behavior.
+
+## Azure staging status: 2026-08-19
+
+The separate Calendar OAuth web client is active with the exact backend callback `https://api.egobrane.net/api/integrations/google-calendar/callback`. Its client secret exists only in Azure Key Vault and reaches the API through Container App secret reference `google-calendar-client-secret`; the migration job and frontend do not receive it. Identity-only Google sign-in continues to use its separate client and scopes.
+
+The first successful token exchange exposed a strict scope-alias compatibility defect. Google returned HTTP 200 and the canonical identity scope `https://www.googleapis.com/auth/userinfo.email`; Family Dashboard incorrectly expected only the `email` alias and rejected the response before creating a connection. The correction validates identity through the signed ID token and requires the two exact Calendar data scopes, `calendar.calendarlist.readonly` and `calendar.events.readonly`. It does not weaken Calendar data access.
+
+The corrected image `ghcr.io/egobrane/familyboard-backend@sha256:5252be746d8abbe56aa01c87c741eda42122884647654aac59f7ec52c69c4552` is active in Azure. The matching Netlify UI presents safe callback errors without exposing raw provider values. The owner verified consent denial without a saved connection, successful connection and connected-account display, household source selection and persistence, dashboard and Calendar event display, external revocation and reconnection, distinct multi-household selection, locked shared-display read/admin boundaries, timed, recurring, all-day, daylight-saving, and responsive-device behavior, and disconnect without Google event mutation. Inspection found no OAuth code, token, client secret, database credential, PIN material, pepper, or signing material in frontend JavaScript, browser storage, URLs, source control, or logs.
+
+## Increment 2: controlled event creation
+
+Increment 2 adds create-only behavior without weakening the read-only boundary for existing connections. The separate `GoogleCalendar__EventCreationEnabled` gate is false by default. When enabled, an adult administrator explicitly starts incremental Calendar authorization for `calendar.calendarlist.readonly` and `calendar.events`; existing read-only connections remain readable until that extra consent succeeds. Google sign-in scopes do not change.
+
+An elevated shared display or ordinary private adult session may choose one active, adult-owned household source for creation, but only after Google reports `writer` or `owner` access. Configuration routes remain administrative and require parent elevation on shared displays. Routine `POST /api/households/{householdId}/calendar/events` requires active household membership, the selected session household, antiforgery, exact credentialed CORS, and a per-session/household rate limit. A locked shared display may create an event but must attribute it to an active household member; a private adult session defaults attribution to that adult's linked profile.
+
+The create contract accepts a client-generated UUID idempotency key, target source ID, title, optional location/notes, all-day or offset-aware timed boundaries, IANA time zone for timed events, and optional member attribution. Titles, locations, notes, ranges, time-zone offsets, and a yesterday-to-two-years window are validated server-side. The backend derives a deterministic Google event ID from the idempotency key. Concurrent retries converge on that provider ID; reuse of the key with different details returns `409 calendar_idempotency_conflict`.
+
+Google remains the source of truth. PostgreSQL stores only a SHA-256 request fingerprint, provider event ID, source/account/member attribution, shared-display flag, timestamps, status, and trace correlation. It stores no title, location, notes, start/end values, attendees, or local event copy. A successful creation rotates the disposable source-cache version so the next dashboard or Calendar read goes back to Google. This increment does not edit, delete, recur, invite attendees, add conferencing, synchronize in the background, or use webhooks.
+
+Frontend routes and states:
+
+- `/calendar/new` provides the responsive create form and explains that later edits/deletion happen in Google Calendar.
+- `/households/{householdId}/calendars` exposes incremental authorization and writable-target selection inside the existing administration gate.
+- disconnected, unavailable, read-only, missing-target, invalid member, validation, cooldown/rate-limit, revoked-token, provider failure, submission, recovered retry, and success behavior use stable ProblemDetails and semantic feedback.
+
+No new npm or NuGet package and no new Azure resource or secret is required. The existing Calendar OAuth client secret, Data Protection key ring, managed identity, Key Vault, Container App, and PostgreSQL server are reused. Google Cloud consent configuration must add the sensitive `https://www.googleapis.com/auth/calendar.events` scope before activation; production use may require additional Google verification.
+
+Activation order is deliberately fail-closed:
+
+1. Publish the reviewed backend image and record its immutable digest.
+2. Run the additive `AddGoogleCalendarEventCreation` migration and deploy that image with `enableGoogleCalendarEventCreation=false`.
+3. Publish the matching Netlify frontend; its UI remains unavailable while the backend gate is false.
+4. Add/approve the exact Calendar events scope in the existing separate Calendar OAuth client and consent configuration.
+5. Set `enableGoogleCalendarEventCreation=true` in the environment deployment parameters and redeploy the same reviewed digest.
+6. Reauthorize Calendar incrementally, select one writable target, and complete the private/shared-display, idempotency, revocation, time-zone, accessibility, responsive, and leakage checks before recording staging success.
+
+Rollback first disables only `GoogleCalendar__EventCreationEnabled`; read-only Calendar operation continues and receipt rows remain inert. A prior Increment 1 API can then be reactivated because the migration is additive. Google events already created are not deleted or changed during rollback.
 
 ## Rollback
 

@@ -8,3 +8,4 @@ data:
   Cors__AllowedOrigins__0: https://dashboard.example.com
   ParentAccess__Enabled: "true"
   GoogleCalendar__Enabled: "false"
+  GoogleCalendar__EventCreationEnabled: "false"

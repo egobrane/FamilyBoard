@@ -10,6 +10,7 @@ public sealed record CalendarAuthorizationState(
     Guid UserSessionId,
     Guid HouseholdId,
     string ReturnPath,
+    string Capability,
     string Nonce,
     DateTimeOffset ExpiresAt);
 
@@ -26,17 +27,18 @@ public sealed class CalendarStateProtector(
     IOptions<GoogleCalendarConfiguration> options)
 {
     private readonly IDataProtector _authorization = provider.CreateProtector(
-        "FamilyDashboard.GoogleCalendarIntegration.AuthorizationState.v1");
+        "FamilyDashboard.GoogleCalendarIntegration.AuthorizationState.v2");
     private readonly IDataProtector _cursor = provider.CreateProtector(
         "FamilyDashboard.GoogleCalendarIntegration.EventCursor.v1");
     private readonly GoogleCalendarConfiguration _configuration = options.Value;
 
     public (string State, DateTimeOffset ExpiresAt) CreateAuthorization(
-        Guid userAccountId, Guid userSessionId, Guid householdId, string returnPath)
+        Guid userAccountId, Guid userSessionId, Guid householdId, string returnPath,
+        string capability = CalendarAuthorizationCapabilities.ReadOnly)
     {
         var expiresAt = timeProvider.GetUtcNow() + _configuration.AuthorizationLifetime;
         var value = new CalendarAuthorizationState(
-            userAccountId, userSessionId, householdId, returnPath,
+            userAccountId, userSessionId, householdId, returnPath, capability,
             Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)),
             expiresAt);
         return (_authorization.Protect(JsonSerializer.Serialize(value)), expiresAt);
@@ -65,4 +67,10 @@ public sealed class CalendarStateProtector(
             return false;
         }
     }
+}
+
+public static class CalendarAuthorizationCapabilities
+{
+    public const string ReadOnly = "readOnly";
+    public const string EventCreation = "eventCreation";
 }

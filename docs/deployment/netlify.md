@@ -14,4 +14,8 @@ Deploy Previews intentionally do not share the authenticated staging API until a
 
 Do not put backend secrets in Netlify build settings. Even values hidden in its UI become public if a Vite build embeds them.
 
-The SPA redirect and security headers are isolated in `netlify.toml`. The production service worker is served with `no-cache` so the long-running wall display can detect new releases.
+The SPA redirect and security headers are isolated in `netlify.toml`. `/sw.js`, `/index.html`, and the manifest revalidate on every use; content-hashed `/assets/*` files are immutable for one year. Workbox keeps the current release active until the downloaded worker is deliberately activated.
+
+The mounted PWA update provider checks at startup, every fifteen minutes, when the tab becomes visible, and when it regains focus. A persistent accessible banner offers `Update now`. Any mounted form disables activation so an in-progress household, PIN, invitation, or Calendar operation cannot be interrupted. An online client with no form may activate after five idle minutes, which prevents an unattended wall display from remaining stale indefinitely. Offline clients retain the last working shell.
+
+After publishing a PWA lifecycle change, verify it with two real consecutive Netlify releases in Safari and on the wall display. Confirm that the older client discovers the newer worker, an open form blocks activation, leaving the form permits activation, the new bundle controls the page after reload, and manual service-worker/cache deletion is unnecessary.

@@ -15,6 +15,6 @@ Main-branch publication is intentionally limited to backend application files, b
 
 Production deployments should select an immutable digest or SHA tag. Do not deploy `latest` when reproducibility matters.
 
-Azure staging accepts only the public `ghcr.io/egobrane/familyboard-backend` image pinned by SHA-256 digest. The protected manual workflow runs the migration job before updating the API and uses GitHub OIDC rather than an Azure client secret.
+Azure staging accepts only the public `ghcr.io/egobrane/familyboard-backend` image pinned by SHA-256 digest. Record the reviewed digest in `deploy/azure/staging.bicepparam`, commit it, and dispatch the protected workflow; there is no separate image text input. The workflow compiles the parameter file with a non-secret validation placeholder, extracts only the image and approved public runtime settings, runs the migration job, reconciles the API, verifies the ready revision and traffic, and uses GitHub OIDC rather than an Azure client secret. It never performs a resource-group Bicep deployment or receives the real PostgreSQL administrator password.
 
 If the GHCR package is private, K3s needs a narrowly scoped image-pull secret. That credential belongs in the cluster, not in manifests or frontend configuration.

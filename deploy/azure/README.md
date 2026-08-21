@@ -126,7 +126,7 @@ az containerapp job start \
   --name family-dashboard-staging-mig
 ```
 
-The normal GitHub deployment workflow updates the job to the chosen immutable image, waits for a successful execution, updates the API, and verifies health.
+The normal GitHub deployment workflow has no image text input. Commit the reviewed immutable digest and public feature settings to `staging.bicepparam`, then dispatch the protected workflow from `main`. It compiles the parameters with a disposable non-secret password placeholder, updates the migration job to that digest, waits for successful execution, reconciles the API image and approved non-secret runtime settings, verifies the ready revision and health, and restores the prior API release if verification fails. It does not deploy Bicep infrastructure, retrieve secrets, or modify unrelated `ryan-dev` resources.
 
 ## GitHub environment configuration
 

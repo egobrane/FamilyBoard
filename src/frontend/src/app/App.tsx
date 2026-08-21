@@ -174,25 +174,9 @@ function AuthenticatedRoutes() {
 export function App() {
   const { state, refresh } = useAuthentication()
   const location = useLocation()
-  const [applyUpdate, setApplyUpdate] = useState<(() => Promise<void>) | null>(null)
-
-  useEffect(() => {
-    const showUpdate = (event: Event) => {
-      const updateEvent = event as CustomEvent<() => Promise<void>>
-      setApplyUpdate(() => updateEvent.detail)
-    }
-    window.addEventListener('family-dashboard:update-ready', showUpdate)
-    return () => window.removeEventListener('family-dashboard:update-ready', showUpdate)
-  }, [])
 
   return (
     <>
-      {applyUpdate && (
-        <div className="update-banner" role="status">
-          A fresh version is ready. Reload when convenient.
-          <button type="button" onClick={() => void applyUpdate()}>Reload</button>
-        </div>
-      )}
       {location.pathname === '/invite' && <InvitationLandingPage />}
       {location.pathname !== '/invite' && state.status === 'loading' && <StatusPage onRetry={refresh} state={state} />}
       {location.pathname !== '/invite' && state.status === 'unavailable' && <StatusPage onRetry={refresh} state={state} />}

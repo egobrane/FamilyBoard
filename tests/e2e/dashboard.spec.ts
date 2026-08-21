@@ -350,6 +350,19 @@ test('controlled event creation is keyboard accessible and returns to the calend
     .toEqual([])
 })
 
+test('a waiting PWA update cannot interrupt an active form', async ({ page }) => {
+  await page.goto('/calendar/new')
+  await expect(page.getByRole('heading', { name: 'Add a family event' })).toBeVisible()
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('family-dashboard:update-ready', {
+      detail: async () => undefined,
+    }))
+  })
+
+  await expect(page.locator('.update-banner')).toContainText('Finish or leave this form before updating.')
+  await expect(page.getByRole('button', { name: 'Update now' })).toBeDisabled()
+})
+
 test('account menu supports keyboard access and signs out through the API', async ({ page }) => {
   await page.goto('/')
 

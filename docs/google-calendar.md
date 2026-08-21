@@ -106,10 +106,20 @@ Activation order is deliberately fail-closed:
 2. Run the additive `AddGoogleCalendarEventCreation` migration and deploy that image with `enableGoogleCalendarEventCreation=false`.
 3. Publish the matching Netlify frontend; its UI remains unavailable while the backend gate is false.
 4. Add/approve the exact Calendar events scope in the existing separate Calendar OAuth client and consent configuration.
-5. Set `enableGoogleCalendarEventCreation=true` in the environment deployment parameters and redeploy the same reviewed digest.
+5. Set `enableGoogleCalendarEventCreation=true` and retain the same reviewed digest in the environment deployment parameters, commit that parameter-only change, and dispatch the protected staging workflow. The workflow now reconciles the approved runtime flag as well as the image.
 6. Reauthorize Calendar incrementally, select one writable target, and complete the private/shared-display, idempotency, revocation, time-zone, accessibility, responsive, and leakage checks before recording staging success.
 
 Rollback first disables only `GoogleCalendar__EventCreationEnabled`; read-only Calendar operation continues and receipt rows remain inert. A prior Increment 1 API can then be reactivated because the migration is additive. Google events already created are not deleted or changed during rollback.
+
+## Increment 2 staging status: 2026-08-21
+
+Migration execution `family-dashboard-staging-mig-027lwjn` applied `20260819210734_AddGoogleCalendarEventCreation` successfully. The reviewed multi-architecture image `ghcr.io/egobrane/familyboard-backend@sha256:028a47778229f74aae12725df0665f0a9042476169c6b69b7ec60ac35e40d318` is active on healthy revision `family-dashboard-staging-api--0000019`, which receives 100% of traffic. Both `GoogleCalendar__Enabled` and `GoogleCalendar__EventCreationEnabled` are `true`.
+
+Event creation was initially unavailable because the protected GitHub deployment workflow migrated and replaced the image but did not apply the changed Bicep runtime parameter. A deliberate Container App configuration update supplied `GoogleCalendar__EventCreationEnabled=true` and created revision `0000019`. The follow-up workflow implementation now reconciles an approved non-secret setting allowlist from the reviewed parameters. The Netlify production deploy already contained the Increment 2 interface, but Safari continued serving a Workbox-pre-cached older shell. Unregistering the stale worker and clearing its Cache Storage exposed the current interface; the follow-up PWA lifecycle implementation makes update discovery reliable, blocks activation while a form is mounted, and allows safe idle wall-display activation. Both follow-ups still require CI and staging proof after publication.
+
+The owner then completed incremental Google write authorization, selected a writable household calendar, and created a timed event. It appeared in Google Calendar on another device, confirming that Google remains the source of truth; Family Dashboard intentionally persisted only the non-sensitive idempotency receipt and no local event copy.
+
+A fresh static scan of the deployed bundle found no OAuth secret/token, PostgreSQL host, parent-pepper, or backend secret-environment markers. Manual staging confirmation remains outstanding for locked shared-display creation with member attribution, private-session attribution, all-day creation, invalid range/time-zone handling, duplicate recovery, read-only target rejection, external revocation, multi-household write isolation, Calendar configuration PIN gates, responsive creation on every target device, and write-path inspection of browser storage, URLs, API/application logs, and event-detail handling. Deployed automated tests cover the core fail-closed household, administration, attribution, idempotency/concurrency, antiforgery, keyboard, responsive, and accessibility boundaries; those results are not represented as manual staging observations.
 
 ## Rollback
 

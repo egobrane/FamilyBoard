@@ -180,6 +180,7 @@ public sealed class GoogleCalendarServiceTests
             ],
         };
         var service = dependencies.Service(database, provider);
+        var eventRange = TomorrowEveningInNewYork();
         var request = new CreateCalendarEventRequest(
             seeded.Source.Id,
             Guid.NewGuid(),
@@ -188,8 +189,8 @@ public sealed class GoogleCalendarServiceTests
             "Auditorium",
             "Bring tickets",
             false,
-            "2026-08-20T18:00:00-04:00",
-            "2026-08-20T20:00:00-04:00",
+            eventRange.Start,
+            eventRange.End,
             "America/New_York");
 
         var first = await service.CreateEventAsync(
@@ -233,9 +234,10 @@ public sealed class GoogleCalendarServiceTests
             .Options;
         await using var firstContext = new FamilyDashboardDbContext(options);
         await using var secondContext = new FamilyDashboardDbContext(options);
+        var eventRange = TomorrowEveningInNewYork();
         var request = new CreateCalendarEventRequest(
             seeded.Source.Id, Guid.NewGuid(), null, "Family dinner", null, null, false,
-            "2026-08-20T18:00:00-04:00", "2026-08-20T19:00:00-04:00", "America/New_York");
+            eventRange.Start, eventRange.End, "America/New_York");
 
         var results = await Task.WhenAll(
             dependencies.Service(firstContext, provider).CreateEventAsync(
@@ -268,9 +270,10 @@ public sealed class GoogleCalendarServiceTests
                     "family@example.test", "Family", "America/New_York", "#73b49a", false, "owner"),
             ],
         });
+        var eventRange = TomorrowEveningInNewYork();
         var request = new CreateCalendarEventRequest(
             seeded.Source.Id, Guid.NewGuid(), null, "Shared event", null, null, false,
-            "2026-08-20T18:00:00-04:00", "2026-08-20T19:00:00-04:00", "America/New_York");
+            eventRange.Start, eventRange.End, "America/New_York");
 
         var exception = await Assert.ThrowsAsync<CalendarOperationException>(() =>
             service.CreateEventAsync(
@@ -346,6 +349,16 @@ public sealed class GoogleCalendarServiceTests
         await database.DbContext.SaveChangesAsync();
         database.DbContext.ChangeTracker.Clear();
         return new Seeded(account, household, member, connection, source, session);
+    }
+
+    private static (string Start, string End) TomorrowEveningInNewYork()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+        var tomorrow = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+        var localStart = DateTime.SpecifyKind(
+            tomorrow.ToDateTime(new TimeOnly(18, 0)), DateTimeKind.Unspecified);
+        var start = new DateTimeOffset(localStart, zone.GetUtcOffset(localStart));
+        return (start.ToString("O"), start.AddHours(1).ToString("O"));
     }
 
     private sealed record Seeded(

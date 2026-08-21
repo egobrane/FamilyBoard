@@ -40,9 +40,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        clientsClaim: false,
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        skipWaiting: false,
       },
     }),
   ],

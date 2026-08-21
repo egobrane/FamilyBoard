@@ -2,10 +2,6 @@ name: Deploy backend to Azure staging
 
 on:
   workflow_dispatch:
-    inputs:
-      image:
-        description: Immutable public GHCR backend image (digest strongly preferred)
-        required: true
 
 permissions:
   contents: read
@@ -25,15 +21,49 @@ jobs:
       API_NAME: family-dashboard-staging-api
       MIGRATION_JOB_NAME: family-dashboard-staging-mig
       API_ORIGIN: https://api.egobrane.net
-      DEPLOY_IMAGE: ${{ inputs.image }}
+      PARAMETER_FILE: deploy/azure/staging.bicepparam
     steps:
-      - name: Require an immutable image digest
+      - uses: actions/checkout@v6
+
+      - name: Read the reviewed release configuration
+        env:
+          FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD: validation-only-placeholder-NotASecret1!
         shell: bash
         run: |
+          parameter_bundle="$(az bicep build-params --file "$PARAMETER_FILE" --stdout)"
+          parameters="$(jq -r '.parametersJson' <<< "$parameter_bundle")"
+
+          DEPLOY_IMAGE="$(jq -r '.parameters.backendImage.value' <<< "$parameters")"
+          FRONTEND_ORIGIN="$(jq -r '.parameters.frontendOrigin.value' <<< "$parameters")"
+          API_HOSTNAME="$(jq -r '.parameters.apiHostname.value' <<< "$parameters")"
+          GOOGLE_AUTH_ENABLED="$(jq -r '.parameters.enableGoogleAuthentication.value' <<< "$parameters")"
+          GOOGLE_CLIENT_ID="$(jq -r '.parameters.googleClientId.value' <<< "$parameters")"
+          PARENT_ACCESS_ENABLED="$(jq -r '.parameters.enableParentAccess.value' <<< "$parameters")"
+          GOOGLE_CALENDAR_ENABLED="$(jq -r '.parameters.enableGoogleCalendar.value' <<< "$parameters")"
+          GOOGLE_CALENDAR_EVENT_CREATION_ENABLED="$(jq -r '.parameters.enableGoogleCalendarEventCreation.value' <<< "$parameters")"
+          GOOGLE_CALENDAR_CLIENT_ID="$(jq -r '.parameters.googleCalendarClientId.value' <<< "$parameters")"
+
           if [[ "$DEPLOY_IMAGE" != ghcr.io/egobrane/familyboard-backend@sha256:* ]]; then
             echo "The staging image must be the public Family Dashboard GHCR image pinned by sha256 digest." >&2
             exit 1
           fi
+
+          if [[ "$FRONTEND_ORIGIN" != "https://family.egobrane.net" || "$API_HOSTNAME" != "api.egobrane.net" ]]; then
+            echo "The reviewed staging origins do not match the protected staging environment." >&2
+            exit 1
+          fi
+
+          {
+            echo "DEPLOY_IMAGE=$DEPLOY_IMAGE"
+            echo "FRONTEND_ORIGIN=$FRONTEND_ORIGIN"
+            echo "API_HOSTNAME=$API_HOSTNAME"
+            echo "GOOGLE_AUTH_ENABLED=$GOOGLE_AUTH_ENABLED"
+            echo "GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
+            echo "PARENT_ACCESS_ENABLED=$PARENT_ACCESS_ENABLED"
+            echo "GOOGLE_CALENDAR_ENABLED=$GOOGLE_CALENDAR_ENABLED"
+            echo "GOOGLE_CALENDAR_EVENT_CREATION_ENABLED=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
+            echo "GOOGLE_CALENDAR_CLIENT_ID=$GOOGLE_CALENDAR_CLIENT_ID"
+          } >> "$GITHUB_ENV"
 
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@v2
@@ -44,6 +74,28 @@ jobs:
 
       - name: Install Container Apps CLI extension
         run: az extension add --name containerapp --version 1.3.0b4 --allow-preview true
+
+      - name: Capture the previous API release
+        shell: bash
+        run: |
+          api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
+
+          env_value() {
+            jq -r --arg name "$1" '.properties.template.containers[0].env[] | select(.name == $name) | .value // empty' <<< "$api_json"
+          }
+
+          {
+            echo "PREVIOUS_IMAGE=$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
+            echo "PREVIOUS_FRONTEND_ORIGIN=$(env_value 'Authentication__FrontendOrigin')"
+            echo "PREVIOUS_CORS_ORIGIN=$(env_value 'Cors__AllowedOrigins__0')"
+            echo "PREVIOUS_GOOGLE_AUTH_ENABLED=$(env_value 'Authentication__Google__Enabled')"
+            echo "PREVIOUS_GOOGLE_CLIENT_ID=$(env_value 'Authentication__Google__ClientId')"
+            echo "PREVIOUS_PARENT_ACCESS_ENABLED=$(env_value 'ParentAccess__Enabled')"
+            echo "PREVIOUS_GOOGLE_CALENDAR_ENABLED=$(env_value 'GoogleCalendar__Enabled')"
+            echo "PREVIOUS_GOOGLE_CALENDAR_EVENT_CREATION_ENABLED=$(env_value 'GoogleCalendar__EventCreationEnabled')"
+            echo "PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID=$(env_value 'GoogleCalendar__ClientId')"
+            echo "PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL=$(env_value 'GoogleCalendar__CallbackUrl')"
+          } >> "$GITHUB_ENV"
 
       - name: Update and run the migration job
         shell: bash
@@ -84,23 +136,90 @@ jobs:
             sleep 10
           done
 
-      - name: Deploy the API revision
+      - name: Reconcile and verify the API revision
+        id: deploy
+        shell: bash
         run: |
           az containerapp update \
             --resource-group "$RESOURCE_GROUP" \
             --name "$API_NAME" \
-            --image "$DEPLOY_IMAGE"
+            --image "$DEPLOY_IMAGE" \
+            --set-env-vars \
+              "Cors__AllowedOrigins__0=$FRONTEND_ORIGIN" \
+              "Authentication__FrontendOrigin=$FRONTEND_ORIGIN" \
+              "Authentication__Google__Enabled=$GOOGLE_AUTH_ENABLED" \
+              "Authentication__Google__ClientId=$GOOGLE_CLIENT_ID" \
+              "ParentAccess__Enabled=$PARENT_ACCESS_ENABLED" \
+              "GoogleCalendar__Enabled=$GOOGLE_CALENDAR_ENABLED" \
+              "GoogleCalendar__EventCreationEnabled=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
+              "GoogleCalendar__ClientId=$GOOGLE_CALENDAR_CLIENT_ID" \
+              "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback"
 
-      - name: Verify public health endpoints
-        shell: bash
-        run: |
           for attempt in {1..30}; do
             if curl --fail --silent --show-error "$API_ORIGIN/health/live" && \
                curl --fail --silent --show-error "$API_ORIGIN/health/ready"; then
-              exit 0
+              break
             fi
+
+            if [[ "$attempt" == "30" ]]; then
+              echo "Azure staging health verification timed out." >&2
+              exit 1
+            fi
+
             sleep 10
           done
 
-          echo "Azure staging health verification timed out." >&2
-          exit 1
+          api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
+          actual_image="$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
+          latest_revision="$(jq -r '.properties.latestRevisionName' <<< "$api_json")"
+          latest_ready_revision="$(jq -r '.properties.latestReadyRevisionName' <<< "$api_json")"
+          traffic_weight="$(jq -r '.properties.configuration.ingress.traffic[] | select(.latestRevision == true) | .weight' <<< "$api_json")"
+
+          [[ "$actual_image" == "$DEPLOY_IMAGE" ]]
+          [[ "$latest_revision" == "$latest_ready_revision" ]]
+          [[ "$traffic_weight" == "100" ]]
+
+          assert_env() {
+            local name="$1"
+            local expected="$2"
+            local actual
+            actual="$(jq -r --arg name "$name" '.properties.template.containers[0].env[] | select(.name == $name) | .value // empty' <<< "$api_json")"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "Runtime setting $name does not match the reviewed staging configuration." >&2
+              exit 1
+            fi
+          }
+
+          assert_env 'Cors__AllowedOrigins__0' "$FRONTEND_ORIGIN"
+          assert_env 'Authentication__FrontendOrigin' "$FRONTEND_ORIGIN"
+          assert_env 'Authentication__Google__Enabled' "$GOOGLE_AUTH_ENABLED"
+          assert_env 'Authentication__Google__ClientId' "$GOOGLE_CLIENT_ID"
+          assert_env 'ParentAccess__Enabled' "$PARENT_ACCESS_ENABLED"
+          assert_env 'GoogleCalendar__Enabled' "$GOOGLE_CALENDAR_ENABLED"
+          assert_env 'GoogleCalendar__EventCreationEnabled' "$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
+          assert_env 'GoogleCalendar__ClientId' "$GOOGLE_CALENDAR_CLIENT_ID"
+          assert_env 'GoogleCalendar__CallbackUrl' "https://$API_HOSTNAME/api/integrations/google-calendar/callback"
+
+          echo "Deployed $DEPLOY_IMAGE to $latest_ready_revision with 100% traffic."
+
+      - name: Restore the previous API release after a failed deployment
+        if: failure() && steps.deploy.outcome == 'failure'
+        shell: bash
+        run: |
+          az containerapp update \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$API_NAME" \
+            --image "$PREVIOUS_IMAGE" \
+            --set-env-vars \
+              "Cors__AllowedOrigins__0=$PREVIOUS_CORS_ORIGIN" \
+              "Authentication__FrontendOrigin=$PREVIOUS_FRONTEND_ORIGIN" \
+              "Authentication__Google__Enabled=$PREVIOUS_GOOGLE_AUTH_ENABLED" \
+              "Authentication__Google__ClientId=$PREVIOUS_GOOGLE_CLIENT_ID" \
+              "ParentAccess__Enabled=$PREVIOUS_PARENT_ACCESS_ENABLED" \
+              "GoogleCalendar__Enabled=$PREVIOUS_GOOGLE_CALENDAR_ENABLED" \
+              "GoogleCalendar__EventCreationEnabled=$PREVIOUS_GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
+              "GoogleCalendar__ClientId=$PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID" \
+              "GoogleCalendar__CallbackUrl=$PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL"
+
+          curl --fail --silent --show-error "$API_ORIGIN/health/live"
+          curl --fail --silent --show-error "$API_ORIGIN/health/ready"

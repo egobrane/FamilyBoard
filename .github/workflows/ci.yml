@@ -97,6 +97,9 @@ jobs:
           inlineScript: |
             az bicep build --file deploy/azure/main.bicep --outfile /tmp/family-dashboard-main.json
             az bicep build-params --file deploy/azure/staging.bicepparam --outfile /tmp/family-dashboard-staging-parameters.json
+            jq --exit-status \
+              '.parameters.backendImage.value | test("^ghcr\\.io/egobrane/familyboard-backend@sha256:[0-9a-f]{64}$")' \
+              /tmp/family-dashboard-staging-parameters.json
             az bicep build --file deploy/azure/google-secret.bicep --outfile /tmp/family-dashboard-google-secret.json
             az bicep build-params --file deploy/azure/google-secret.bicepparam --outfile /tmp/family-dashboard-google-secret-parameters.json
       - name: Validate Docker Compose configuration

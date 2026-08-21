@@ -63,7 +63,7 @@ Calendar OAuth access and refresh tokens are encrypted by the existing persisted
 - K3s: Kubernetes Secret created out of band. No Secret manifest with values is committed.
 - Azure staging: secure Bicep input creates the PostgreSQL Container Apps secret; Google and parent-access secrets are Key Vault references. GitHub uses OIDC variables and no client secret. PostgreSQL, Data Protection Blob Storage, and Key Vault use private networking.
 
-Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. It is never a frontend or GitHub Actions value.
+Manual full-infrastructure Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. Routine GitHub application deployment uses a clearly non-secret validation placeholder only to compile the reviewed public parameters; it neither needs nor retrieves the real password. The real value is never a frontend or GitHub Actions value.
 
 CORS is an origin boundary, not authentication. The backend validates sessions and household permissions regardless of the requesting frontend route.
 

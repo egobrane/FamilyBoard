@@ -23,7 +23,7 @@ jobs:
       API_ORIGIN: https://api.egobrane.net
       PARAMETER_FILE: deploy/azure/staging.bicepparam
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read the reviewed release configuration
         env:

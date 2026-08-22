@@ -59,6 +59,17 @@ public static class ApiProblemCodes
     public const string CalendarIdempotencyConflict = "calendar_idempotency_conflict";
     public const string CalendarEventCreationRateLimited = "calendar_event_creation_rate_limited";
     public const string HouseholdSelectionRequired = "household_selection_required";
+    public const string ChoreDefinitionNotFound = "chore_definition_not_found";
+    public const string ChoreDefinitionInactive = "chore_definition_inactive";
+    public const string ChoreAssignmentNotFound = "chore_assignment_not_found";
+    public const string ChoreAssignmentNotActionable = "chore_assignment_not_actionable";
+    public const string ChoreCompletionNotFound = "chore_completion_not_found";
+    public const string ChoreCompletionPendingReview = "chore_completion_pending_review";
+    public const string ChoreCompletionAlreadyReviewed = "chore_completion_already_reviewed";
+    public const string ChoreMemberInactive = "chore_member_inactive";
+    public const string ChoreIdempotencyConflict = "chore_idempotency_conflict";
+    public const string ChoreConcurrencyConflict = "chore_concurrency_conflict";
+    public const string ChoreCompletionRateLimited = "chore_completion_rate_limited";
     public const string UnexpectedError = "unexpected_error";
 }
 

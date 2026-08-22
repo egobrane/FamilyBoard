@@ -11,18 +11,31 @@ public sealed class ChoreCompletionEntityConfiguration : IEntityTypeConfiguratio
         builder.ToTable("ChoreCompletions");
         builder.HasKey(completion => completion.Id);
         builder.Property(completion => completion.Status).HasConversion<string>().HasMaxLength(24);
-        builder.HasIndex(completion => completion.ChoreAssignmentId).IsUnique();
+        builder.Property(completion => completion.ReviewNote).HasMaxLength(240);
+        builder.Property(completion => completion.Version).IsConcurrencyToken().HasDefaultValue(1L);
+        builder.HasIndex(completion => new { completion.HouseholdId, completion.ClientRequestId }).IsUnique();
+        builder.HasIndex(completion => new { completion.HouseholdId, completion.ChoreAssignmentId });
+        builder.HasIndex(completion => new { completion.HouseholdId, completion.ChoreAssignmentId })
+            .IsUnique()
+            .HasFilter("\"Status\" = 'PendingReview'");
         builder.HasOne(completion => completion.ChoreAssignment)
-            .WithOne(assignment => assignment.Completion)
-            .HasForeignKey<ChoreCompletion>(completion => completion.ChoreAssignmentId)
+            .WithMany(assignment => assignment.Completions)
+            .HasForeignKey(completion => new { completion.HouseholdId, completion.ChoreAssignmentId })
+            .HasPrincipalKey(assignment => new { assignment.HouseholdId, assignment.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(completion => completion.CompletedByMember)
             .WithMany()
-            .HasForeignKey(completion => completion.CompletedByMemberId)
+            .HasForeignKey(completion => new { completion.HouseholdId, completion.CompletedByMemberId })
+            .HasPrincipalKey(member => new { member.HouseholdId, member.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(completion => completion.ReviewedByMember)
             .WithMany()
-            .HasForeignKey(completion => completion.ReviewedByMemberId)
+            .HasForeignKey(completion => new { completion.HouseholdId, completion.ReviewedByMemberId })
+            .HasPrincipalKey(member => new { member.HouseholdId, member.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<FamilyDashboard.Api.Domain.Identity.UserAccount>()
+            .WithMany()
+            .HasForeignKey(completion => completion.SubmittedByUserAccountId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

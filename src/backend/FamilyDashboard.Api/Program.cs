@@ -1,6 +1,7 @@
 using FamilyDashboard.Api.Configuration;
 using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Features.Calendar;
+using FamilyDashboard.Api.Features.Chores;
 using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Features.Invitations;
@@ -28,6 +29,8 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient(nameof(GoogleCalendarProviderClient));
 builder.Services.AddScoped<IGoogleCalendarProviderClient, GoogleCalendarProviderClient>();
 builder.Services.AddScoped<GoogleCalendarService>();
+builder.Services.AddScoped<ChoreService>();
+builder.Services.AddSingleton<ChoreDueTimeService>();
 builder.Services.AddSingleton<CalendarTokenProtector>();
 builder.Services.AddSingleton<CalendarStateProtector>();
 builder.Services.AddSingleton<CalendarCorrelationCookieService>();
@@ -92,14 +95,20 @@ builder.Services.AddRateLimiter(options =>
         context.HttpContext.Response.Headers.RetryAfter = "60";
         var isCalendarCreation = context.HttpContext.Request.Path.Value?.EndsWith(
             "/calendar/events", StringComparison.Ordinal) == true;
+        var isChoreCompletion = context.HttpContext.Request.Path.Value?.EndsWith(
+            "/completions", StringComparison.Ordinal) == true;
         var problem = FamilyDashboard.Api.Features.Common.ApiProblems.Create(
             context.HttpContext,
             StatusCodes.Status429TooManyRequests,
             isCalendarCreation
                 ? FamilyDashboard.Api.Features.Common.ApiProblemCodes.CalendarEventCreationRateLimited
+                : isChoreCompletion
+                    ? FamilyDashboard.Api.Features.Common.ApiProblemCodes.ChoreCompletionRateLimited
                 : FamilyDashboard.Api.Features.Common.ApiProblemCodes.ParentPinRateLimited,
             isCalendarCreation
                 ? "Too many calendar events were submitted. Try again shortly."
+                : isChoreCompletion
+                    ? "Too many chore completions were submitted. Try again shortly."
                 : "Too many parent PIN attempts. Try again shortly.");
         problem.Extensions["retryAfterSeconds"] = 60;
         await Results.Problem(problem).ExecuteAsync(context.HttpContext);
@@ -131,6 +140,21 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
+    options.AddPolicy("chore-completion", context =>
+    {
+        var sessionId = context.User.FindFirst(FamilyDashboardClaimTypes.UserSessionId)?.Value
+            ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var householdId = context.Request.RouteValues["householdId"]?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"chore:{sessionId}:{householdId}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true,
@@ -202,6 +226,7 @@ app.MapHouseholdMemberEndpoints();
 app.MapInvitationEndpoints();
 app.MapParentAccessEndpoints();
 app.MapGoogleCalendarEndpoints();
+app.MapChoreEndpoints();
 
 await app.RunAsync();
 

@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react'
 import { DashboardCard } from '../../components/DashboardCard'
 import { DashboardCalendarCard } from '../calendar/DashboardCalendarCard'
-import { chorePreviews, demoHouseholdPhotoUrl, familyMembers } from './mockDashboardData'
+import { DashboardChoresCard } from '../chores/DashboardChoresCard'
+import { demoHouseholdPhotoUrl, familyMembers } from './mockDashboardData'
 
 export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
   return (
@@ -21,27 +22,7 @@ export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { h
         </div>
       </DashboardCard>
 
-      <DashboardCard
-        className="chores-card"
-        eyebrow="A little progress"
-        id="chores-preview"
-        title="Chores"
-        action={<span className="status-pill status-pill--mint">1 of 3</span>}
-      >
-        <ul className="chore-list">
-          {chorePreviews.map((chore) => (
-            <li className={chore.completed ? 'chore chore--complete' : 'chore'} key={chore.id}>
-              <span className="chore__check" aria-hidden="true">{chore.completed ? '✓' : ''}</span>
-              <span className="chore__details">
-                <strong>{chore.title}</strong>
-                <span>{chore.person}</span>
-              </span>
-              <span className="points">+{chore.points}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="preview-note">Chore actions arrive in a later milestone.</p>
-      </DashboardCard>
+      <DashboardChoresCard />
 
       <DashboardCard className="family-card" eyebrow="Keep it going" id="rewards-preview" title="Family points">
         <div className="member-grid">

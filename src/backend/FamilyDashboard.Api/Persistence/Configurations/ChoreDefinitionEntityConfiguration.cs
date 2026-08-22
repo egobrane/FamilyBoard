@@ -15,6 +15,9 @@ public sealed class ChoreDefinitionEntityConfiguration : IEntityTypeConfiguratio
         builder.Property(chore => chore.Description).HasMaxLength(500);
         builder.Property(chore => chore.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(chore => chore.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        builder.Property(chore => chore.Version).IsConcurrencyToken().HasDefaultValue(1L);
+        builder.HasAlternateKey(chore => new { chore.HouseholdId, chore.Id });
+        builder.HasIndex(chore => new { chore.HouseholdId, chore.ClientRequestId }).IsUnique();
         builder.HasIndex(chore => new { chore.HouseholdId, chore.IsActive });
         builder.HasOne(chore => chore.Household)
             .WithMany(household => household.ChoreDefinitions)

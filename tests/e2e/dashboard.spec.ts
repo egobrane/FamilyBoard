@@ -241,6 +241,33 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({ json: householdMembers })
       return
     }
+    const choreAssignment = {
+      id: '60000000-0000-0000-0000-000000000001',
+      choreDefinitionId: '61000000-0000-0000-0000-000000000001',
+      title: 'Feed Milo', description: 'Before dinner',
+      assignedMember: householdMembers[0], dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00',
+      dueAt: '2026-08-22T22:00:00Z', dueTimeZone: 'America/New_York', dueHasExplicitTime: true,
+      status: 'pending', isOverdue: false, version: 1, pendingCompletion: null,
+      createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z',
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chores/dashboard`) {
+      await route.fulfill({ json: { overdue: [], dueToday: [choreAssignment], upcoming: [], awaitingReviewCount: 0 } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chores/participants`) {
+      await route.fulfill({ json: householdMembers })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments`) {
+      await route.fulfill({ json: { items: [choreAssignment], nextCursor: null } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments/${choreAssignment.id}/completions`) {
+      await route.fulfill({ json: { id: '62000000-0000-0000-0000-000000000001', assignmentId: choreAssignment.id,
+        completedByMember: householdMembers[0], status: 'pendingReview', wasSharedDisplay: currentSession.isSharedDisplay,
+        completedAt: '2026-08-22T18:00:00Z', reviewedByMember: null, reviewedAt: null, reviewNote: null, version: 1 } })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/invitations`) {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON() as { intendedEmail: string }
@@ -316,6 +343,18 @@ test('primary navigation responds to pointer clicks', async ({ page }) => {
   await expect(page).toHaveURL(/#rewards-preview$/)
   await expect(rewardsLink).toHaveAttribute('aria-current', 'location')
   await expect(page.locator('#rewards-preview')).toBeVisible()
+})
+
+test('chore board supports explicit household-member completion', async ({ page }) => {
+  await page.goto('/chores')
+  await expect(page.getByRole('heading', { name: 'Chores' })).toBeVisible()
+  await page.getByRole('listitem').getByRole('button', { name: 'Mark done' }).click()
+  await expect(page.getByRole('heading', { name: /Mark “Feed Milo” done/ })).toBeVisible()
+  await page.getByLabel('Who completed it?').selectOption(authenticatedUser.households[0].memberId)
+  await page.getByRole('dialog').getByRole('button', { name: 'Mark done' }).click()
+  await expect(page.getByRole('dialog')).toBeHidden()
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
 })
 
 test('calendar navigation and household source selection work with touch-sized controls', async ({ page }) => {

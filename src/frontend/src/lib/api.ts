@@ -185,6 +185,62 @@ export interface UpdateHouseholdMemberRequest {
   isActive?: boolean
 }
 
+export interface ChoreParticipantResponse {
+  id: string
+  displayName: string
+  role: 'adult' | 'child'
+  avatarColor: string | null
+}
+
+export interface ChoreCompletionResponse {
+  id: string
+  assignmentId: string
+  completedByMember: ChoreParticipantResponse
+  status: 'pendingReview' | 'approved' | 'rejected'
+  wasSharedDisplay: boolean
+  completedAt: string
+  reviewedByMember: ChoreParticipantResponse | null
+  reviewedAt: string | null
+  reviewNote: string | null
+  version: number
+}
+
+export interface ChoreAssignmentResponse {
+  id: string
+  choreDefinitionId: string
+  title: string
+  description: string | null
+  assignedMember: ChoreParticipantResponse
+  dueLocalDate: string | null
+  dueLocalTime: string | null
+  dueAt: string | null
+  dueTimeZone: string | null
+  dueHasExplicitTime: boolean
+  status: 'pending' | 'awaitingReview' | 'completed' | 'skipped'
+  isOverdue: boolean
+  version: number
+  pendingCompletion: ChoreCompletionResponse | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChoreDashboardResponse {
+  overdue: ChoreAssignmentResponse[]
+  dueToday: ChoreAssignmentResponse[]
+  upcoming: ChoreAssignmentResponse[]
+  awaitingReviewCount: number
+}
+
+export interface ChoreDefinitionResponse {
+  id: string
+  title: string
+  description: string | null
+  isActive: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired'
 
 export interface HouseholdInvitationResponse {
@@ -321,6 +377,94 @@ export function updateHouseholdMember(
     `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}`,
     'PATCH',
     body,
+  )
+}
+
+export function getChoreDashboard(householdId: string) {
+  return request<ChoreDashboardResponse>(`/api/households/${encodeURIComponent(householdId)}/chores/dashboard`)
+}
+
+export function listChoreParticipants(householdId: string) {
+  return request<ChoreParticipantResponse[]>(`/api/households/${encodeURIComponent(householdId)}/chores/participants`)
+}
+
+export function listChoreAssignments(householdId: string, view: 'active' | 'history' = 'active') {
+  return request<{ items: ChoreAssignmentResponse[]; nextCursor: string | null }>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-assignments?view=${view}`,
+  )
+}
+
+export function completeChore(householdId: string, assignmentId: string, body: {
+  clientRequestId: string
+  expectedAssignmentVersion: number
+  completedByMemberId: string | null
+}) {
+  return unsafeRequest<ChoreCompletionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-assignments/${encodeURIComponent(assignmentId)}/completions`,
+    'POST', body,
+  )
+}
+
+export function listChoreDefinitions(householdId: string, includeInactive = true) {
+  return request<ChoreDefinitionResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-definitions?includeInactive=${includeInactive}`,
+  )
+}
+
+export function createChoreDefinition(householdId: string, body: {
+  clientRequestId: string; title: string; description: string | null
+}) {
+  return unsafeRequest<ChoreDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-definitions`, 'POST', body,
+  )
+}
+
+export function updateChoreDefinition(householdId: string, definitionId: string, body: {
+  expectedVersion: number; title: string; description: string | null
+}) {
+  return unsafeRequest<ChoreDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-definitions/${encodeURIComponent(definitionId)}`,
+    'PATCH', body,
+  )
+}
+
+export function setChoreDefinitionActive(householdId: string, definition: ChoreDefinitionResponse, active: boolean) {
+  return unsafeRequest<ChoreDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-definitions/${encodeURIComponent(definition.id)}/${active ? 'activate' : 'deactivate'}`,
+    'POST', { expectedVersion: definition.version },
+  )
+}
+
+export function createChoreAssignment(householdId: string, body: {
+  clientRequestId: string
+  choreDefinitionId: string
+  assignedMemberId: string
+  dueLocalDate: string
+  dueLocalTime: string | null
+}) {
+  return unsafeRequest<ChoreAssignmentResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-assignments`, 'POST', body,
+  )
+}
+
+export function skipChoreAssignment(householdId: string, assignment: ChoreAssignmentResponse, reason: string | null) {
+  return unsafeRequest<ChoreAssignmentResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-assignments/${encodeURIComponent(assignment.id)}/skip`,
+    'POST', { expectedVersion: assignment.version, reason },
+  )
+}
+
+export function listPendingChoreReviews(householdId: string) {
+  return request<ChoreCompletionResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-completions?status=pendingReview`,
+  )
+}
+
+export function reviewChoreCompletion(householdId: string, completion: ChoreCompletionResponse,
+  decision: 'approved' | 'rejected', note: string | null) {
+  return unsafeRequest<ChoreCompletionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-completions/${encodeURIComponent(completion.id)}/review`,
+    'POST', { expectedVersion: completion.version, decision, note },
   )
 }
 

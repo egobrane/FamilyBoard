@@ -18,26 +18,26 @@
 - Google Calendar Increment 1 is deployed and staging verified: calendar authorization remains separate from sign-in, OAuth tokens are encrypted backend-only, adults select household-visible calendars, routine dashboard/calendar reads use request-time Google retrieval with a short disposable cache, and disconnect leaves Google events unchanged.
 - Backend image publication is hardened so backend-relevant main changes still publish while frontend-only, documentation-only, and deployment-parameter-only changes avoid redundant GHCR images; version tags and manual dispatch remain supported.
 - Google Calendar Increment 2 is deployed and staging verified: the additive migration, incremental write authorization, one adult-configured writable household calendar, idempotent create-only API behavior, shared-display member attribution boundary, and responsive event form are active. A timed event created in Family Dashboard appeared in Google Calendar on another device, confirming provider ownership.
-- The staging API runs reviewed digest `sha256:028a47778229f74aae12725df0665f0a9042476169c6b69b7ec60ac35e40d318` on healthy revision `family-dashboard-staging-api--0000019` with both Calendar feature flags enabled. The Netlify production bundle contains the matching Increment 2 UI.
-- Azure release reconciliation is implemented pending CI/staging proof: the protected workflow reads the immutable image and an explicit non-secret runtime allowlist from reviewed Bicep parameters, migrates first, verifies image/configuration/traffic/health, and restores the prior API release after a failed deployment without accessing the PostgreSQL administrator password.
-- PWA freshness hardening is implemented pending Netlify/Safari proof: update discovery occurs after React mounts, checks repeat on focus/visibility and long-running displays, forms block activation, safe idle displays may update, and Netlify separates revalidated shell assets from immutable hashed assets.
+- The staging API runs reviewed digest `sha256:6a2316d90e1498fa8b9c5543039f488e4fa5839c8e916d64568971947b21a567` on healthy revision `family-dashboard-staging-api--0000020` with both Calendar feature flags enabled. The matching Netlify production PWA is deployed.
+- Azure release reconciliation is staging proven: the protected workflow reads the immutable image and an explicit non-secret runtime allowlist from reviewed Bicep parameters without a manually entered digest, migrates first, verifies image/configuration/traffic/health, and restores the prior API release after a failed deployment without accessing the PostgreSQL administrator password.
+- PWA freshness hardening is deployed: update discovery occurs after React mounts, checks repeat on focus/visibility and long-running displays, forms block activation, safe idle displays may update, and Netlify separates revalidated shell assets from immutable hashed assets. Direct Netlify delivery honors immediate service-worker revalidation; the Cloudflare-fronted custom domain still needs its four-hour `/sw.js` edge cache override removed and a two-version physical-device proof.
+- Chore Management Increment 1 is implemented and locally verified: household-owned definitions, one-time local-due-date assignments, active-member attribution, private and shared-display completion, adult approval/rejection, skip/history retention, idempotency, and parent-elevated administration are ready for CI and staging deployment.
 - `Staging Selection Test Household` remains intentionally stored until household deletion or an approved cleanup workflow exists.
 
 ## Next
 
 - Rehearse application rollback and record recovery objectives before staging stores irreplaceable household data; revoke shared sessions before any rollback to pre-parent-access code.
 - Verify a real Netlify Deploy Preview without sharing production credentials or broadening credentialed CORS.
-- Prove the reconciled GitHub deployment workflow against Azure staging and confirm its job summary reports the reviewed digest, ready revision, configuration, traffic, and health without exposing secrets.
-- Prove a two-version PWA update on Netlify/Safari and the wall display, including prompt visibility, form protection, safe idle activation, offline retention, and the new cache headers.
+- Change the Cloudflare cache rule for `family.egobrane.net/sw.js` to bypass edge caching or honor the origin `no-cache` policy, then prove a two-version PWA update on Safari and the wall display, including prompt visibility, form protection, safe idle activation, and offline retention.
 - Complete the remaining owner staging checks for locked shared-display attribution, private-session attribution, all-day creation, invalid ranges/time zones, idempotent recovery, read-only target rejection, external revocation, multi-household isolation, parent-PIN configuration gates, responsive devices, and write-path leakage inspection. Automated coverage exists for the core authorization, attribution, idempotency, and accessibility boundaries but does not replace these live checks.
-- Plan the first chore-management vertical slice before extending Calendar creation into editing and deletion.
+- Deploy and owner-verify Chore Management Increment 1 in staging, including shared-display attribution, private-adult attribution, review rejection/retry, skip/history retention, household isolation, and responsive interaction.
 - Record Google OAuth consent verification status before broad public use and retain manual revocation, recurrence, daylight-saving, shared-display, multi-household, and responsive checks in the release checklist.
 
 ## Later
 
 - Add Google Tasks through a provider interface.
 - Define chore recurrence and generate individual assignments.
-- Implement chore completion review and the append-only point ledger.
+- Connect approved chore completions to the append-only point ledger.
 - Implement reward configuration and redemption approval.
 - Add notifications and deliberate offline-data behavior.
 

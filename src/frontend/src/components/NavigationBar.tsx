@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router'
 const navigationItems = [
   { id: 'home', label: 'Home', icon: '⌂', to: '/' },
   { id: 'calendar', label: 'Calendar', icon: '□', to: '/calendar' },
-  { id: 'chores', label: 'Chores', icon: '✓', to: '/#chores-preview' },
+  { id: 'chores', label: 'Chores', icon: '✓', to: '/chores' },
   { id: 'rewards', label: 'Rewards', icon: '★', to: '/#rewards-preview' },
 ] as const
 
@@ -12,8 +12,8 @@ export function NavigationBar() {
   return (
     <nav className="navigation" aria-label="Primary navigation">
       {navigationItems.map((item) => {
-        const current = item.id === 'calendar'
-          ? location.pathname === '/calendar'
+        const current = item.id === 'calendar' || item.id === 'chores'
+          ? location.pathname === `/${item.id}`
           : item.id === 'home'
             ? location.pathname === '/' && location.hash === ''
             : location.pathname === '/' && location.hash === `#${item.id}-preview`

@@ -5,4 +5,5 @@ public enum ChoreAssignmentStatus
     Pending = 1,
     Completed = 2,
     Skipped = 3,
+    AwaitingReview = 4,
 }

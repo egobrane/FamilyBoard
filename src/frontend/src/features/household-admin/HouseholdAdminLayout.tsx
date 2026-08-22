@@ -80,6 +80,7 @@ export function HouseholdAdminLayout() {
             <NavLink to={`${basePath}/members`}>Members</NavLink>
             <NavLink to={`${basePath}/invitations`}>Invitations</NavLink>
             <NavLink to={`${basePath}/calendars`}>Calendars</NavLink>
+            <NavLink to={`${basePath}/chores`}>Chores</NavLink>
             <NavLink to={`${basePath}/parent-access`}>Parent access</NavLink>
           </nav>
         </header>

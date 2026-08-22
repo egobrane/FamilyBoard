@@ -2,7 +2,9 @@
 
 Family Dashboard is a touch-first household organization platform designed for wall displays, phones, tablets, and desktop browsers.
 
-The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household increments now add persistent households, backend Google sign-in, revocable application sessions, authenticated onboarding, per-session household selection, household administration, email-bound adult invitation links, and shared-display parent-PIN elevation. Google Calendar Increment 1 adds separately authorized reads and a disposable request cache. Increment 2 adds feature-gated, idempotent creation to one deliberately selected writable Google calendar; editing and deletion remain deferred.
+The first milestone provides a responsive PWA shell, an ASP.NET Core API with PostgreSQL persistence, automated tests, and portable deployment foundations. Identity and household increments now add persistent households, backend Google sign-in, revocable application sessions, authenticated onboarding, per-session household selection, household administration, email-bound adult invitation links, and shared-display parent-PIN elevation. Google Calendar Increment 1 adds separately authorized reads and a disposable request cache. Increment 2 adds feature-gated, idempotent creation to one deliberately selected writable Google calendar; editing and deletion remain deferred. Chore Management Increment 1 adds the first product-owned household workflow: reusable definitions, one-time assignments, attributed completion, and adult review.
+
+Azure staging releases now read the reviewed immutable image and approved non-secret runtime settings from `deploy/azure/staging.bicepparam`. The protected GitHub workflow requires no manually entered digest, runs the migration job before updating the API, and verifies the resulting image, configuration, traffic, and health. The matching Netlify PWA includes guarded service-worker updates so an in-progress form is not interrupted.
 
 ## Repository
 
@@ -31,6 +33,7 @@ The migration service runs once before the development API starts. See [developm
 - [Testing](docs/testing.md)
 - [Authentication boundary](docs/authentication.md)
 - [Google Calendar integration](docs/google-calendar.md)
+- [Chore management](docs/chore-management.md)
 - [Identity and household milestone](docs/identity-household-milestone.md)
 - [Netlify deployment](docs/deployment/netlify.md)
 - [Backend container publication](docs/deployment/backend-container.md)
@@ -42,4 +45,4 @@ The migration service runs once before the development API starts. See [developm
 
 ## Current scope
 
-Health, Google-login initiation, and invitation prepare/inspection endpoints are anonymously usable; invitation preparation additionally requires JSON from the exact configured frontend origin. Account identity, household setup, selected-household context, household heading, and configured calendar events come from the authenticated API; chore, reward, weather, and photo content remains placeholder data. Identity and Household Management Increments 1–6 and Google Calendar Increments 1–2 are deployed and verified in Azure staging with the matching Netlify frontend. Calendar authorization remains separate from sign-in, and controlled event creation targets one deliberately selected writable Google calendar. Google remains the event source of truth; event editing/deletion, Tasks, chores, rewards, weather, and photo storage remain deferred. OAuth codes and tokens, PINs, PIN hashes, and peppers never reach the frontend.
+Health, Google-login initiation, and invitation prepare/inspection endpoints are anonymously usable; invitation preparation additionally requires JSON from the exact configured frontend origin. Account identity, household setup, selected-household context, household heading, configured calendar events, and chore data come from the authenticated API. Identity and Household Management Increments 1–6 and Google Calendar Increments 1–2 are deployed and verified in Azure staging with the matching Netlify frontend. Chore Management Increment 1 is implemented and locally verified, but remains pending CI and staging deployment. Calendar authorization remains separate from sign-in, and controlled event creation targets one deliberately selected writable Google calendar. Google remains the event source of truth; Calendar editing/deletion, Tasks, chore recurrence, points, rewards, weather, and photo storage remain deferred. OAuth codes and tokens, PINs, PIN hashes, and peppers never reach the frontend.

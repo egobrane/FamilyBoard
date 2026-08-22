@@ -57,6 +57,29 @@ describe('App', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path.endsWith('/chores/dashboard')) return jsonResponse({
+        overdue: [],
+        dueToday: [{
+          id: 'chore-1',
+          choreDefinitionId: 'definition-1',
+          title: 'Feed Milo',
+          description: null,
+          assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint' },
+          dueLocalDate: '2026-08-22',
+          dueLocalTime: null,
+          dueAt: '2026-08-23T03:59:59Z',
+          dueTimeZone: 'America/New_York',
+          dueHasExplicitTime: false,
+          status: 'pending',
+          isOverdue: false,
+          version: 1,
+          pendingCompletion: null,
+          createdAt: '2026-08-22T12:00:00Z',
+          updatedAt: '2026-08-22T12:00:00Z',
+        }],
+        upcoming: [],
+        awaitingReviewCount: 0,
+      })
       if (path.endsWith('/calendar/events')) return jsonResponse({
         events: [{
           id: 'event-1',

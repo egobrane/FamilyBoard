@@ -1,5 +1,6 @@
 using System.Data;
 using FamilyDashboard.Api.Domain.Households;
+using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -126,6 +127,20 @@ internal sealed class HouseholdMemberService(FamilyDashboardDbContext dbContext)
             if (patch.IsActive is not null)
             {
                 member.IsActive = patch.IsActive.Value;
+                if (!patch.IsActive.Value)
+                {
+                    var schedules = await dbContext.ChoreSchedules.Where(schedule =>
+                        schedule.HouseholdId == householdId
+                        && schedule.HouseholdMemberId == memberId
+                        && schedule.Status == ChoreScheduleStatus.Active).ToListAsync(cancellationToken);
+                    foreach (var schedule in schedules)
+                    {
+                        schedule.Status = ChoreScheduleStatus.Blocked;
+                        schedule.BlockedReason = "memberInactive";
+                        schedule.UpdatedAt = DateTimeOffset.UtcNow;
+                        schedule.Version++;
+                    }
+                }
             }
 
             member.UpdatedAt = DateTimeOffset.UtcNow;

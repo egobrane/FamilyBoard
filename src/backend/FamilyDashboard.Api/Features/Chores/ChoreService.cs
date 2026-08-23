@@ -128,8 +128,22 @@ public sealed class ChoreService(
         if (definition.Version != expectedVersion) return new(ChoreOperationStatus.ConcurrencyConflict);
         if (definition.IsActive == active) return new(ChoreOperationStatus.Success, MapDefinition(definition));
         definition.IsActive = active;
-        definition.UpdatedAt = timeProvider.GetUtcNow();
+        var now = timeProvider.GetUtcNow();
+        definition.UpdatedAt = now;
         definition.Version++;
+        if (!active)
+        {
+            var schedules = await dbContext.ChoreSchedules.Where(item =>
+                item.HouseholdId == householdId && item.ChoreDefinitionId == definitionId
+                && item.Status == ChoreScheduleStatus.Active).ToListAsync(cancellationToken);
+            foreach (var schedule in schedules)
+            {
+                schedule.Status = ChoreScheduleStatus.Blocked;
+                schedule.BlockedReason = "definitionInactive";
+                schedule.UpdatedAt = now;
+                schedule.Version++;
+            }
+        }
         try { await dbContext.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { return new(ChoreOperationStatus.ConcurrencyConflict); }
         return new(ChoreOperationStatus.Success, MapDefinition(definition));

@@ -10,7 +10,7 @@ npm test
 npm run build
 ```
 
-Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation, chore-list completion states, dashboard semantics, and keyboard and pointer navigation.
+Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation, chore-list completion states, recurring-schedule summaries and weekday controls, dashboard semantics, and keyboard and pointer navigation.
 
 ## Browser tests
 
@@ -21,7 +21,7 @@ npx playwright install chromium
 npm test
 ```
 
-Playwright runs Chromium at a 1920×1080 touch-enabled wall-display viewport and a Pixel phone viewport. It checks layout overflow, visible authenticated content, mouse/keyboard navigation, read-only Calendar navigation and source selection, controlled event creation, explicit chore-completion attribution, PWA form-update protection, secure logout, invitation creation/acceptance, raw-fragment removal, shared-display locked administration and PIN unlock, and serious automated accessibility findings using deterministic API fixtures. Emulation supplements but does not replace physical wall-touchscreen, iOS Safari, and Android Chrome testing.
+Playwright runs Chromium at a 1920×1080 touch-enabled wall-display viewport and a Pixel phone viewport. It checks layout overflow, visible authenticated content, mouse/keyboard navigation, read-only Calendar navigation and source selection, controlled event creation, explicit chore-completion attribution, daily 8 AM schedule creation, PWA form-update protection, secure logout, invitation creation/acceptance, raw-fragment removal, shared-display locked administration and PIN unlock, and serious automated accessibility findings using deterministic API fixtures. Emulation supplements but does not replace physical wall-touchscreen, iOS Safari, and Android Chrome testing.
 
 ## Backend
 
@@ -29,9 +29,11 @@ Playwright runs Chromium at a 1920×1080 touch-enabled wall-display viewport and
 dotnet test FamilyDashboard.sln
 ```
 
-The liveness, return-URL, Google option, Calendar token/state protection, invitation-token, parent-PIN hashing, chore due-time/DST, CORS, and production fail-closed authentication tests can run without PostgreSQL. Migration, chore lifecycle/idempotency/history, endpoint, Calendar constraints/household isolation/event-creation idempotency and concurrency, atomic-bootstrap-and-selection, per-session household selection and elevation, concurrent last-adult, invitation isolation/revocation/email binding/concurrent acceptance, PIN cooldown/audit/administration, Google identity mapping, session renewal/revocation/expiration, disabled-account, and antiforgery tests run when `TEST_POSTGRES_CONNECTION_STRING` points to a dedicated disposable test database. These tests delete and recreate that database, so it must never target shared or production data.
+The liveness, return-URL, Google option, Calendar token/state protection, invitation-token, parent-PIN hashing, chore due-time/DST and recurrence calculations, CORS, and production fail-closed authentication tests can run without PostgreSQL. Migration, chore lifecycle/idempotency/history, schedule generation and duplicate prevention, endpoint, Calendar constraints/household isolation/event-creation idempotency and concurrency, atomic-bootstrap-and-selection, per-session household selection and elevation, concurrent last-adult, invitation isolation/revocation/email binding/concurrent acceptance, PIN cooldown/audit/administration, Google identity mapping, session renewal/revocation/expiration, disabled-account, and antiforgery tests run when `TEST_POSTGRES_CONNECTION_STRING` points to a dedicated disposable test database. These tests delete and recreate that database, so it must never target shared or production data.
 
 CI supplies an ephemeral PostgreSQL service, then restores, builds, tests, builds production containers, and renders the K3s manifests. Builds or required tests must be green before a milestone is considered complete.
+
+Chore Management Increment 1 also passed its owner-operated Azure/Netlify staging checklist on 2026-08-22. The verified paths covered definition lifecycle, one-time assignment, dashboard and full-list rendering, private and shared-display attribution, approval, rejection/retry/approval, skipping and retained history, shared-display parent-PIN enforcement, household isolation, and touch, mouse, keyboard, screen-reader, phone, tablet, and wall-display behavior. No point award was expected because point transactions remain outside Increment 1.
 
 Calendar Increment 1 was also exercised against real staging OAuth and Google Calendar data on 2026-08-19. Owner-confirmed checks covered consent denial, connection, connected-account display, source persistence, dashboard and full Calendar reads, revocation and reconnection, multi-household isolation, locked shared-display access, timed/recurring/all-day/daylight-saving events, responsive input modes, and disconnect without provider-event deletion. Automated provider doubles remain necessary in CI so tests do not require personal Google credentials or mutate external calendars.
 

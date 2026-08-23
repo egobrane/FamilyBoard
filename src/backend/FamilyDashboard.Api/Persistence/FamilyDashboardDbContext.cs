@@ -25,6 +25,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<CalendarEventCreationReceipt> CalendarEventCreationReceipts => Set<CalendarEventCreationReceipt>();
     public DbSet<ApplicationPreference> ApplicationPreferences => Set<ApplicationPreference>();
     public DbSet<ChoreDefinition> ChoreDefinitions => Set<ChoreDefinition>();
+    public DbSet<ChoreSchedule> ChoreSchedules => Set<ChoreSchedule>();
     public DbSet<ChoreAssignment> ChoreAssignments => Set<ChoreAssignment>();
     public DbSet<ChoreCompletion> ChoreCompletions => Set<ChoreCompletion>();
     public DbSet<PointTransaction> PointTransactions => Set<PointTransaction>();

@@ -24,6 +24,8 @@ param runtimeIdentityId string
 param runtimeIdentityClientId string
 param dataProtectionBlobUri string
 param dataProtectionKeyIdentifier string
+param choreGenerationHorizonHours int
+param choreGenerationMaximumAssignmentsPerRun int
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: last(split(logAnalyticsWorkspaceId, '/'))
@@ -180,6 +182,14 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'DataProtection__ManagedIdentityClientId'
               value: runtimeIdentityClientId
             }
+            {
+              name: 'ChoreGeneration__HorizonHours'
+              value: string(choreGenerationHorizonHours)
+            }
+            {
+              name: 'ChoreGeneration__MaximumAssignmentsPerRun'
+              value: string(choreGenerationMaximumAssignmentsPerRun)
+            }
           ], enableGoogleAuthentication ? [
             {
               name: 'Authentication__Google__ClientSecret'
@@ -322,7 +332,67 @@ resource migrationJob 'Microsoft.App/jobs@2025-01-01' = {
   }
 }
 
+resource choreGeneratorJob 'Microsoft.App/jobs@2025-01-01' = {
+  name: '${nameStem}-chore-generator'
+  location: location
+  tags: tags
+  properties: {
+    environmentId: environment.id
+    workloadProfileName: 'Consumption'
+    configuration: {
+      triggerType: 'Schedule'
+      replicaTimeout: 1800
+      replicaRetryLimit: 2
+      scheduleTriggerConfig: {
+        cronExpression: '7 * * * *'
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+      secrets: [
+        {
+          name: 'postgres-connection'
+          value: postgresConnectionString
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'generator'
+          image: backendImage
+          args: [
+            '--generate-chore-assignments'
+          ]
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: [
+            {
+              name: 'ASPNETCORE_ENVIRONMENT'
+              value: 'Staging'
+            }
+            {
+              name: 'ConnectionStrings__FamilyDashboard'
+              secretRef: 'postgres-connection'
+            }
+            {
+              name: 'ChoreGeneration__HorizonHours'
+              value: string(choreGenerationHorizonHours)
+            }
+            {
+              name: 'ChoreGeneration__MaximumAssignmentsPerRun'
+              value: string(choreGenerationMaximumAssignmentsPerRun)
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
 output apiName string = api.name
 output apiDefaultHostname string = api.properties.configuration.ingress.fqdn
 output customDomainVerificationId string = environment.properties.customDomainConfiguration.customDomainVerificationId
 output migrationJobName string = migrationJob.name
+output choreGeneratorJobName string = choreGeneratorJob.name

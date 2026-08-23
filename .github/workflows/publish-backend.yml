@@ -17,6 +17,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   packages: write
   attestations: write
@@ -33,6 +34,22 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      image_digest: ${{ steps.push.outputs.digest }}
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: family_dashboard_test
+          POSTGRES_USER: family_dashboard
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U family_dashboard -d family_dashboard_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v5
@@ -43,6 +60,8 @@ jobs:
           dotnet restore FamilyDashboard.sln
           dotnet build FamilyDashboard.sln --configuration Release --no-restore
           dotnet test FamilyDashboard.sln --configuration Release --no-build
+        env:
+          TEST_POSTGRES_CONNECTION_STRING: Host=localhost;Port=5432;Database=family_dashboard_test;Username=family_dashboard
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - name: Log in to GHCR
@@ -82,3 +101,20 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      - name: Summarize the immutable publication
+        run: |
+          {
+            echo "## Backend image publication"
+            echo ""
+            echo "- Source: \`${GITHUB_SHA}\`"
+            echo "- Image: \`${REGISTRY}/${IMAGE_NAME}@${{ steps.push.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: publish
+    uses: ./.github/workflows/deploy-azure-staging.yml
+    with:
+      backend_image: ${{ format('ghcr.io/{0}/familyboard-backend@{1}', github.repository_owner, needs.publish.outputs.image_digest) }}
+      source_sha: ${{ github.sha }}

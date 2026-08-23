@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FamilyDashboard.Api.Domain.Identity;
+using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Features.Chores;
 using FamilyDashboard.Api.Features.Common;
 using FamilyDashboard.Api.Features.HouseholdMembers;
@@ -9,6 +10,7 @@ using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Tests.Authentication;
 using FamilyDashboard.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FamilyDashboard.Api.Tests.Endpoints;
 
@@ -54,6 +56,10 @@ public sealed class ChoreEndpointTests
             $"/api/households/{firstHousehold.Id}/chore-definitions");
         Assert.Equal(HttpStatusCode.Forbidden, administration.StatusCode);
         Assert.Equal(ApiProblemCodes.ParentElevationRequired, await ProblemCodeAsync(administration));
+        using var scheduleAdministration = await sharedClient.GetAsync(
+            $"/api/households/{firstHousehold.Id}/chore-schedules");
+        Assert.Equal(HttpStatusCode.Forbidden, scheduleAdministration.StatusCode);
+        Assert.Equal(ApiProblemCodes.ParentElevationRequired, await ProblemCodeAsync(scheduleAdministration));
         Assert.NotEqual(firstHousehold.Id, secondHousehold.Id);
     }
 
@@ -128,6 +134,51 @@ public sealed class ChoreEndpointTests
         Assert.Equal(2, await database.DbContext.ChoreCompletions.CountAsync());
         Assert.Equal("Completed", await database.DbContext.ChoreAssignments
             .Where(item => item.Id == assignment.Id).Select(item => item.Status.ToString()).SingleAsync());
+        Assert.Empty(database.DbContext.PointTransactions);
+    }
+
+    [PostgreSqlFact]
+    public async Task RecurringScheduleGeneratesOneRetrySafeSnapshottedAssignment()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount { DisplayName = "Schedule Adult", PrimaryEmail = "schedule@example.test" };
+        database.DbContext.UserAccounts.Add(account);
+        await database.DbContext.SaveChangesAsync();
+        using var client = Client(database.Factory, account.Id);
+        var household = await BootstrapAsync(client);
+        var childResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/members",
+            new CreateChildMemberRequest("Taylor", "mint"));
+        var child = (await childResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+        var definitionResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-definitions",
+            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Feed Milo", "Before breakfast"));
+        var definition = (await definitionResponse.Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
+        var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).Date);
+        var requestId = Guid.NewGuid();
+        var create = new CreateChoreScheduleRequest(requestId, definition.Id, child.Id,
+            new ChoreRecurrenceRequest("daily", 1, []), localToday, localToday, null);
+        var response = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-schedules", create);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var schedule = (await response.Content.ReadFromJsonAsync<ChoreScheduleResponse>())!;
+
+        var replay = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-schedules", create);
+        Assert.Equal(HttpStatusCode.Created, replay.StatusCode);
+        Assert.Equal(schedule.Id, (await replay.Content.ReadFromJsonAsync<ChoreScheduleResponse>())!.Id);
+
+        await using (var scope = database.Factory.Services.CreateAsyncScope())
+        {
+            var generator = scope.ServiceProvider.GetRequiredService<ChoreAssignmentGenerator>();
+            var first = await generator.GenerateAsync(CancellationToken.None);
+            var second = await generator.GenerateAsync(CancellationToken.None);
+            Assert.Equal(1, first.AssignmentsGenerated);
+            Assert.Equal(0, second.AssignmentsGenerated);
+        }
+
+        database.DbContext.ChangeTracker.Clear();
+        var assignment = await database.DbContext.ChoreAssignments.SingleAsync(item => item.ChoreScheduleId == schedule.Id);
+        Assert.Equal("Feed Milo", assignment.TitleSnapshot);
+        Assert.Equal(localToday, assignment.ScheduleOccurrenceLocalDate);
+        Assert.Equal(ChoreDueTimeResolution.Exact, assignment.DueTimeResolution);
         Assert.Empty(database.DbContext.PointTransactions);
     }
 

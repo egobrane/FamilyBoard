@@ -17,6 +17,7 @@ docker compose up --build
 docker compose down
 docker compose logs -f api
 docker compose run --rm migrate
+docker compose --profile tools run --rm chore-generator
 ```
 
 `docker compose down` preserves the named PostgreSQL volume. Adding `--volumes` deletes local database and dependency volumes and should only be used when that data is intentionally disposable.
@@ -52,6 +53,14 @@ Apply migrations explicitly before using database-backed endpoints:
 ```sh
 dotnet run --project src/backend/FamilyDashboard.Api -- --migrate
 ```
+
+Generate all retry-safe recurring chore assignments within the configured horizon:
+
+```sh
+dotnet run --project src/backend/FamilyDashboard.Api -- --generate-chore-assignments
+```
+
+Local development does not run a background scheduler automatically. Invoke the one-shot command when testing schedules; Azure and K3s provide their own hourly schedulers around the same portable command.
 
 ## Local addresses
 

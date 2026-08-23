@@ -17,4 +17,5 @@ public sealed class ChoreDefinition
 
     public Household Household { get; set; } = null!;
     public ICollection<ChoreAssignment> Assignments { get; set; } = [];
+    public ICollection<ChoreSchedule> Schedules { get; set; } = [];
 }

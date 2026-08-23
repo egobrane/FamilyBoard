@@ -70,6 +70,11 @@ public static class ApiProblemCodes
     public const string ChoreIdempotencyConflict = "chore_idempotency_conflict";
     public const string ChoreConcurrencyConflict = "chore_concurrency_conflict";
     public const string ChoreCompletionRateLimited = "chore_completion_rate_limited";
+    public const string ChoreScheduleNotFound = "chore_schedule_not_found";
+    public const string ChoreScheduleInvalid = "invalid_chore_schedule";
+    public const string ChoreScheduleDependencyInactive = "chore_schedule_dependency_inactive";
+    public const string ChoreScheduleRequestConflict = "chore_schedule_request_conflict";
+    public const string ChoreScheduleVersionConflict = "chore_schedule_version_conflict";
     public const string UnexpectedError = "unexpected_error";
 }
 

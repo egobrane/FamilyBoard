@@ -19,6 +19,7 @@ public sealed class HouseholdMember
     public HouseholdMembership? Membership { get; set; }
     public ICollection<ApplicationPreference> Preferences { get; set; } = [];
     public ICollection<ChoreAssignment> ChoreAssignments { get; set; } = [];
+    public ICollection<ChoreSchedule> ChoreSchedules { get; set; } = [];
     public ICollection<PointTransaction> PointTransactions { get; set; } = [];
     public ICollection<RewardRedemption> RewardRedemptions { get; set; } = [];
     public ICollection<CalendarEventCreationReceipt> AttributedCalendarEventCreations { get; set; } = [];

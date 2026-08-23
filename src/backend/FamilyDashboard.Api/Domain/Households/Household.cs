@@ -22,5 +22,6 @@ public sealed class Household
     public ICollection<ParentAccessAuditEvent> ParentAccessAuditEvents { get; set; } = [];
     public ICollection<ApplicationPreference> Preferences { get; set; } = [];
     public ICollection<ChoreDefinition> ChoreDefinitions { get; set; } = [];
+    public ICollection<ChoreSchedule> ChoreSchedules { get; set; } = [];
     public ICollection<Reward> Rewards { get; set; } = [];
 }

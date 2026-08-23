@@ -18,6 +18,15 @@
 .action-dialog label, .admin-form label { display: grid; font-weight: 700; gap: .4rem; }
 .action-dialog select, .admin-form input, .admin-form select, .admin-form textarea { border: 1px solid #c9cdc5; border-radius: .8rem; font: inherit; min-height: 3rem; padding: .7rem; }
 .chore-admin-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.schedule-list-section, .schedule-form { grid-column: 1 / -1; }
+.schedule-recurrence { border: 1px solid color-mix(in srgb, var(--color-ink) 18%, transparent); border-radius: 1rem; display: grid; gap: 1rem; margin: 0; padding: 1rem; }
+.segmented-control, .weekday-picker { display: flex; flex-wrap: wrap; gap: .55rem; }
+.segmented-control button[aria-pressed="true"], .weekday-picker button[aria-pressed="true"] { background: var(--color-ink); color: white; }
+.schedule-interval { align-items: center; display: flex; gap: .5rem; margin-top: .4rem; }
+.schedule-interval input { max-width: 6rem; }
+.schedule-summary { background: color-mix(in srgb, var(--color-mint) 20%, white); border-radius: .9rem; padding: .8rem 1rem; }
+.schedule-status { font-weight: 750; text-transform: capitalize; }
+.schedule-status--blocked { color: var(--color-danger, #9f3528); }
 .admin-section, .admin-form, .empty-state { background: #fffdf8; border-radius: 1.25rem; padding: 1.25rem; }
 .definition-list li > div, .review-list li > div { display: grid; gap: .2rem; }
 .form-grid { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }

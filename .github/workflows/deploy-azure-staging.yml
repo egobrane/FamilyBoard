@@ -1,9 +1,25 @@
 name: Deploy backend to Azure staging
 
 on:
+  workflow_call:
+    inputs:
+      backend_image:
+        description: Public GHCR image pinned by immutable sha256 digest
+        required: true
+        type: string
+      source_sha:
+        description: Main-branch commit that produced the image
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      backend_image:
+        description: Public GHCR image pinned by immutable sha256 digest
+        required: true
+        type: string
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -20,8 +36,11 @@ jobs:
       RESOURCE_GROUP: ryan-dev
       API_NAME: family-dashboard-staging-api
       MIGRATION_JOB_NAME: family-dashboard-staging-mig
+      CHORE_GENERATOR_JOB_NAME: family-dashboard-staging-chore-generator
       API_ORIGIN: https://api.egobrane.net
       PARAMETER_FILE: deploy/azure/staging.bicepparam
+      DEPLOY_IMAGE: ${{ inputs.backend_image }}
+      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
     steps:
       - uses: actions/checkout@v6
 
@@ -30,10 +49,10 @@ jobs:
           FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD: validation-only-placeholder-NotASecret1!
         shell: bash
         run: |
+          export FAMILY_DASHBOARD_BACKEND_IMAGE="$DEPLOY_IMAGE"
           parameter_bundle="$(az bicep build-params --file "$PARAMETER_FILE" --stdout)"
           parameters="$(jq -r '.parametersJson' <<< "$parameter_bundle")"
 
-          DEPLOY_IMAGE="$(jq -r '.parameters.backendImage.value' <<< "$parameters")"
           FRONTEND_ORIGIN="$(jq -r '.parameters.frontendOrigin.value' <<< "$parameters")"
           API_HOSTNAME="$(jq -r '.parameters.apiHostname.value' <<< "$parameters")"
           GOOGLE_AUTH_ENABLED="$(jq -r '.parameters.enableGoogleAuthentication.value' <<< "$parameters")"
@@ -42,8 +61,10 @@ jobs:
           GOOGLE_CALENDAR_ENABLED="$(jq -r '.parameters.enableGoogleCalendar.value' <<< "$parameters")"
           GOOGLE_CALENDAR_EVENT_CREATION_ENABLED="$(jq -r '.parameters.enableGoogleCalendarEventCreation.value' <<< "$parameters")"
           GOOGLE_CALENDAR_CLIENT_ID="$(jq -r '.parameters.googleCalendarClientId.value' <<< "$parameters")"
+          CHORE_GENERATION_HORIZON_HOURS="$(jq -r '.parameters.choreGenerationHorizonHours.value' <<< "$parameters")"
+          CHORE_GENERATION_MAXIMUM_ASSIGNMENTS="$(jq -r '.parameters.choreGenerationMaximumAssignmentsPerRun.value' <<< "$parameters")"
 
-          if [[ "$DEPLOY_IMAGE" != ghcr.io/egobrane/familyboard-backend@sha256:* ]]; then
+          if [[ ! "$DEPLOY_IMAGE" =~ ^ghcr\.io/egobrane/familyboard-backend@sha256:[0-9a-f]{64}$ ]]; then
             echo "The staging image must be the public Family Dashboard GHCR image pinned by sha256 digest." >&2
             exit 1
           fi
@@ -54,7 +75,6 @@ jobs:
           fi
 
           {
-            echo "DEPLOY_IMAGE=$DEPLOY_IMAGE"
             echo "FRONTEND_ORIGIN=$FRONTEND_ORIGIN"
             echo "API_HOSTNAME=$API_HOSTNAME"
             echo "GOOGLE_AUTH_ENABLED=$GOOGLE_AUTH_ENABLED"
@@ -63,7 +83,46 @@ jobs:
             echo "GOOGLE_CALENDAR_ENABLED=$GOOGLE_CALENDAR_ENABLED"
             echo "GOOGLE_CALENDAR_EVENT_CREATION_ENABLED=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
             echo "GOOGLE_CALENDAR_CLIENT_ID=$GOOGLE_CALENDAR_CLIENT_ID"
+            echo "CHORE_GENERATION_HORIZON_HOURS=$CHORE_GENERATION_HORIZON_HOURS"
+            echo "CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
           } >> "$GITHUB_ENV"
+
+      - name: Require current main and successful CI
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          auth=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+          current_main="$(curl --fail --silent --show-error "${auth[@]}" "$api/git/ref/heads/main" | jq -r '.object.sha')"
+
+          if [[ "$current_main" != "$SOURCE_SHA" ]]; then
+            echo "Refusing to deploy superseded commit $SOURCE_SHA; current main is $current_main." >&2
+            exit 1
+          fi
+
+          for attempt in {1..60}; do
+            conclusion="$(curl --fail --silent --show-error "${auth[@]}" \
+              "$api/actions/workflows/ci.yml/runs?head_sha=$SOURCE_SHA&event=push&per_page=10" \
+              | jq -r '.workflow_runs | map(select(.status == "completed")) | first | .conclusion // empty')"
+
+            if [[ "$conclusion" == "success" ]]; then
+              break
+            fi
+
+            if [[ -n "$conclusion" ]]; then
+              echo "Continuous integration for $SOURCE_SHA concluded with $conclusion." >&2
+              exit 1
+            fi
+
+            if [[ "$attempt" == "60" ]]; then
+              echo "Timed out waiting for successful continuous integration for $SOURCE_SHA." >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
 
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@v2
@@ -95,9 +154,20 @@ jobs:
             echo "PREVIOUS_GOOGLE_CALENDAR_EVENT_CREATION_ENABLED=$(env_value 'GoogleCalendar__EventCreationEnabled')"
             echo "PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID=$(env_value 'GoogleCalendar__ClientId')"
             echo "PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL=$(env_value 'GoogleCalendar__CallbackUrl')"
+            echo "PREVIOUS_CHORE_GENERATION_HORIZON_HOURS=$(env_value 'ChoreGeneration__HorizonHours')"
+            echo "PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$(env_value 'ChoreGeneration__MaximumAssignmentsPerRun')"
           } >> "$GITHUB_ENV"
 
+          if az containerapp job show --resource-group "$RESOURCE_GROUP" --name "$CHORE_GENERATOR_JOB_NAME" >/dev/null 2>&1; then
+            echo "CHORE_GENERATOR_EXISTS=true" >> "$GITHUB_ENV"
+            echo "PREVIOUS_CHORE_GENERATOR_IMAGE=$(az containerapp job show --resource-group "$RESOURCE_GROUP" \
+              --name "$CHORE_GENERATOR_JOB_NAME" --query properties.template.containers[0].image --output tsv)" >> "$GITHUB_ENV"
+          else
+            echo "CHORE_GENERATOR_EXISTS=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Update and run the migration job
+        id: migration
         shell: bash
         run: |
           az containerapp job update \
@@ -136,6 +206,8 @@ jobs:
             sleep 10
           done
 
+          echo "execution_name=$execution_name" >> "$GITHUB_OUTPUT"
+
       - name: Reconcile and verify the API revision
         id: deploy
         shell: bash
@@ -153,7 +225,9 @@ jobs:
               "GoogleCalendar__Enabled=$GOOGLE_CALENDAR_ENABLED" \
               "GoogleCalendar__EventCreationEnabled=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
               "GoogleCalendar__ClientId=$GOOGLE_CALENDAR_CLIENT_ID" \
-              "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback"
+              "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback" \
+              "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS" \
+              "ChoreGeneration__MaximumAssignmentsPerRun=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
 
           for attempt in {1..30}; do
             if curl --fail --silent --show-error "$API_ORIGIN/health/live" && \
@@ -199,8 +273,27 @@ jobs:
           assert_env 'GoogleCalendar__EventCreationEnabled' "$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
           assert_env 'GoogleCalendar__ClientId' "$GOOGLE_CALENDAR_CLIENT_ID"
           assert_env 'GoogleCalendar__CallbackUrl' "https://$API_HOSTNAME/api/integrations/google-calendar/callback"
+          assert_env 'ChoreGeneration__HorizonHours' "$CHORE_GENERATION_HORIZON_HOURS"
+          assert_env 'ChoreGeneration__MaximumAssignmentsPerRun' "$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+
+          if [[ "$CHORE_GENERATOR_EXISTS" == "true" ]]; then
+            az containerapp job update \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$CHORE_GENERATOR_JOB_NAME" \
+              --image "$DEPLOY_IMAGE" \
+              --set-env-vars \
+                "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS" \
+                "ChoreGeneration__MaximumAssignmentsPerRun=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+            generator_json="$(az containerapp job show --resource-group "$RESOURCE_GROUP" \
+              --name "$CHORE_GENERATOR_JOB_NAME" --output json)"
+            [[ "$(jq -r '.properties.template.containers[0].image' <<< "$generator_json")" == "$DEPLOY_IMAGE" ]]
+            [[ "$(jq -r '.properties.configuration.scheduleTriggerConfig.cronExpression' <<< "$generator_json")" == "7 * * * *" ]]
+          else
+            echo "The chore generator job is not provisioned yet; deploy the reviewed Bicep after this first schema release." >&2
+          fi
 
           echo "Deployed $DEPLOY_IMAGE to $latest_ready_revision with 100% traffic."
+          echo "revision=$latest_ready_revision" >> "$GITHUB_OUTPUT"
 
       - name: Restore the previous API release after a failed deployment
         if: failure() && steps.deploy.outcome == 'failure'
@@ -219,7 +312,30 @@ jobs:
               "GoogleCalendar__Enabled=$PREVIOUS_GOOGLE_CALENDAR_ENABLED" \
               "GoogleCalendar__EventCreationEnabled=$PREVIOUS_GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
               "GoogleCalendar__ClientId=$PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID" \
-              "GoogleCalendar__CallbackUrl=$PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL"
+              "GoogleCalendar__CallbackUrl=$PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL" \
+              "ChoreGeneration__HorizonHours=$PREVIOUS_CHORE_GENERATION_HORIZON_HOURS" \
+              "ChoreGeneration__MaximumAssignmentsPerRun=$PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+
+          if [[ "$CHORE_GENERATOR_EXISTS" == "true" && -n "${PREVIOUS_CHORE_GENERATOR_IMAGE:-}" ]]; then
+            az containerapp job update --resource-group "$RESOURCE_GROUP" \
+              --name "$CHORE_GENERATOR_JOB_NAME" --image "$PREVIOUS_CHORE_GENERATOR_IMAGE"
+          fi
 
           curl --fail --silent --show-error "$API_ORIGIN/health/live"
           curl --fail --silent --show-error "$API_ORIGIN/health/ready"
+
+      - name: Summarize the staging release
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Azure staging release"
+            echo ""
+            echo "- Source: \`$SOURCE_SHA\`"
+            echo "- Requested image: \`$DEPLOY_IMAGE\`"
+            echo "- Previous image: \`${PREVIOUS_IMAGE:-not captured}\`"
+            echo "- Migration execution: \`${{ steps.migration.outputs.execution_name || 'not completed' }}\`"
+            echo "- Ready revision: \`${{ steps.deploy.outputs.revision || 'not verified' }}\`"
+            echo "- Result: \`${{ job.status }}\`"
+            echo "- Health: $API_ORIGIN/health/live and $API_ORIGIN/health/ready"
+          } >> "$GITHUB_STEP_SUMMARY"

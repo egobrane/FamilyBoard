@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "12576167377221478460"
+      "templateHash": "8583339031593658274"
     }
   },
   "parameters": {
@@ -96,6 +96,18 @@
       "metadata": {
         "description": "Enable only after parent-access-pepper-v1 exists in Key Vault."
       }
+    },
+    "choreGenerationHorizonHours": {
+      "type": "int",
+      "defaultValue": 36,
+      "minValue": 1,
+      "maxValue": 168
+    },
+    "choreGenerationMaximumAssignmentsPerRun": {
+      "type": "int",
+      "defaultValue": 100,
+      "minValue": 1,
+      "maxValue": 1000
     },
     "githubOidcSubject": {
       "type": "string",
@@ -920,6 +932,12 @@
           },
           "dataProtectionKeyIdentifier": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.dataProtectionKeyIdentifier.value]"
+          },
+          "choreGenerationHorizonHours": {
+            "value": "[parameters('choreGenerationHorizonHours')]"
+          },
+          "choreGenerationMaximumAssignmentsPerRun": {
+            "value": "[parameters('choreGenerationMaximumAssignmentsPerRun')]"
           }
         },
         "template": {
@@ -929,7 +947,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "11083277266960834406"
+              "templateHash": "12562394171175479432"
             }
           },
           "parameters": {
@@ -1001,6 +1019,12 @@
             },
             "dataProtectionKeyIdentifier": {
               "type": "string"
+            },
+            "choreGenerationHorizonHours": {
+              "type": "int"
+            },
+            "choreGenerationMaximumAssignmentsPerRun": {
+              "type": "int"
             }
           },
           "resources": [
@@ -1080,7 +1104,7 @@
                         "cpu": "[json('0.25')]",
                         "memory": "0.5Gi"
                       },
-                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId'))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()))]",
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()))]",
                       "probes": [
                         {
                           "type": "Startup",
@@ -1193,6 +1217,69 @@
               "dependsOn": [
                 "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]"
               ]
+            },
+            {
+              "type": "Microsoft.App/jobs",
+              "apiVersion": "2025-01-01",
+              "name": "[format('{0}-chore-generator', parameters('nameStem'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "environmentId": "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]",
+                "workloadProfileName": "Consumption",
+                "configuration": {
+                  "triggerType": "Schedule",
+                  "replicaTimeout": 1800,
+                  "replicaRetryLimit": 2,
+                  "scheduleTriggerConfig": {
+                    "cronExpression": "7 * * * *",
+                    "parallelism": 1,
+                    "replicaCompletionCount": 1
+                  },
+                  "secrets": [
+                    {
+                      "name": "postgres-connection",
+                      "value": "[parameters('postgresConnectionString')]"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "generator",
+                      "image": "[parameters('backendImage')]",
+                      "args": [
+                        "--generate-chore-assignments"
+                      ],
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "ASPNETCORE_ENVIRONMENT",
+                          "value": "Staging"
+                        },
+                        {
+                          "name": "ConnectionStrings__FamilyDashboard",
+                          "secretRef": "postgres-connection"
+                        },
+                        {
+                          "name": "ChoreGeneration__HorizonHours",
+                          "value": "[string(parameters('choreGenerationHorizonHours'))]"
+                        },
+                        {
+                          "name": "ChoreGeneration__MaximumAssignmentsPerRun",
+                          "value": "[string(parameters('choreGenerationMaximumAssignmentsPerRun'))]"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.App/managedEnvironments', format('{0}-env', parameters('nameStem')))]"
+              ]
             }
           ],
           "outputs": {
@@ -1211,6 +1298,10 @@
             "migrationJobName": {
               "type": "string",
               "value": "[format('{0}-mig', parameters('nameStem'))]"
+            },
+            "choreGeneratorJobName": {
+              "type": "string",
+              "value": "[format('{0}-chore-generator', parameters('nameStem'))]"
             }
           }
         }
@@ -1249,6 +1340,9 @@
           },
           "migrationJobName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.migrationJobName.value]"
+          },
+          "choreGeneratorJobName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.choreGeneratorJobName.value]"
           }
         },
         "template": {
@@ -1258,7 +1352,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "17876742867657080262"
+              "templateHash": "2658068150898406451"
             }
           },
           "parameters": {
@@ -1278,6 +1372,9 @@
               "type": "string"
             },
             "migrationJobName": {
+              "type": "string"
+            },
+            "choreGeneratorJobName": {
               "type": "string"
             }
           },
@@ -1335,6 +1432,20 @@
               "dependsOn": [
                 "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem')))]"
               ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.App/jobs', parameters('choreGeneratorJobName'))]",
+              "name": "[guid(resourceId('Microsoft.App/jobs', parameters('choreGeneratorJobName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), variables('containerAppsJobsContributorRoleId'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('containerAppsJobsContributorRoleId')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-github', parameters('nameStem')))]"
+              ]
             }
           ],
           "outputs": {
@@ -1374,6 +1485,10 @@
     "migrationJobName": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.migrationJobName.value]"
+    },
+    "choreGeneratorJobName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-container-apps', variables('nameStem'))), '2025-04-01').outputs.choreGeneratorJobName.value]"
     },
     "postgresServerName": {
       "type": "string",

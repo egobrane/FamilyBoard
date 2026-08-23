@@ -34,7 +34,97 @@ public static class ChoreEndpoints
         group.MapPost("/chore-assignments/{assignmentId:guid}/skip", SkipAsync).RequireFamilyDashboardAntiforgery();
         group.MapGet("/chore-completions", ListPendingReviewsAsync);
         group.MapPost("/chore-completions/{completionId:guid}/review", ReviewAsync).RequireFamilyDashboardAntiforgery();
+        group.MapGet("/chore-schedules", ListSchedulesAsync);
+        group.MapGet("/chore-schedules/{scheduleId:guid}", GetScheduleAsync);
+        group.MapPost("/chore-schedules", CreateScheduleAsync).RequireFamilyDashboardAntiforgery();
+        group.MapPatch("/chore-schedules/{scheduleId:guid}", UpdateScheduleAsync).RequireFamilyDashboardAntiforgery();
+        group.MapPost("/chore-schedules/{scheduleId:guid}/pause",
+            (Guid householdId, Guid scheduleId, ChangeChoreScheduleStateRequest? request,
+                HttpContext context, IAuthorizationService auth, HouseholdService households,
+                ChoreScheduleService schedules, CancellationToken token) => ChangeScheduleStateAsync(
+                    householdId, scheduleId, false, request, context, auth, households, schedules, token))
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPost("/chore-schedules/{scheduleId:guid}/resume",
+            (Guid householdId, Guid scheduleId, ChangeChoreScheduleStateRequest? request,
+                HttpContext context, IAuthorizationService auth, HouseholdService households,
+                ChoreScheduleService schedules, CancellationToken token) => ChangeScheduleStateAsync(
+                    householdId, scheduleId, true, request, context, auth, households, schedules, token))
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPost("/chore-schedules/preview", PreviewScheduleAsync).RequireFamilyDashboardAntiforgery();
         return endpoints;
+    }
+
+    private static async Task<IResult> ListSchedulesAsync(Guid householdId, bool? includeInactive,
+        HttpContext context, IAuthorizationService auth, HouseholdService households,
+        ChoreScheduleService schedules, CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
+        return failure ?? Results.Ok(await schedules.ListAsync(householdId, includeInactive == true, token));
+    }
+
+    private static async Task<IResult> GetScheduleAsync(Guid householdId, Guid scheduleId,
+        HttpContext context, IAuthorizationService auth, HouseholdService households,
+        ChoreScheduleService schedules, CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
+        return failure ?? ScheduleResult(context, await schedules.GetAsync(householdId, scheduleId, token));
+    }
+
+    private static async Task<IResult> CreateScheduleAsync(Guid householdId,
+        CreateChoreScheduleRequest? request, HttpContext context, IAuthorizationService auth,
+        HouseholdService households, ChoreScheduleService schedules, CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor) || request is null
+            || request.ClientRequestId == Guid.Empty || request.ChoreDefinitionId == Guid.Empty
+            || request.AssignedMemberId == Guid.Empty)
+            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Definition, member, recurrence, start date, and request ID are required."] });
+        if (!ChoreValidation.TrySchedule(request.Recurrence, request.StartLocalDate,
+                request.EndLocalDate, out var recurrence, out var errors)) return Validation(context, errors);
+        return ScheduleResult(context, await schedules.CreateAsync(householdId, actor, request,
+            recurrence, token), true);
+    }
+
+    private static async Task<IResult> UpdateScheduleAsync(Guid householdId, Guid scheduleId,
+        UpdateChoreScheduleRequest? request, HttpContext context, IAuthorizationService auth,
+        HouseholdService households, ChoreScheduleService schedules, CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
+        if (failure is not null) return failure;
+        if (request is null || request.ExpectedVersion < 1 || request.ChoreDefinitionId == Guid.Empty
+            || request.AssignedMemberId == Guid.Empty)
+            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Definition, member, recurrence, start date, and version are required."] });
+        if (!ChoreValidation.TrySchedule(request.Recurrence, request.StartLocalDate,
+                request.EndLocalDate, out var recurrence, out var errors)) return Validation(context, errors);
+        return ScheduleResult(context, await schedules.UpdateAsync(householdId, scheduleId,
+            request, recurrence, token));
+    }
+
+    private static async Task<IResult> ChangeScheduleStateAsync(Guid householdId, Guid scheduleId,
+        bool active, ChangeChoreScheduleStateRequest? request, HttpContext context,
+        IAuthorizationService auth, HouseholdService households, ChoreScheduleService schedules,
+        CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
+        if (failure is not null) return failure;
+        if (request is null || request.ExpectedVersion < 1)
+            return Validation(context, new Dictionary<string, string[]> { ["expectedVersion"] = ["A valid version is required."] });
+        return ScheduleResult(context, await schedules.SetStateAsync(householdId, scheduleId,
+            request.ExpectedVersion, active, token));
+    }
+
+    private static async Task<IResult> PreviewScheduleAsync(Guid householdId,
+        PreviewChoreScheduleRequest? request, HttpContext context, IAuthorizationService auth,
+        HouseholdService households, ChoreScheduleService schedules, CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
+        if (failure is not null) return failure;
+        if (request is null)
+            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Schedule data is required."] });
+        if (!ChoreValidation.TrySchedule(request.Recurrence, request.StartLocalDate,
+                request.EndLocalDate, out var recurrence, out var errors)) return Validation(context, errors);
+        return Results.Ok(schedules.Preview(request, recurrence));
     }
 
     private static async Task<IResult> ListParticipantsAsync(Guid householdId, HttpContext context,
@@ -221,6 +311,28 @@ public static class ChoreEndpoints
         ChoreOperationStatus.InvalidDueDate => Validation(context,
             new Dictionary<string, string[]> { ["dueLocalDate"] = ["The due date or time is invalid for this household."] }),
         _ => throw new InvalidOperationException("Unsupported chore result."),
+    };
+
+    private static IResult ScheduleResult<T>(HttpContext context,
+        ChoreScheduleOperationResult<T> result, bool created = false) => result.Status switch
+    {
+        ChoreScheduleOperationStatus.Success when created => Results.Json(result.Value, statusCode: StatusCodes.Status201Created),
+        ChoreScheduleOperationStatus.Success => Results.Ok(result.Value),
+        ChoreScheduleOperationStatus.NotFound => Problem(context, 404, ApiProblemCodes.ChoreScheduleNotFound,
+            "The chore schedule was not found."),
+        ChoreScheduleOperationStatus.DefinitionInactive => Problem(context, 409, ApiProblemCodes.ChoreDefinitionInactive,
+            "The chore definition is inactive."),
+        ChoreScheduleOperationStatus.MemberInactive => Problem(context, 409, ApiProblemCodes.ChoreMemberInactive,
+            "Select an active household member."),
+        ChoreScheduleOperationStatus.IdempotencyConflict => Problem(context, 409, ApiProblemCodes.ChoreScheduleRequestConflict,
+            "The request ID was already used for different schedule data."),
+        ChoreScheduleOperationStatus.ConcurrencyConflict => Problem(context, 409, ApiProblemCodes.ChoreScheduleVersionConflict,
+            "The chore schedule changed concurrently. Refresh and try again."),
+        ChoreScheduleOperationStatus.DependencyInactive => Problem(context, 409, ApiProblemCodes.ChoreScheduleDependencyInactive,
+            "Reactivate the chore definition and assigned member before resuming this schedule."),
+        ChoreScheduleOperationStatus.InvalidSchedule => Problem(context, 400, ApiProblemCodes.ChoreScheduleInvalid,
+            "The chore schedule is not valid for this household."),
+        _ => throw new InvalidOperationException("Unsupported chore schedule result."),
     };
 
     private static IResult Validation(HttpContext context, IDictionary<string, string[]> errors) =>

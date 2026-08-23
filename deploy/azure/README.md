@@ -12,7 +12,7 @@ Managed resources use the `family-dashboard-staging` prefix or the globally uniq
 - Owner on `ryan-dev` for resource-level role assignments.
 - A subscription administrator must register `Microsoft.App` and `Microsoft.DBforPostgreSQL`.
 - PostgreSQL Flexible Server 18 and `Standard_B1ms` capacity in Central US.
-- The public backend image in `staging.bicepparam` must be an immutable GHCR digest.
+- `FAMILY_DASHBOARD_BACKEND_IMAGE` must contain an immutable public GHCR digest when compiling or deploying `staging.bicepparam`; no release digest is committed.
 
 ## Validate and preview
 
@@ -21,12 +21,15 @@ Use a strong password stored in a password manager. Avoid placing it in shell hi
 ```sh
 read -s FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
 export FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
+read -r FAMILY_DASHBOARD_BACKEND_IMAGE
+export FAMILY_DASHBOARD_BACKEND_IMAGE
 az bicep build --file deploy/azure/main.bicep
 az deployment group what-if \
   --subscription b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8 \
   --resource-group ryan-dev \
   --parameters deploy/azure/staging.bicepparam
 unset FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
+unset FAMILY_DASHBOARD_BACKEND_IMAGE
 ```
 
 Review the complete output. Stop if any unrelated resource is deleted or modified.
@@ -36,6 +39,8 @@ Review the complete output. Stop if any unrelated resource is deleted or modifie
 ```sh
 read -s FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
 export FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
+read -r FAMILY_DASHBOARD_BACKEND_IMAGE
+export FAMILY_DASHBOARD_BACKEND_IMAGE
 az deployment group create \
   --name family-dashboard-staging-bootstrap \
   --subscription b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8 \
@@ -43,6 +48,7 @@ az deployment group create \
   --mode Incremental \
   --parameters deploy/azure/staging.bicepparam
 unset FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD
+unset FAMILY_DASHBOARD_BACKEND_IMAGE
 ```
 
 The current staging administrator credential is stored in the project owner's macOS Keychain under service `com.egobrane.family-dashboard.azure.staging.postgres` and account `familydashboardadmin`. Do not copy it into the repository, GitHub, Netlify, or command output.
@@ -126,7 +132,7 @@ az containerapp job start \
   --name family-dashboard-staging-mig
 ```
 
-The normal GitHub deployment workflow has no image text input. Commit the reviewed immutable digest and public feature settings to `staging.bicepparam`, then dispatch the protected workflow from `main`. It compiles the parameters with a disposable non-secret password placeholder, updates the migration job to that digest, waits for successful execution, reconciles the API image and approved non-secret runtime settings, verifies the ready revision and health, and restores the prior API release if verification fails. It does not deploy Bicep infrastructure, retrieve secrets, or modify unrelated `ryan-dev` resources.
+The normal GitHub release path requires no image input or digest commit. A backend-relevant `main` push publishes the image, captures buildx's exact digest, and calls the reusable protected workflow. That workflow confirms matching CI and current `main`, supplies the digest transiently while compiling reviewed public parameters, migrates, reconciles the API and provisioned chore-generator image, verifies configuration/traffic/health, and restores the prior application release if verification fails. Manual dispatch retains an immutable digest input only for deliberate rollback or redeployment. The workflow does not deploy Bicep infrastructure, retrieve secrets, or modify unrelated `ryan-dev` resources.
 
 ## GitHub environment configuration
 
@@ -136,4 +142,4 @@ Create a protected GitHub environment named `staging`, require an approver if av
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
 
-OIDC uses GitHub's immutable subject `repo:egobrane@23132912/FamilyBoard@1324023581:environment:staging`; no client secret is created. The owner and repository IDs prevent a renamed or recycled repository name from inheriting this trust. The identity receives Container Apps Contributor only on the staging API and Container Apps Jobs Contributor only on the migration job. Azure's CLI cannot safely override only the image at job start—it replaces the container template—so the workflow must update the existing job image before starting it. Job Contributor is the narrowest suitable Azure built-in role for that operation and remains scoped to this one migration job.
+OIDC uses GitHub's immutable subject `repo:egobrane@23132912/FamilyBoard@1324023581:environment:staging`; no client secret is created. The owner and repository IDs prevent a renamed or recycled repository name from inheriting this trust. The identity receives Container Apps Contributor only on the staging API and Container Apps Jobs Contributor separately on the migration and chore-generator jobs. Job Contributor remains scoped to those prefixed jobs.

@@ -65,6 +65,26 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  chore-generator:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: src/backend/FamilyDashboard.Api/Dockerfile
+      target: development
+    command: ["dotnet", "run", "--project", "src/backend/FamilyDashboard.Api", "--", "--generate-chore-assignments"]
+    environment:
+      ConnectionStrings__FamilyDashboard: Host=db;Port=5432;Database=${POSTGRES_DB:-family_dashboard};Username=${POSTGRES_USER:-family_dashboard};Password=${POSTGRES_PASSWORD}
+      ChoreGeneration__HorizonHours: ${ChoreGeneration__HorizonHours:-36}
+      ChoreGeneration__MaximumAssignmentsPerRun: ${ChoreGeneration__MaximumAssignmentsPerRun:-100}
+    volumes:
+      - .:/workspace
+      - api-bin:/workspace/src/backend/FamilyDashboard.Api/bin
+      - api-obj:/workspace/src/backend/FamilyDashboard.Api/obj
+      - api-nuget:/root/.nuget/packages
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   frontend:
     build:
       context: src/frontend

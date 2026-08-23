@@ -41,6 +41,14 @@ param googleCalendarClientId string = ''
 @description('Enable only after parent-access-pepper-v1 exists in Key Vault.')
 param enableParentAccess bool = false
 
+@minValue(1)
+@maxValue(168)
+param choreGenerationHorizonHours int = 36
+
+@minValue(1)
+@maxValue(1000)
+param choreGenerationMaximumAssignmentsPerRun int = 100
+
 @description('Exact immutable GitHub Actions OIDC subject for the protected staging environment.')
 param githubOidcSubject string
 
@@ -123,6 +131,8 @@ module containerApps 'modules/container-apps.bicep' = {
     runtimeIdentityClientId: authenticationSecurity.outputs.runtimeIdentityClientId
     dataProtectionBlobUri: authenticationSecurity.outputs.dataProtectionBlobUri
     dataProtectionKeyIdentifier: authenticationSecurity.outputs.dataProtectionKeyIdentifier
+    choreGenerationHorizonHours: choreGenerationHorizonHours
+    choreGenerationMaximumAssignmentsPerRun: choreGenerationMaximumAssignmentsPerRun
   }
 }
 
@@ -135,6 +145,7 @@ module deploymentIdentity 'modules/deployment-identity.bicep' = {
     githubOidcSubject: githubOidcSubject
     apiName: containerApps.outputs.apiName
     migrationJobName: containerApps.outputs.migrationJobName
+    choreGeneratorJobName: containerApps.outputs.choreGeneratorJobName
   }
 }
 
@@ -143,6 +154,7 @@ output apiDefaultHostname string = containerApps.outputs.apiDefaultHostname
 output apiCustomHostname string = enableCustomDomain ? apiHostname : ''
 output customDomainVerificationId string = containerApps.outputs.customDomainVerificationId
 output migrationJobName string = containerApps.outputs.migrationJobName
+output choreGeneratorJobName string = containerApps.outputs.choreGeneratorJobName
 output postgresServerName string = postgres.outputs.serverName
 output postgresFullyQualifiedDomainName string = postgres.outputs.fullyQualifiedDomainName
 output githubClientId string = deploymentIdentity.outputs.clientId

@@ -15,6 +15,28 @@ public sealed record CompleteChoreRequest(
     Guid? CompletedByMemberId);
 public sealed record SkipChoreAssignmentRequest(long ExpectedVersion, string? Reason);
 public sealed record ReviewChoreCompletionRequest(long ExpectedVersion, string Decision, string? Note);
+public sealed record ChoreRecurrenceRequest(string Kind, int Interval, IReadOnlyList<string>? DaysOfWeek);
+public sealed record CreateChoreScheduleRequest(
+    Guid ClientRequestId,
+    Guid ChoreDefinitionId,
+    Guid AssignedMemberId,
+    ChoreRecurrenceRequest Recurrence,
+    DateOnly StartLocalDate,
+    DateOnly? EndLocalDate,
+    TimeOnly? DueLocalTime);
+public sealed record UpdateChoreScheduleRequest(
+    long ExpectedVersion,
+    Guid ChoreDefinitionId,
+    Guid AssignedMemberId,
+    ChoreRecurrenceRequest Recurrence,
+    DateOnly StartLocalDate,
+    DateOnly? EndLocalDate,
+    TimeOnly? DueLocalTime);
+public sealed record ChangeChoreScheduleStateRequest(long ExpectedVersion);
+public sealed record PreviewChoreScheduleRequest(
+    ChoreRecurrenceRequest Recurrence,
+    DateOnly StartLocalDate,
+    DateOnly? EndLocalDate);
 
 public sealed record ChoreDefinitionResponse(
     Guid Id,
@@ -61,6 +83,26 @@ public sealed record ChoreAssignmentResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+public sealed record ChoreScheduleResponse(
+    Guid Id,
+    ChoreDefinitionResponse Definition,
+    ChoreParticipantResponse AssignedMember,
+    ChoreRecurrenceRequest Recurrence,
+    DateOnly StartLocalDate,
+    DateOnly? EndLocalDate,
+    TimeOnly? DueLocalTime,
+    string TimeZone,
+    string Status,
+    string? BlockedReason,
+    DateOnly? NextOccurrenceLocalDate,
+    DateOnly? LastGeneratedOccurrenceLocalDate,
+    DateTimeOffset? LastEvaluatedAt,
+    long Version,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record ChoreSchedulePreviewResponse(IReadOnlyList<DateOnly> Occurrences);
+
 public sealed record ChoreDashboardResponse(
     IReadOnlyList<ChoreAssignmentResponse> Overdue,
     IReadOnlyList<ChoreAssignmentResponse> DueToday,
@@ -88,3 +130,17 @@ public enum ChoreOperationStatus
     ConcurrencyConflict,
     InvalidDueDate,
 }
+
+public enum ChoreScheduleOperationStatus
+{
+    Success,
+    NotFound,
+    DefinitionInactive,
+    MemberInactive,
+    IdempotencyConflict,
+    ConcurrencyConflict,
+    InvalidSchedule,
+    DependencyInactive,
+}
+
+public sealed record ChoreScheduleOperationResult<T>(ChoreScheduleOperationStatus Status, T? Value = default);

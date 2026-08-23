@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: family-dashboard-chore-generator
+spec:
+  schedule: "7 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: family-dashboard-chore-generator
+            app.kubernetes.io/part-of: family-dashboard
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: generator
+              image: ghcr.io/egobrane/familyboard-backend:replace-with-immutable-tag
+              args: ["--generate-chore-assignments"]
+              env:
+                - name: ConnectionStrings__FamilyDashboard
+                  valueFrom:
+                    secretKeyRef:
+                      name: family-dashboard-secrets
+                      key: connection-string
+                - name: ChoreGeneration__HorizonHours
+                  value: "36"
+                - name: ChoreGeneration__MaximumAssignmentsPerRun
+                  value: "100"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+              volumeMounts:
+                - name: temporary-files
+                  mountPath: /tmp
+          volumes:
+            - name: temporary-files
+              emptyDir: {}

@@ -65,6 +65,10 @@ Calendar OAuth access and refresh tokens are encrypted by the existing persisted
 
 Manual full-infrastructure Azure deployment reads `FAMILY_DASHBOARD_POSTGRES_ADMIN_PASSWORD` only while compiling/deploying `staging.bicepparam`. Retain the generated value in an owner-controlled password manager and unset the shell variable immediately after deployment. Routine GitHub application deployment uses a clearly non-secret validation placeholder only to compile the reviewed public parameters; it neither needs nor retrieves the real password. The real value is never a frontend or GitHub Actions value.
 
+`staging.bicepparam` also reads `FAMILY_DASHBOARD_BACKEND_IMAGE`. Routine GitHub releases populate it automatically from buildx's immutable digest output. Manual infrastructure deployment must set it to a reviewed `ghcr.io/egobrane/familyboard-backend@sha256:...` reference and unset it afterward. It is not secret, but it is release-specific and intentionally not committed.
+
+`ChoreGeneration__HorizonHours` defaults to 36 and `ChoreGeneration__MaximumAssignmentsPerRun` defaults to 100. They are non-secret backend settings shared by the API and generator command; the frontend never receives them.
+
 CORS is an origin boundary, not authentication. The backend validates sessions and household permissions regardless of the requesting frontend route.
 
 The authenticated frontend sends cookies with `credentials: "include"`. Before each unsafe request it obtains fresh antiforgery material from `/api/auth/antiforgery` and sends the returned request token in the returned header name (`X-CSRF-TOKEN` in the current backend). The token remains in memory for the request and is not persisted in browser storage. No privileged value belongs in Netlify configuration.

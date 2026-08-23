@@ -1,6 +1,6 @@
 # Chore Management
 
-Chore Management Increment 1 implements product-owned chore definitions, one-time assignments, attributed completion, and adult review. Recurrence, points, rewards, notifications, and Calendar coupling are intentionally deferred.
+Chore Management Increment 1 implements product-owned chore definitions, one-time assignments, attributed completion, and adult review. Increment 2 adds household-local recurring schedules and automatic assignment generation. Points, rewards, notifications, and Calendar coupling remain intentionally deferred.
 
 ## Behavior
 
@@ -54,3 +54,26 @@ After the migration and matching frontend deploy:
 7. Skip a pending assignment and confirm it moves to history.
 8. Verify another household cannot read or mutate the records.
 9. Exercise touch, mouse, keyboard, screen reader, phone, tablet, and wall-display layouts.
+
+## Increment 1 staging result
+
+The owner completed the checklist successfully on 2026-08-22 against the matching Azure backend and Netlify frontend. Migration `AddChoreManagementWorkflow` succeeded before revision `family-dashboard-staging-api--0000021` received traffic. Definition creation, editing, activation and deactivation; one-time assignment; dashboard and full-list display; private-session and shared-display attribution; approval; rejection, retry, and later approval; skipping; historical retention; parent-PIN enforcement; household isolation; and the documented device and input modes all behaved as expected.
+
+Approved completions do not award points in Increment 1. This is intentional: the point ledger exists as a foundation, but connecting reviewed completions to point transactions is deferred to a later chore increment.
+
+## Recurring schedules
+
+An adult can configure daily, every-N-day, selected-weekday, weekly, or every-N-week schedules under `/households/{householdId}/chores`. The configured time is the household-local due time. Assignments are generated up to 36 hours in advance, so “every day at 8 AM” means due at 8 AM and visible beforehand.
+
+Generated assignments snapshot their definition, member, occurrence date, local due time, IANA time zone, derived UTC instant, and daylight-saving resolution. Editing a schedule changes only ungenerated work. Paused and blocked periods do not create assignments; inactive definitions or members block their schedules until an adult reviews and resumes them. Schedules and generated assignments are retained rather than deleted.
+
+Administrative routes are:
+
+- `GET|POST /api/households/{householdId}/chore-schedules`
+- `GET|PATCH /api/households/{householdId}/chore-schedules/{scheduleId}`
+- `POST /api/households/{householdId}/chore-schedules/{scheduleId}/pause|resume`
+- `POST /api/households/{householdId}/chore-schedules/preview`
+
+The portable generator command is `FamilyDashboard.Api --generate-chore-assignments`. Docker Compose exposes it through the opt-in `tools` profile, K3s uses an hourly CronJob with `concurrencyPolicy: Forbid`, and Azure uses an hourly Consumption scheduled job. A PostgreSQL advisory lock and a unique schedule-occurrence index make overlapping and retried runs safe without Hangfire, Quartz, or another scheduler database.
+
+Missed active occurrences are generated late in batches of at most 100 rather than silently discarded. Spring-forward gaps shift to the first valid local time; fall-back ambiguity chooses the earlier instant. Existing generated assignments remain unchanged after a household time-zone edit.

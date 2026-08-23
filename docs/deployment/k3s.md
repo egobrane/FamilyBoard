@@ -16,6 +16,8 @@ Decide and document:
 
 Replace the example hosts in `api-configmap.yaml` and `api-ingress.yaml`. Set the backend image to an immutable release tag or digest in the K3s overlay.
 
+The base also renders `family-dashboard-chore-generator`, an hourly CronJob using the same backend image and database secret. `concurrencyPolicy: Forbid` complements the database advisory lock. Apply migrations before enabling a new generator image, and inspect CronJob/Job status and logs when scheduled assignments do not appear.
+
 ## Runtime secret
 
 Create `family-dashboard-secrets` directly in the cluster or through an approved secret manager. It requires these keys:

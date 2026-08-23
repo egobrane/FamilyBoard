@@ -51,6 +51,7 @@ let householdInvitations: Array<{
   acceptedAt: null
   revokedAt: string | null
 }> = []
+let choreSchedules: Array<Record<string, unknown>> = []
 
 test.beforeEach(async ({ page }) => {
   householdName = authenticatedUser.households[0].name
@@ -64,6 +65,7 @@ test.beforeEach(async ({ page }) => {
     isActive: true,
   }]
   householdInvitations = []
+  choreSchedules = []
   await page.route('http://localhost:8080/api/**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/me') {
@@ -268,6 +270,31 @@ test.beforeEach(async ({ page }) => {
         completedAt: '2026-08-22T18:00:00Z', reviewedByMember: null, reviewedAt: null, reviewNote: null, version: 1 } })
       return
     }
+    const choreDefinition = { id: choreAssignment.choreDefinitionId, title: 'Feed Milo', description: 'Before dinner',
+      isActive: true, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-definitions`) {
+      await route.fulfill({ json: [choreDefinition] })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-completions`) {
+      await route.fulfill({ json: [] })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-schedules`) {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON() as { startLocalDate: string; dueLocalTime: string; recurrence: Record<string, unknown> }
+        const schedule = { id: '63000000-0000-0000-0000-000000000001', definition: choreDefinition,
+          assignedMember: householdMembers[0], recurrence: body.recurrence, startLocalDate: body.startLocalDate,
+          endLocalDate: null, dueLocalTime: `${body.dueLocalTime}:00`, timeZone: 'America/New_York', status: 'active',
+          blockedReason: null, nextOccurrenceLocalDate: body.startLocalDate, lastGeneratedOccurrenceLocalDate: null,
+          lastEvaluatedAt: null, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' }
+        choreSchedules.push(schedule)
+        await route.fulfill({ status: 201, json: schedule })
+        return
+      }
+      await route.fulfill({ json: choreSchedules })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/invitations`) {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON() as { intendedEmail: string }
@@ -353,6 +380,21 @@ test('chore board supports explicit household-member completion', async ({ page 
   await page.getByLabel('Who completed it?').selectOption(authenticatedUser.households[0].memberId)
   await page.getByRole('dialog').getByRole('button', { name: 'Mark done' }).click()
   await expect(page.getByRole('dialog')).toBeHidden()
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
+})
+
+test('an adult can schedule a daily household-local chore with touch-sized controls', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/chores`)
+  await expect(page.getByRole('heading', { name: 'Schedule a chore' })).toBeVisible()
+  const form = page.getByRole('heading', { name: 'Schedule a chore' }).locator('..')
+  await form.locator('select').nth(0).selectOption('61000000-0000-0000-0000-000000000001')
+  await form.getByLabel('Assigned to').selectOption(authenticatedUser.households[0].memberId)
+  await form.getByLabel('Starts').fill('2026-08-24')
+  await form.getByLabel('Due time').fill('08:00')
+  await form.getByRole('button', { name: 'Save schedule' }).click()
+  await expect(page.getByText('Every day · Due 08:00')).toBeVisible()
+  await expect(page.getByText('Next: 2026-08-24')).toBeVisible()
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
 })

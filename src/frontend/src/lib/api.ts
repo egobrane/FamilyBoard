@@ -241,6 +241,40 @@ export interface ChoreDefinitionResponse {
   updatedAt: string
 }
 
+export interface ChoreRecurrenceRequest {
+  kind: 'daily' | 'weekly'
+  interval: number
+  daysOfWeek: string[]
+}
+
+export interface ChoreScheduleResponse {
+  id: string
+  definition: ChoreDefinitionResponse
+  assignedMember: ChoreParticipantResponse
+  recurrence: ChoreRecurrenceRequest
+  startLocalDate: string
+  endLocalDate: string | null
+  dueLocalTime: string | null
+  timeZone: string
+  status: 'active' | 'paused' | 'blocked' | 'completed'
+  blockedReason: string | null
+  nextOccurrenceLocalDate: string | null
+  lastGeneratedOccurrenceLocalDate: string | null
+  lastEvaluatedAt: string | null
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChoreScheduleWriteRequest {
+  choreDefinitionId: string
+  assignedMemberId: string
+  recurrence: ChoreRecurrenceRequest
+  startLocalDate: string
+  endLocalDate: string | null
+  dueLocalTime: string | null
+}
+
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired'
 
 export interface HouseholdInvitationResponse {
@@ -465,6 +499,35 @@ export function reviewChoreCompletion(householdId: string, completion: ChoreComp
   return unsafeRequest<ChoreCompletionResponse>(
     `/api/households/${encodeURIComponent(householdId)}/chore-completions/${encodeURIComponent(completion.id)}/review`,
     'POST', { expectedVersion: completion.version, decision, note },
+  )
+}
+
+export function listChoreSchedules(householdId: string, includeInactive = true) {
+  return request<ChoreScheduleResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-schedules?includeInactive=${includeInactive}`,
+  )
+}
+
+export function createChoreSchedule(householdId: string, body: ChoreScheduleWriteRequest) {
+  return unsafeRequest<ChoreScheduleResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-schedules`,
+    'POST', { ...body, clientRequestId: crypto.randomUUID() },
+  )
+}
+
+export function updateChoreSchedule(householdId: string, schedule: ChoreScheduleResponse,
+  body: ChoreScheduleWriteRequest) {
+  return unsafeRequest<ChoreScheduleResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-schedules/${encodeURIComponent(schedule.id)}`,
+    'PATCH', { ...body, expectedVersion: schedule.version },
+  )
+}
+
+export function setChoreScheduleActive(householdId: string, schedule: ChoreScheduleResponse,
+  active: boolean) {
+  return unsafeRequest<ChoreScheduleResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-schedules/${encodeURIComponent(schedule.id)}/${active ? 'resume' : 'pause'}`,
+    'POST', { expectedVersion: schedule.version },
   )
 }
 

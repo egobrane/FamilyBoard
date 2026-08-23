@@ -30,6 +30,9 @@ builder.Services.AddHttpClient(nameof(GoogleCalendarProviderClient));
 builder.Services.AddScoped<IGoogleCalendarProviderClient, GoogleCalendarProviderClient>();
 builder.Services.AddScoped<GoogleCalendarService>();
 builder.Services.AddScoped<ChoreService>();
+builder.Services.AddScoped<ChoreScheduleService>();
+builder.Services.AddScoped<ChoreAssignmentGenerator>();
+builder.Services.AddSingleton<ChoreRecurrenceCalculator>();
 builder.Services.AddSingleton<ChoreDueTimeService>();
 builder.Services.AddSingleton<CalendarTokenProtector>();
 builder.Services.AddSingleton<CalendarStateProtector>();
@@ -66,6 +69,12 @@ builder.Services.AddOptions<InvitationConfiguration>()
     .Validate(
         options => options.Lifetime > TimeSpan.Zero && options.PendingCookieLifetime > TimeSpan.Zero,
         "Invitation lifetimes must be positive.")
+    .ValidateOnStart();
+builder.Services.AddOptions<ChoreGenerationConfiguration>()
+    .Bind(builder.Configuration.GetSection(ChoreGenerationConfiguration.SectionName))
+    .Validate(options => options.HorizonHours is >= 1 and <= 168
+        && options.MaximumAssignmentsPerRun is >= 1 and <= 1000,
+        "Chore generation values are invalid.")
     .ValidateOnStart();
 
 var corsOptions = builder.Configuration
@@ -177,6 +186,14 @@ if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
     await using var scope = app.Services.CreateAsyncScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<FamilyDashboardDbContext>();
     await dbContext.Database.MigrateAsync();
+    return;
+}
+
+if (args.Contains("--generate-chore-assignments", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var generator = scope.ServiceProvider.GetRequiredService<ChoreAssignmentGenerator>();
+    await generator.GenerateAsync(CancellationToken.None);
     return;
 }
 

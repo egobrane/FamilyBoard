@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "8583339031593658274"
+      "templateHash": "5425065150020748780"
     }
   },
   "parameters": {
@@ -947,7 +947,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "12562394171175479432"
+              "templateHash": "8540737287174847437"
             }
           },
           "parameters": {
@@ -955,7 +955,8 @@
               "type": "string"
             },
             "nameStem": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 26
             },
             "tags": {
               "type": "object"
@@ -1221,7 +1222,7 @@
             {
               "type": "Microsoft.App/jobs",
               "apiVersion": "2025-01-01",
-              "name": "[format('{0}-chore-generator', parameters('nameStem'))]",
+              "name": "[format('{0}-chore', parameters('nameStem'))]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {
@@ -1301,7 +1302,7 @@
             },
             "choreGeneratorJobName": {
               "type": "string",
-              "value": "[format('{0}-chore-generator', parameters('nameStem'))]"
+              "value": "[format('{0}-chore', parameters('nameStem'))]"
             }
           }
         }

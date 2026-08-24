@@ -36,7 +36,7 @@ jobs:
       RESOURCE_GROUP: ryan-dev
       API_NAME: family-dashboard-staging-api
       MIGRATION_JOB_NAME: family-dashboard-staging-mig
-      CHORE_GENERATOR_JOB_NAME: family-dashboard-staging-chore-generator
+      CHORE_GENERATOR_JOB_NAME: family-dashboard-staging-chore
       API_ORIGIN: https://api.egobrane.net
       PARAMETER_FILE: deploy/azure/staging.bicepparam
       DEPLOY_IMAGE: ${{ inputs.backend_image }}

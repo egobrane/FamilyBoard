@@ -1,4 +1,5 @@
 param location string
+@maxLength(26)
 param nameStem string
 param tags object
 param infrastructureSubnetId string
@@ -333,7 +334,7 @@ resource migrationJob 'Microsoft.App/jobs@2025-01-01' = {
 }
 
 resource choreGeneratorJob 'Microsoft.App/jobs@2025-01-01' = {
-  name: '${nameStem}-chore-generator'
+  name: '${nameStem}-chore'
   location: location
   tags: tags
   properties: {

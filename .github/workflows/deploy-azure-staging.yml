@@ -229,29 +229,72 @@ jobs:
               "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS" \
               "ChoreGeneration__MaximumAssignmentsPerRun=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
 
-          for attempt in {1..30}; do
-            if curl --fail --silent --show-error "$API_ORIGIN/health/live" && \
-               curl --fail --silent --show-error "$API_ORIGIN/health/ready"; then
+          for attempt in {1..60}; do
+            api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
+            actual_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$api_json")"
+            latest_revision="$(jq -r '.properties.latestRevisionName // empty' <<< "$api_json")"
+            latest_ready_revision="$(jq -r '.properties.latestReadyRevisionName // empty' <<< "$api_json")"
+            traffic_weight="$(jq -r --arg revision "$latest_revision" \
+              '[.properties.configuration.ingress.traffic[]? \
+                | select(.latestRevision == true or .revisionName == $revision) \
+                | (.weight // 0)] | add // 0' <<< "$api_json")"
+
+            revision_health="Unknown"
+            revision_provisioning="Unknown"
+            revision_image=""
+            if [[ -n "$latest_revision" ]]; then
+              if revision_json="$(az containerapp revision show \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$API_NAME" \
+                --revision "$latest_revision" \
+                --output json 2>/dev/null)"; then
+                revision_health="$(jq -r '.properties.healthState // "Unknown"' <<< "$revision_json")"
+                revision_provisioning="$(jq -r '.properties.provisioningState // "Unknown"' <<< "$revision_json")"
+                revision_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$revision_json")"
+              fi
+            fi
+
+            echo "API convergence attempt $attempt: latest=${latest_revision:-none}, ready=${latest_ready_revision:-none}, health=$revision_health, provisioning=$revision_provisioning, traffic=$traffic_weight%."
+
+            if [[ "$actual_image" == "$DEPLOY_IMAGE" && \
+                  "$revision_image" == "$DEPLOY_IMAGE" && \
+                  -n "$latest_revision" && \
+                  "$latest_revision" == "$latest_ready_revision" && \
+                  "$revision_health" == "Healthy" && \
+                  "$revision_provisioning" == "Provisioned" && \
+                  "$traffic_weight" == "100" ]]; then
               break
             fi
 
-            if [[ "$attempt" == "30" ]]; then
-              echo "Azure staging health verification timed out." >&2
+            if [[ "$attempt" == "60" ]]; then
+              echo "Azure Container Apps did not converge on the requested release." >&2
+              echo "Expected image: $DEPLOY_IMAGE" >&2
+              echo "Application image: ${actual_image:-none}" >&2
+              echo "Latest revision: ${latest_revision:-none}" >&2
+              echo "Latest ready revision: ${latest_ready_revision:-none}" >&2
+              echo "Latest revision image: ${revision_image:-none}" >&2
+              echo "Latest revision health: $revision_health" >&2
+              echo "Latest revision provisioning: $revision_provisioning" >&2
+              echo "Latest revision traffic: $traffic_weight%" >&2
               exit 1
             fi
 
             sleep 10
           done
 
-          api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
-          actual_image="$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
-          latest_revision="$(jq -r '.properties.latestRevisionName' <<< "$api_json")"
-          latest_ready_revision="$(jq -r '.properties.latestReadyRevisionName' <<< "$api_json")"
-          traffic_weight="$(jq -r '.properties.configuration.ingress.traffic[] | select(.latestRevision == true) | .weight' <<< "$api_json")"
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error --output /dev/null "$API_ORIGIN/health/live" && \
+               curl --fail --silent --show-error --output /dev/null "$API_ORIGIN/health/ready"; then
+              break
+            fi
 
-          [[ "$actual_image" == "$DEPLOY_IMAGE" ]]
-          [[ "$latest_revision" == "$latest_ready_revision" ]]
-          [[ "$traffic_weight" == "100" ]]
+            if [[ "$attempt" == "30" ]]; then
+              echo "The converged Azure staging revision did not pass public health verification." >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
 
           assert_env() {
             local name="$1"

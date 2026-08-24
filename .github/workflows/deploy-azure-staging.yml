@@ -234,10 +234,7 @@ jobs:
             actual_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$api_json")"
             latest_revision="$(jq -r '.properties.latestRevisionName // empty' <<< "$api_json")"
             latest_ready_revision="$(jq -r '.properties.latestReadyRevisionName // empty' <<< "$api_json")"
-            traffic_weight="$(jq -r --arg revision "$latest_revision" \
-              '[.properties.configuration.ingress.traffic[]? \
-                | select(.latestRevision == true or .revisionName == $revision) \
-                | (.weight // 0)] | add // 0' <<< "$api_json")"
+            traffic_weight="$(jq -r --arg revision "$latest_revision" '[.properties.configuration.ingress.traffic[]? | select(.latestRevision == true or .revisionName == $revision) | (.weight // 0)] | add // 0' <<< "$api_json")"
 
             revision_health="Unknown"
             revision_provisioning="Unknown"

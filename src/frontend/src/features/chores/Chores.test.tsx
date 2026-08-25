@@ -8,7 +8,8 @@ import { ChoreScheduleList } from './ChoreScheduleList'
 
 const assignment: ChoreAssignmentResponse = {
   id: 'assignment-1', choreDefinitionId: 'definition-1', title: 'Feed Milo',
-  description: 'Before dinner', assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint' },
+  description: 'Before dinner', pointValue: 10,
+  assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint' },
   dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00', dueAt: '2026-08-22T22:00:00Z',
   dueTimeZone: 'America/New_York', dueHasExplicitTime: true, status: 'pending', isOverdue: true,
   version: 1, pendingCompletion: null, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z',
@@ -34,7 +35,7 @@ describe('ChoreList', () => {
 
 const schedule: ChoreScheduleResponse = {
   id: 'schedule-1', definition: { id: 'definition-1', title: 'Feed Milo', description: null,
-    isActive: true, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' },
+    defaultPointValue: 10, isActive: true, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' },
   assignedMember: assignment.assignedMember, recurrence: { kind: 'daily', interval: 1, daysOfWeek: [] },
   startLocalDate: '2026-08-23', endLocalDate: null, dueLocalTime: '08:00:00',
   timeZone: 'America/New_York', status: 'active', blockedReason: null,

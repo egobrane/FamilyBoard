@@ -9,6 +9,7 @@ export function ChoreDefinitionForm({ householdId, definition, onSaved, onCancel
 }) {
   const [title, setTitle] = useState(definition?.title ?? '')
   const [description, setDescription] = useState(definition?.description ?? '')
+  const [defaultPointValue, setDefaultPointValue] = useState(definition?.defaultPointValue ?? 0)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const requestId = useRef(crypto.randomUUID())
@@ -20,10 +21,10 @@ export function ChoreDefinitionForm({ householdId, definition, onSaved, onCancel
     event.preventDefault(); setBusy(true); setError('')
     try {
       if (definition) await updateChoreDefinition(householdId, definition.id, {
-        expectedVersion: definition.version, title, description: description || null,
+        expectedVersion: definition.version, title, description: description || null, defaultPointValue,
       })
       else await createChoreDefinition(householdId, {
-        clientRequestId: requestId.current, title, description: description || null,
+        clientRequestId: requestId.current, title, description: description || null, defaultPointValue,
       })
       requestId.current = crypto.randomUUID()
       onSaved()
@@ -34,6 +35,9 @@ export function ChoreDefinitionForm({ householdId, definition, onSaved, onCancel
     <h3>{definition ? 'Edit chore' : 'Create a chore'}</h3>
     <label>Chore name<input maxLength={120} onChange={(event) => changed(() => setTitle(event.target.value))} required value={title} /></label>
     <label>Helpful details<textarea maxLength={500} onChange={(event) => changed(() => setDescription(event.target.value))} value={description} /></label>
+    <label>Points after approval<input inputMode="numeric" max={10000} min={0}
+      onChange={(event) => changed(() => setDefaultPointValue(event.target.valueAsNumber || 0))}
+      required type="number" value={defaultPointValue} /></label>
     {error && <p role="alert">{error}</p>}
     <div className="form-actions">{onCancel && <button className="secondary-action" onClick={onCancel} type="button">Cancel</button>}
       <button className="primary-action" disabled={busy} type="submit">{busy ? 'Saving…' : 'Save chore'}</button></div>

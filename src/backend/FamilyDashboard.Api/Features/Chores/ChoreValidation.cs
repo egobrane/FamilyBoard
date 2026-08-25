@@ -5,7 +5,8 @@ using FamilyDashboard.Api.Domain.Chores;
 public static class ChoreValidation
 {
     public static bool TryDefinition(Guid clientRequestId, string? title, string? description,
-        out (Guid ClientRequestId, string Title, string? Description) values,
+        int defaultPointValue,
+        out (Guid ClientRequestId, string Title, string? Description, int DefaultPointValue) values,
         out Dictionary<string, string[]> errors)
     {
         errors = [];
@@ -16,7 +17,9 @@ public static class ChoreValidation
             errors["title"] = ["Title must contain between 1 and 120 characters."];
         if (cleanDescription?.Length > 500)
             errors["description"] = ["Description cannot exceed 500 characters."];
-        values = (clientRequestId, cleanTitle ?? string.Empty, cleanDescription);
+        if (defaultPointValue is < 0 or > 10000)
+            errors["defaultPointValue"] = ["Points must be between 0 and 10,000."];
+        values = (clientRequestId, cleanTitle ?? string.Empty, cleanDescription, defaultPointValue);
         return errors.Count == 0;
     }
 

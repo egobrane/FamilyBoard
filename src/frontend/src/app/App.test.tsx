@@ -64,6 +64,7 @@ describe('App', () => {
           choreDefinitionId: 'definition-1',
           title: 'Feed Milo',
           description: null,
+          pointValue: 10,
           assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint' },
           dueLocalDate: '2026-08-22',
           dueLocalTime: null,
@@ -79,6 +80,14 @@ describe('App', () => {
         }],
         upcoming: [],
         awaitingReviewCount: 0,
+      })
+      if (path.endsWith('/points/summary')) return jsonResponse({
+        householdBalance: 145,
+        members: [
+          { memberId: 'member-2', displayName: 'Oliver', role: 'child', avatarColor: 'coral', isActive: true, balance: 85 },
+          { memberId: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', isActive: true, balance: 60 },
+        ],
+        recentTransactions: [],
       })
       if (path.endsWith('/calendar/events')) return jsonResponse({
         events: [{

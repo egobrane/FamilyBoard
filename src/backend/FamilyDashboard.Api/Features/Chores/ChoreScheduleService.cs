@@ -217,7 +217,7 @@ public sealed class ChoreScheduleService(
     private static ChoreScheduleResponse Map(ChoreSchedule item, string zone) => new(
         item.Id,
         new(item.ChoreDefinition.Id, item.ChoreDefinition.Title, item.ChoreDefinition.Description,
-            item.ChoreDefinition.IsActive, item.ChoreDefinition.Version,
+            item.ChoreDefinition.DefaultPointValue, item.ChoreDefinition.IsActive, item.ChoreDefinition.Version,
             item.ChoreDefinition.CreatedAt, item.ChoreDefinition.UpdatedAt),
         new(item.HouseholdMember.Id, item.HouseholdMember.DisplayName,
             item.HouseholdMember.Role.ToString().ToLowerInvariant(), item.HouseholdMember.AvatarColor),

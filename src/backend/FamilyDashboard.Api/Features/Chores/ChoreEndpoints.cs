@@ -170,7 +170,7 @@ public static class ChoreEndpoints
         if (request is null) return Validation(context,
             new Dictionary<string, string[]> { ["definition"] = ["Definition data is required."] });
         if (!ChoreValidation.TryDefinition(request.ClientRequestId, request.Title,
-                request.Description, out var values, out var errors)) return Validation(context, errors);
+                request.Description, request.DefaultPointValue, out var values, out var errors)) return Validation(context, errors);
         var result = await chores.CreateDefinitionAsync(householdId, values, token);
         return Result(context, result, "definition", true);
     }
@@ -184,9 +184,10 @@ public static class ChoreEndpoints
         if (request is null || request.ExpectedVersion < 1) return Validation(context,
             new Dictionary<string, string[]> { ["expectedVersion"] = ["Definition data and a valid version are required."] });
         if (!ChoreValidation.TryDefinition(Guid.NewGuid(), request.Title, request.Description,
+                request.DefaultPointValue,
                 out var values, out var errors)) return Validation(context, errors);
         return Result(context, await chores.UpdateDefinitionAsync(householdId, definitionId,
-            request.ExpectedVersion, values.Title, values.Description, null, token), "definition");
+            request.ExpectedVersion, values.Title, values.Description, values.DefaultPointValue, null, token), "definition");
     }
 
     private static async Task<IResult> ChangeDefinitionStateAsync(Guid householdId, Guid definitionId, bool active,

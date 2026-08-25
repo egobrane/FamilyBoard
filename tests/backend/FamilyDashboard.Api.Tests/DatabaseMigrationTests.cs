@@ -89,7 +89,7 @@ public sealed class DatabaseMigrationTests
             INSERT INTO "HouseholdMembers" ("Id", "HouseholdId", "DisplayName", "Role", "IsActive", "CreatedAt", "UpdatedAt")
             VALUES ({memberId}, {householdId}, {"Existing Child"}, {"Child"}, {true}, {now}, {now});
             INSERT INTO "ChoreDefinitions" ("Id", "HouseholdId", "Title", "DefaultPointValue", "IsActive", "CreatedAt", "UpdatedAt")
-            VALUES ({definitionId}, {householdId}, {"Existing Chore"}, {0}, {true}, {now}, {now});
+            VALUES ({definitionId}, {householdId}, {"Existing Chore"}, {12}, {true}, {now}, {now});
             INSERT INTO "ChoreAssignments" ("Id", "ChoreDefinitionId", "HouseholdMemberId", "DueAt", "Status", "CreatedAt", "UpdatedAt")
             VALUES ({assignmentId}, {definitionId}, {memberId}, {now.AddHours(2)}, {"Completed"}, {now}, {now});
             INSERT INTO "ChoreCompletions" ("Id", "ChoreAssignmentId", "CompletedByMemberId", "Status", "CompletedAt")
@@ -102,8 +102,11 @@ public sealed class DatabaseMigrationTests
         var completion = await context.ChoreCompletions.SingleAsync(item => item.Id == completionId);
         Assert.Equal(householdId, assignment.HouseholdId);
         Assert.Equal("Existing Chore", assignment.TitleSnapshot);
+        Assert.Equal(12, assignment.PointValueSnapshot);
         Assert.Equal("America/New_York", assignment.DueTimeZone);
         Assert.Equal(householdId, completion.HouseholdId);
+        Assert.Equal(12, completion.PointValueSnapshot);
+        Assert.Empty(context.PointTransactions);
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());
     }
 }

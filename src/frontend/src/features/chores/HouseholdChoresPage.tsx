@@ -65,7 +65,7 @@ export function HouseholdChoresPage() {
   return <div className="chore-admin-grid">
     <section className="admin-section"><h3>Chore definitions</h3>
       <ul className="definition-list">{definitions.map((definition) => <li key={definition.id}>
-        <div><strong>{definition.title}</strong><span>{definition.isActive ? 'Active' : 'Inactive'}</span></div>
+        <div><strong>{definition.title}</strong><span>{definition.defaultPointValue} points · {definition.isActive ? 'Active' : 'Inactive'}</span></div>
         <div className="form-actions"><button onClick={() => setEditing(definition)} type="button">Edit</button>
           <button onClick={() => void changeDefinitionState(definition)} type="button">
             {definition.isActive ? 'Deactivate' : 'Reactivate'}</button></div></li>)}</ul>

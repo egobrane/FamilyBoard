@@ -198,11 +198,13 @@ export interface ChoreCompletionResponse {
   completedByMember: ChoreParticipantResponse
   status: 'pendingReview' | 'approved' | 'rejected'
   wasSharedDisplay: boolean
+  pointValue: number
   completedAt: string
   reviewedByMember: ChoreParticipantResponse | null
   reviewedAt: string | null
   reviewNote: string | null
   version: number
+  award: { transactionId: string; amount: number } | null
 }
 
 export interface ChoreAssignmentResponse {
@@ -210,6 +212,7 @@ export interface ChoreAssignmentResponse {
   choreDefinitionId: string
   title: string
   description: string | null
+  pointValue: number
   assignedMember: ChoreParticipantResponse
   dueLocalDate: string | null
   dueLocalTime: string | null
@@ -235,10 +238,52 @@ export interface ChoreDefinitionResponse {
   id: string
   title: string
   description: string | null
+  defaultPointValue: number
   isActive: boolean
   version: number
   createdAt: string
   updatedAt: string
+}
+
+export interface PointMemberResponse {
+  id: string
+  displayName: string
+  role: 'adult' | 'child'
+  avatarColor: string | null
+  isActive: boolean
+}
+
+export interface PointMemberBalanceResponse {
+  memberId: string
+  displayName: string
+  role: 'adult' | 'child'
+  avatarColor: string | null
+  isActive: boolean
+  balance: number
+}
+
+export interface PointTransactionResponse {
+  id: string
+  householdMember: PointMemberResponse
+  amount: number
+  type: 'choreCompletion' | 'rewardRedemption' | 'adjustment' | 'reversal'
+  description: string
+  choreCompletionId: string | null
+  reversesPointTransactionId: string | null
+  createdByMember: PointMemberResponse | null
+  createdAt: string
+  isReversed: boolean
+}
+
+export interface HouseholdPointSummaryResponse {
+  householdBalance: number
+  members: PointMemberBalanceResponse[]
+  recentTransactions: PointTransactionResponse[]
+}
+
+export interface PointTransactionListResponse {
+  items: PointTransactionResponse[]
+  nextCursor: string | null
 }
 
 export interface ChoreRecurrenceRequest {
@@ -446,7 +491,7 @@ export function listChoreDefinitions(householdId: string, includeInactive = true
 }
 
 export function createChoreDefinition(householdId: string, body: {
-  clientRequestId: string; title: string; description: string | null
+  clientRequestId: string; title: string; description: string | null; defaultPointValue: number
 }) {
   return unsafeRequest<ChoreDefinitionResponse>(
     `/api/households/${encodeURIComponent(householdId)}/chore-definitions`, 'POST', body,
@@ -454,7 +499,7 @@ export function createChoreDefinition(householdId: string, body: {
 }
 
 export function updateChoreDefinition(householdId: string, definitionId: string, body: {
-  expectedVersion: number; title: string; description: string | null
+  expectedVersion: number; title: string; description: string | null; defaultPointValue: number
 }) {
   return unsafeRequest<ChoreDefinitionResponse>(
     `/api/households/${encodeURIComponent(householdId)}/chore-definitions/${encodeURIComponent(definitionId)}`,
@@ -528,6 +573,41 @@ export function setChoreScheduleActive(householdId: string, schedule: ChoreSched
   return unsafeRequest<ChoreScheduleResponse>(
     `/api/households/${encodeURIComponent(householdId)}/chore-schedules/${encodeURIComponent(schedule.id)}/${active ? 'resume' : 'pause'}`,
     'POST', { expectedVersion: schedule.version },
+  )
+}
+
+export function getPointSummary(householdId: string) {
+  return request<HouseholdPointSummaryResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/points/summary`,
+  )
+}
+
+export function listPointTransactions(householdId: string, memberId?: string, cursor?: string) {
+  const parameters = new URLSearchParams()
+  if (memberId) parameters.set('memberId', memberId)
+  if (cursor) parameters.set('cursor', cursor)
+  const query = parameters.size > 0 ? `?${parameters.toString()}` : ''
+  return request<PointTransactionListResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-transactions${query}`,
+  )
+}
+
+export function createPointAdjustment(householdId: string, body: {
+  clientRequestId: string
+  householdMemberId: string
+  amount: number
+  reason: string
+}) {
+  return unsafeRequest<PointTransactionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-adjustments`, 'POST', body,
+  )
+}
+
+export function reversePointTransaction(householdId: string, transactionId: string,
+  clientRequestId: string, reason: string) {
+  return unsafeRequest<PointTransactionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-transactions/${encodeURIComponent(transactionId)}/reverse`,
+    'POST', { clientRequestId, reason },
   )
 }
 

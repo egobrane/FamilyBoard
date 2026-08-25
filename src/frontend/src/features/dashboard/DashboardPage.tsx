@@ -2,7 +2,8 @@ import type { CSSProperties } from 'react'
 import { DashboardCard } from '../../components/DashboardCard'
 import { DashboardCalendarCard } from '../calendar/DashboardCalendarCard'
 import { DashboardChoresCard } from '../chores/DashboardChoresCard'
-import { demoHouseholdPhotoUrl, familyMembers } from './mockDashboardData'
+import { DashboardPointsCard } from '../points/DashboardPointsCard'
+import { demoHouseholdPhotoUrl } from './mockDashboardData'
 
 export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
   return (
@@ -24,20 +25,7 @@ export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { h
 
       <DashboardChoresCard />
 
-      <DashboardCard className="family-card" eyebrow="Keep it going" id="rewards-preview" title="Family points">
-        <div className="member-grid">
-          {familyMembers.map((member) => (
-            <div className="member" key={member.name}>
-              <span className={`member__avatar marker--${member.color}`}>{member.name.charAt(0)}</span>
-              <span><strong>{member.name}</strong><small>{member.points} points</small></span>
-            </div>
-          ))}
-        </div>
-        <div className="reward-preview">
-          <span aria-hidden="true">★</span>
-          <p><strong>Next family reward</strong><br />Movie night · 200 points</p>
-        </div>
-      </DashboardCard>
+      <DashboardPointsCard />
     </main>
   )
 }

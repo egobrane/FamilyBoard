@@ -14,8 +14,3 @@ export const scheduleItems: ScheduleItem[] = [
   { id: 'soccer', time: '5:15', title: 'Soccer practice', person: 'Zoey', color: 'sky' },
   { id: 'dinner', time: '6:45', title: 'Taco night', person: 'Home', color: 'mint' },
 ]
-
-export const familyMembers = [
-  { name: 'Oliver', points: 85, color: 'coral' },
-  { name: 'Zoey', points: 60, color: 'sky' },
-] as const

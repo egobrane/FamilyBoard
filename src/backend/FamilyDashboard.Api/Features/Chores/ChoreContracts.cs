@@ -1,7 +1,9 @@
 namespace FamilyDashboard.Api.Features.Chores;
 
-public sealed record CreateChoreDefinitionRequest(Guid ClientRequestId, string Title, string? Description);
-public sealed record UpdateChoreDefinitionRequest(long ExpectedVersion, string Title, string? Description);
+public sealed record CreateChoreDefinitionRequest(Guid ClientRequestId, string Title, string? Description,
+    int DefaultPointValue = 0);
+public sealed record UpdateChoreDefinitionRequest(long ExpectedVersion, string Title, string? Description,
+    int DefaultPointValue = 0);
 public sealed record ChangeChoreDefinitionStateRequest(long ExpectedVersion);
 public sealed record CreateChoreAssignmentRequest(
     Guid ClientRequestId,
@@ -42,6 +44,7 @@ public sealed record ChoreDefinitionResponse(
     Guid Id,
     string Title,
     string? Description,
+    int DefaultPointValue,
     bool IsActive,
     long Version,
     DateTimeOffset CreatedAt,
@@ -59,17 +62,22 @@ public sealed record ChoreCompletionResponse(
     ChoreParticipantResponse CompletedByMember,
     string Status,
     bool WasSharedDisplay,
+    int PointValue,
     DateTimeOffset CompletedAt,
     ChoreParticipantResponse? ReviewedByMember,
     DateTimeOffset? ReviewedAt,
     string? ReviewNote,
-    long Version);
+    long Version,
+    PointAwardResponse? Award);
+
+public sealed record PointAwardResponse(Guid TransactionId, int Amount);
 
 public sealed record ChoreAssignmentResponse(
     Guid Id,
     Guid ChoreDefinitionId,
     string Title,
     string? Description,
+    int PointValue,
     ChoreParticipantResponse AssignedMember,
     DateOnly? DueLocalDate,
     TimeOnly? DueLocalTime,

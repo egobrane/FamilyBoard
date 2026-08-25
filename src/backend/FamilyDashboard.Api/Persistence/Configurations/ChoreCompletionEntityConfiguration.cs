@@ -8,8 +8,10 @@ public sealed class ChoreCompletionEntityConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<ChoreCompletion> builder)
     {
-        builder.ToTable("ChoreCompletions");
+        builder.ToTable("ChoreCompletions", table =>
+            table.HasCheckConstraint("CK_ChoreCompletions_PointValueSnapshot", "\"PointValueSnapshot\" BETWEEN 0 AND 10000"));
         builder.HasKey(completion => completion.Id);
+        builder.HasAlternateKey(completion => new { completion.HouseholdId, completion.Id });
         builder.Property(completion => completion.Status).HasConversion<string>().HasMaxLength(24);
         builder.Property(completion => completion.ReviewNote).HasMaxLength(240);
         builder.Property(completion => completion.Version).IsConcurrencyToken().HasDefaultValue(1L);

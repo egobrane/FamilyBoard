@@ -10,7 +10,7 @@ npm test
 npm run build
 ```
 
-Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation, chore-list completion states, recurring-schedule summaries and weekday controls, dashboard semantics, and keyboard and pointer navigation.
+Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation, chore-list completion states, recurring-schedule summaries and weekday controls, real point-history semantics, dashboard semantics, and keyboard and pointer navigation.
 
 ## Browser tests
 
@@ -34,6 +34,10 @@ The liveness, return-URL, Google option, Calendar token/state protection, invita
 CI supplies an ephemeral PostgreSQL service, then restores, builds, tests, builds production containers, and renders the K3s manifests. Builds or required tests must be green before a milestone is considered complete.
 
 Chore Management Increment 1 also passed its owner-operated Azure/Netlify staging checklist on 2026-08-22. The verified paths covered definition lifecycle, one-time assignment, dashboard and full-list rendering, private and shared-display attribution, approval, rejection/retry/approval, skipping and retained history, shared-display parent-PIN enforcement, household isolation, and touch, mouse, keyboard, screen-reader, phone, tablet, and wall-display behavior. No point award was expected because point transactions remain outside Increment 1.
+
+Chore Management Increment 2 is deployed with the matching Azure API and Netlify PWA. The additive migration, automatic immutable-digest handoff, corrected scheduled-job provisioning, and manual generator execution succeeded. Independent Azure inspection also shows successful hourly executions at minute 7. Daily/weekday generation, pause/resume, inactive dependencies, time-zone and daylight-saving behavior, duplicate prevention, and responsive interaction remain automated coverage unless separately recorded as owner-observed staging checks.
+
+Chore Management Increment 3 local validation passed 102 backend tests against disposable PostgreSQL 18 with no skips, 30 frontend component tests, and 26 wall-display/phone Playwright tests. Coverage includes migration preservation, point snapshots, atomic and concurrent approval, single-award idempotency, zero-point approval, rejection/retry, recurring snapshots, derived balances, inactive-member history, adjustments, exact reversals, household isolation, shared-display correction gates, pointer/keyboard navigation, responsive layout, and serious automated accessibility checks.
 
 Calendar Increment 1 was also exercised against real staging OAuth and Google Calendar data on 2026-08-19. Owner-confirmed checks covered consent denial, connection, connected-account display, source persistence, dashboard and full Calendar reads, revocation and reconnection, multi-household isolation, locked shared-display access, timed/recurring/all-day/daylight-saving events, responsive input modes, and disconnect without provider-event deletion. Automated provider doubles remain necessary in CI so tests do not require personal Google credentials or mutate external calendars.
 

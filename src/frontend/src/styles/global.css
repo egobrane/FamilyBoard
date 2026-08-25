@@ -788,6 +788,27 @@ a:focus-visible {
   line-height: 1.45;
 }
 
+.household-point-total { display: flex; align-items: baseline; gap: .5rem; color: var(--color-muted); }
+.household-point-total strong { color: var(--color-ink); font-size: clamp(2rem, 4vw, 3.25rem); }
+.dashboard-card__link { display: inline-flex; min-height: var(--touch-target); align-items: center; margin-top: 1rem; color: var(--color-ink); font-weight: 800; }
+.points-page, .point-admin-grid { display: grid; gap: 1.25rem; }
+.point-balance-panel, .point-history-panel { padding: clamp(1.1rem, 2.5vw, 2rem); background: var(--color-surface); border-radius: var(--radius-large); box-shadow: 0 1rem 3rem rgb(72 63 53 / 8%); }
+.point-balance-panel h3, .point-history-panel h3 { margin-top: 0; }
+.point-balance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .8rem; }
+.point-balance-grid article { display: grid; gap: .2rem; padding: 1rem; background: #f5f3ec; border-radius: 1rem; }
+.point-balance-grid strong { font-size: clamp(2rem, 5vw, 3.5rem); }
+.point-balance-grid small, .point-history__details span, .point-history__details small { color: var(--color-muted); }
+.point-history-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.point-history-heading label { display: grid; gap: .3rem; font-weight: 750; }
+.point-history { display: grid; gap: .65rem; padding: 0; list-style: none; }
+.point-history li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; background: #f5f3ec; border-radius: 1rem; }
+.point-history__details, .point-history__value { display: grid; gap: .25rem; }
+.point-history__value { justify-items: end; }
+.point-history__value > strong { font-size: 1.45rem; }
+.point-amount--positive { color: #326c59; }
+.point-amount--negative { color: #9b3b31; }
+.success-message { padding: 1rem; color: #245a47; background: #d9eee5; border-radius: 1rem; }
+
 .navigation {
   position: fixed;
   z-index: 20;
@@ -1557,6 +1578,16 @@ a:focus-visible {
 
   .member-grid {
     grid-template-columns: 1fr;
+  }
+
+  .point-history-heading,
+  .point-history li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .point-history__value {
+    justify-items: start;
   }
 
   .navigation {

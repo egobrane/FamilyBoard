@@ -19,6 +19,8 @@ import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembe
 import { HouseholdSettingsPage } from '../features/household-admin/HouseholdSettingsPage'
 import { HouseholdInvitationsPage } from '../features/invitations/HouseholdInvitationsPage'
 import { ParentAccessPage } from '../features/parent-access/ParentAccessPage'
+import { PointsPage } from '../features/points/PointsPage'
+import { HouseholdPointsPage } from '../features/points/HouseholdPointsPage'
 import { InvitationLandingPage } from '../features/invitations/InvitationLandingPage'
 import { HouseholdSelectionPage } from '../features/households/HouseholdSelectionPage'
 import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
@@ -158,6 +160,7 @@ function AuthenticatedRoutes() {
         <Route element={<DashboardHome />} path="/" />
         <Route element={<><CalendarPage /><NavigationBar /></>} path="/calendar" />
         <Route element={<><ChoresPage /><NavigationBar /></>} path="/chores" />
+        <Route element={<><PointsPage /><NavigationBar /></>} path="/points" />
         <Route element={<CreateCalendarEventPage />} path="/calendar/new" />
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
           <Route element={<HouseholdSettingsPage />} path="settings" />
@@ -166,6 +169,7 @@ function AuthenticatedRoutes() {
           <Route element={<ParentAccessPage />} path="parent-access" />
           <Route element={<HouseholdCalendarsPage />} path="calendars" />
           <Route element={<HouseholdChoresPage />} path="chores" />
+          <Route element={<HouseholdPointsPage />} path="points" />
           <Route element={<Navigate replace to="settings" />} index />
         </Route>
       </Route>

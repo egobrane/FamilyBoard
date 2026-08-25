@@ -18,7 +18,7 @@ export function ChoreReviewQueue({ householdId, assignments, completions, onRevi
   return <section className="admin-section"><h3>Waiting for review</h3>
     {completions.length === 0 ? <p>No chores are waiting for review.</p> : <ul className="review-list">{completions.map((item) => {
       const assignment = assignments.find((candidate) => candidate.id === item.assignmentId)
-      return <li key={item.id}><div><strong>{assignment?.title ?? 'Chore completion'}</strong><span>{item.completedByMember.displayName}</span></div>
+      return <li key={item.id}><div><strong>{assignment?.title ?? 'Chore completion'}</strong><span>{item.completedByMember.displayName} · {item.pointValue} points</span></div>
         <div className="form-actions"><button disabled={busy === item.id} onClick={() => void review(item, 'rejected')} type="button">Try again</button>
           <button className="primary-action" disabled={busy === item.id} onClick={() => void review(item, 'approved')} type="button">Approve</button></div></li>
     })}</ul>}

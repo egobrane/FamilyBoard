@@ -75,6 +75,12 @@ public static class ApiProblemCodes
     public const string ChoreScheduleDependencyInactive = "chore_schedule_dependency_inactive";
     public const string ChoreScheduleRequestConflict = "chore_schedule_request_conflict";
     public const string ChoreScheduleVersionConflict = "chore_schedule_version_conflict";
+    public const string PointMemberNotFound = "point_member_not_found";
+    public const string PointTransactionNotFound = "point_transaction_not_found";
+    public const string PointIdempotencyConflict = "point_idempotency_conflict";
+    public const string PointTransactionAlreadyReversed = "point_transaction_already_reversed";
+    public const string PointTransactionNotReversible = "point_transaction_not_reversible";
+    public const string PointConcurrencyConflict = "point_concurrency_conflict";
     public const string UnexpectedError = "unexpected_error";
 }
 

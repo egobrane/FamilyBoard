@@ -103,6 +103,7 @@ public sealed class ChoreAssignmentGenerator(
                     ClientRequestId = OccurrenceRequestId(schedule.Id, occurrence),
                     TitleSnapshot = schedule.ChoreDefinition.Title,
                     DescriptionSnapshot = schedule.ChoreDefinition.Description,
+                    PointValueSnapshot = schedule.ChoreDefinition.DefaultPointValue,
                     DueAt = dueAt,
                     DueLocalDate = occurrence,
                     DueLocalTime = schedule.DueLocalTime,

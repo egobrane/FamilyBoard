@@ -13,6 +13,7 @@ public sealed class ChoreAssignment
     public Guid ClientRequestId { get; set; } = Guid.NewGuid();
     public required string TitleSnapshot { get; set; }
     public string? DescriptionSnapshot { get; set; }
+    public int PointValueSnapshot { get; set; }
     public DateTimeOffset? DueAt { get; set; }
     public DateOnly? DueLocalDate { get; set; }
     public TimeOnly? DueLocalTime { get; set; }

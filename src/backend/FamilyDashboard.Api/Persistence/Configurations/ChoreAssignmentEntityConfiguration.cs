@@ -8,7 +8,8 @@ public sealed class ChoreAssignmentEntityConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<ChoreAssignment> builder)
     {
-        builder.ToTable("ChoreAssignments");
+        builder.ToTable("ChoreAssignments", table =>
+            table.HasCheckConstraint("CK_ChoreAssignments_PointValueSnapshot", "\"PointValueSnapshot\" BETWEEN 0 AND 10000"));
         builder.HasKey(assignment => assignment.Id);
         builder.Property(assignment => assignment.Status).HasConversion<string>().HasMaxLength(24);
         builder.Property(assignment => assignment.DueTimeResolution).HasConversion<string>().HasMaxLength(24)

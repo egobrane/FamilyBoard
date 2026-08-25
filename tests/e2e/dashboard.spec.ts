@@ -246,7 +246,7 @@ test.beforeEach(async ({ page }) => {
     const choreAssignment = {
       id: '60000000-0000-0000-0000-000000000001',
       choreDefinitionId: '61000000-0000-0000-0000-000000000001',
-      title: 'Feed Milo', description: 'Before dinner',
+      title: 'Feed Milo', description: 'Before dinner', pointValue: 10,
       assignedMember: householdMembers[0], dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00',
       dueAt: '2026-08-22T22:00:00Z', dueTimeZone: 'America/New_York', dueHasExplicitTime: true,
       status: 'pending', isOverdue: false, version: 1, pendingCompletion: null,
@@ -267,11 +267,12 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments/${choreAssignment.id}/completions`) {
       await route.fulfill({ json: { id: '62000000-0000-0000-0000-000000000001', assignmentId: choreAssignment.id,
         completedByMember: householdMembers[0], status: 'pendingReview', wasSharedDisplay: currentSession.isSharedDisplay,
-        completedAt: '2026-08-22T18:00:00Z', reviewedByMember: null, reviewedAt: null, reviewNote: null, version: 1 } })
+        pointValue: 10, completedAt: '2026-08-22T18:00:00Z', reviewedByMember: null,
+        reviewedAt: null, reviewNote: null, version: 1, award: null } })
       return
     }
     const choreDefinition = { id: choreAssignment.choreDefinitionId, title: 'Feed Milo', description: 'Before dinner',
-      isActive: true, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' }
+      defaultPointValue: 10, isActive: true, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-definitions`) {
       await route.fulfill({ json: [choreDefinition] })
       return
@@ -293,6 +294,17 @@ test.beforeEach(async ({ page }) => {
         return
       }
       await route.fulfill({ json: choreSchedules })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/points/summary`) {
+      await route.fulfill({ json: { householdBalance: 35, members: householdMembers.map((member, index) => ({
+        memberId: member.id, displayName: member.displayName, role: member.role, avatarColor: member.avatarColor,
+        isActive: member.isActive, balance: index === 0 ? 25 : 10,
+      })), recentTransactions: [] } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-transactions`) {
+      await route.fulfill({ json: { items: [], nextCursor: null } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/invitations`) {
@@ -361,15 +373,15 @@ test('dashboard shell has no automatically detectable serious accessibility issu
     .toEqual([])
 })
 
-test('primary navigation responds to pointer clicks', async ({ page }) => {
+test('primary navigation opens real household points with a pointer click', async ({ page }) => {
   await page.goto('/')
 
-  const rewardsLink = page.getByRole('link', { name: 'Rewards' })
-  await rewardsLink.click()
+  const pointsLink = page.getByRole('link', { name: 'Points', exact: true })
+  await pointsLink.click()
 
-  await expect(page).toHaveURL(/#rewards-preview$/)
-  await expect(rewardsLink).toHaveAttribute('aria-current', 'location')
-  await expect(page.locator('#rewards-preview')).toBeVisible()
+  await expect(page).toHaveURL(/\/points$/)
+  await expect(pointsLink).toHaveAttribute('aria-current', 'location')
+  await expect(page.getByRole('heading', { name: 'Member balances' })).toBeVisible()
 })
 
 test('chore board supports explicit household-member completion', async ({ page }) => {

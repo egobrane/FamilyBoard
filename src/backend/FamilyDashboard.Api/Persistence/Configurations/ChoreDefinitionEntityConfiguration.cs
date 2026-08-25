@@ -9,7 +9,7 @@ public sealed class ChoreDefinitionEntityConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<ChoreDefinition> builder)
     {
         builder.ToTable("ChoreDefinitions", table =>
-            table.HasCheckConstraint("CK_ChoreDefinitions_DefaultPointValue", "\"DefaultPointValue\" >= 0"));
+            table.HasCheckConstraint("CK_ChoreDefinitions_DefaultPointValue", "\"DefaultPointValue\" BETWEEN 0 AND 10000"));
         builder.HasKey(chore => chore.Id);
         builder.Property(chore => chore.Title).HasMaxLength(120).IsRequired();
         builder.Property(chore => chore.Description).HasMaxLength(500);

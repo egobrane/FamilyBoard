@@ -78,7 +78,7 @@ public sealed class ChoreEndpointTests
         var child = (await childResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
 
         var definitionResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-definitions",
-            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Feed Milo", "Before dinner"));
+            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Feed Milo", "Before dinner", 15));
         Assert.Equal(HttpStatusCode.Created, definitionResponse.StatusCode);
         var definition = (await definitionResponse.Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
 
@@ -125,16 +125,68 @@ public sealed class ChoreEndpointTests
             $"/api/households/{household.Id}/chore-assignments/{assignment.Id}/completions",
             new CompleteChoreRequest(Guid.NewGuid(), active.Version, child.Id));
         var second = (await secondResponse.Content.ReadFromJsonAsync<ChoreCompletionResponse>())!;
-        var approvedResponse = await client.PostAsJsonAsync(
+        var reviewPath = $"/api/households/{household.Id}/chore-completions/{second.Id}/review";
+        var concurrentReviews = await Task.WhenAll(
+            client.PostAsJsonAsync(reviewPath, new ReviewChoreCompletionRequest(second.Version, "approved", null)),
+            client.PostAsJsonAsync(reviewPath, new ReviewChoreCompletionRequest(second.Version, "approved", null)));
+        Assert.Contains(concurrentReviews, response => response.StatusCode == HttpStatusCode.OK);
+        Assert.Contains(concurrentReviews, response => response.StatusCode == HttpStatusCode.Conflict);
+        var approvedResponse = concurrentReviews.Single(response => response.StatusCode == HttpStatusCode.OK);
+        Assert.Equal(HttpStatusCode.OK, approvedResponse.StatusCode);
+        var approved = (await approvedResponse.Content.ReadFromJsonAsync<ChoreCompletionResponse>())!;
+        Assert.Equal(15, approved.PointValue);
+        Assert.Equal(15, approved.Award?.Amount);
+
+        var approvalReplay = await client.PostAsJsonAsync(
             $"/api/households/{household.Id}/chore-completions/{second.Id}/review",
             new ReviewChoreCompletionRequest(second.Version, "approved", null));
-        Assert.Equal(HttpStatusCode.OK, approvedResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, approvalReplay.StatusCode);
+        Assert.Equal(approved.Award?.TransactionId,
+            (await approvalReplay.Content.ReadFromJsonAsync<ChoreCompletionResponse>())!.Award?.TransactionId);
 
         database.DbContext.ChangeTracker.Clear();
         Assert.Equal(2, await database.DbContext.ChoreCompletions.CountAsync());
         Assert.Equal("Completed", await database.DbContext.ChoreAssignments
             .Where(item => item.Id == assignment.Id).Select(item => item.Status.ToString()).SingleAsync());
-        Assert.Empty(database.DbContext.PointTransactions);
+        var award = await database.DbContext.PointTransactions.SingleAsync();
+        Assert.Equal(15, award.Amount);
+        Assert.Equal(child.Id, award.HouseholdMemberId);
+        Assert.Equal(second.Id, award.ChoreCompletionId);
+    }
+
+    [PostgreSqlFact]
+    public async Task ApprovingZeroPointChoreDoesNotCreateLedgerTransaction()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount { DisplayName = "Zero Point Adult", PrimaryEmail = "zero-points@example.test" };
+        database.DbContext.UserAccounts.Add(account);
+        await database.DbContext.SaveChangesAsync();
+        using var client = Client(database.Factory, account.Id);
+        var household = await BootstrapAsync(client);
+        var childResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/members",
+            new CreateChildMemberRequest("Morgan", "mint"));
+        var child = (await childResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+        var definitionResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-definitions",
+            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Put shoes away", null, 0));
+        var definition = (await definitionResponse.Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
+        var assignmentResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-assignments",
+            new CreateChoreAssignmentRequest(Guid.NewGuid(), definition.Id, child.Id,
+                new DateOnly(2026, 8, 25), new TimeOnly(18, 0)));
+        var assignment = (await assignmentResponse.Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
+        var completionResponse = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-assignments/{assignment.Id}/completions",
+            new CompleteChoreRequest(Guid.NewGuid(), assignment.Version, child.Id));
+        var completion = (await completionResponse.Content.ReadFromJsonAsync<ChoreCompletionResponse>())!;
+
+        var approvalResponse = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-completions/{completion.Id}/review",
+            new ReviewChoreCompletionRequest(completion.Version, "approved", null));
+
+        Assert.Equal(HttpStatusCode.OK, approvalResponse.StatusCode);
+        var approved = (await approvalResponse.Content.ReadFromJsonAsync<ChoreCompletionResponse>())!;
+        Assert.Equal(0, approved.PointValue);
+        Assert.Null(approved.Award);
+        Assert.Empty(await database.DbContext.PointTransactions.ToListAsync());
     }
 
     [PostgreSqlFact]
@@ -150,7 +202,7 @@ public sealed class ChoreEndpointTests
             new CreateChildMemberRequest("Taylor", "mint"));
         var child = (await childResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
         var definitionResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-definitions",
-            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Feed Milo", "Before breakfast"));
+            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Feed Milo", "Before breakfast", 8));
         var definition = (await definitionResponse.Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
         var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
             TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).Date);
@@ -179,6 +231,7 @@ public sealed class ChoreEndpointTests
         Assert.Equal("Feed Milo", assignment.TitleSnapshot);
         Assert.Equal(localToday, assignment.ScheduleOccurrenceLocalDate);
         Assert.Equal(ChoreDueTimeResolution.Exact, assignment.DueTimeResolution);
+        Assert.Equal(8, assignment.PointValueSnapshot);
         Assert.Empty(database.DbContext.PointTransactions);
     }
 

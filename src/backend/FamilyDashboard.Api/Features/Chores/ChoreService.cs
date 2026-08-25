@@ -1,5 +1,6 @@
 using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Domain.Households;
+using FamilyDashboard.Api.Domain.Rewards;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -73,7 +74,7 @@ public sealed class ChoreService(
     }
 
     public async Task<ChoreOperationResult<ChoreDefinitionResponse>> CreateDefinitionAsync(
-        Guid householdId, (Guid ClientRequestId, string Title, string? Description) values,
+        Guid householdId, (Guid ClientRequestId, string Title, string? Description, int DefaultPointValue) values,
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.ChoreDefinitions.AsNoTracking().SingleOrDefaultAsync(
@@ -81,6 +82,7 @@ public sealed class ChoreService(
             cancellationToken);
         if (existing is not null)
             return existing.Title == values.Title && existing.Description == values.Description
+                && existing.DefaultPointValue == values.DefaultPointValue
                 ? new(ChoreOperationStatus.Success, MapDefinition(existing))
                 : new(ChoreOperationStatus.IdempotencyConflict);
         var now = timeProvider.GetUtcNow();
@@ -90,7 +92,7 @@ public sealed class ChoreService(
             ClientRequestId = values.ClientRequestId,
             Title = values.Title,
             Description = values.Description,
-            DefaultPointValue = 0,
+            DefaultPointValue = values.DefaultPointValue,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -102,7 +104,7 @@ public sealed class ChoreService(
 
     public async Task<ChoreOperationResult<ChoreDefinitionResponse>> UpdateDefinitionAsync(
         Guid householdId, Guid definitionId, long expectedVersion, string title, string? description,
-        bool? active, CancellationToken cancellationToken)
+        int defaultPointValue, bool? active, CancellationToken cancellationToken)
     {
         var definition = await dbContext.ChoreDefinitions.SingleOrDefaultAsync(
             item => item.HouseholdId == householdId && item.Id == definitionId, cancellationToken);
@@ -110,6 +112,7 @@ public sealed class ChoreService(
         if (definition.Version != expectedVersion) return new(ChoreOperationStatus.ConcurrencyConflict);
         definition.Title = title;
         definition.Description = description;
+        definition.DefaultPointValue = defaultPointValue;
         if (active is not null) definition.IsActive = active.Value;
         definition.UpdatedAt = timeProvider.GetUtcNow();
         definition.Version++;
@@ -189,6 +192,7 @@ public sealed class ChoreService(
             ClientRequestId = request.ClientRequestId,
             TitleSnapshot = definition.Title,
             DescriptionSnapshot = definition.Description,
+            PointValueSnapshot = definition.DefaultPointValue,
             DueAt = dueAt,
             DueLocalDate = request.DueLocalDate,
             DueLocalTime = request.DueLocalTime,
@@ -247,6 +251,7 @@ public sealed class ChoreService(
             CompletedByMemberId = member.Id,
             SubmittedByUserAccountId = actorUserAccountId,
             WasSharedDisplay = session.IsSharedDisplay,
+            PointValueSnapshot = assignment.PointValueSnapshot,
             CompletedAt = now,
             CompletedByMember = member,
         };
@@ -263,6 +268,7 @@ public sealed class ChoreService(
         Guid householdId, CancellationToken cancellationToken) =>
         (await dbContext.ChoreCompletions.AsNoTracking()
             .Include(item => item.CompletedByMember).Include(item => item.ReviewedByMember)
+            .Include(item => item.PointTransaction)
             .Where(item => item.HouseholdId == householdId && item.Status == ChoreCompletionStatus.PendingReview)
             .OrderBy(item => item.CompletedAt).ToListAsync(cancellationToken))
         .Select(MapCompletion).ToList();
@@ -274,6 +280,7 @@ public sealed class ChoreService(
         var completion = await dbContext.ChoreCompletions
             .Include(item => item.CompletedByMember).Include(item => item.ReviewedByMember)
             .Include(item => item.ChoreAssignment)
+            .Include(item => item.PointTransaction)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == completionId,
                 cancellationToken);
         if (completion is null) return new(ChoreOperationStatus.NotFound);
@@ -286,6 +293,7 @@ public sealed class ChoreService(
         if (completion.Version != request.ExpectedVersion) return new(ChoreOperationStatus.ConcurrencyConflict);
         var reviewer = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
         if (reviewer is null) return new(ChoreOperationStatus.NotFound);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
         completion.Status = target;
         completion.ReviewedByMemberId = reviewer.Id;
@@ -296,7 +304,29 @@ public sealed class ChoreService(
         completion.ChoreAssignment.Status = approved ? ChoreAssignmentStatus.Completed : ChoreAssignmentStatus.Pending;
         completion.ChoreAssignment.UpdatedAt = now;
         completion.ChoreAssignment.Version++;
-        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        if (approved && completion.PointValueSnapshot > 0)
+        {
+            completion.PointTransaction = new PointTransaction
+            {
+                HouseholdId = householdId,
+                HouseholdMemberId = completion.CompletedByMemberId,
+                CreatedByMemberId = reviewer.Id,
+                Amount = completion.PointValueSnapshot,
+                Type = PointTransactionType.ChoreCompletion,
+                Description = $"Completed {completion.ChoreAssignment.TitleSnapshot}",
+                IdempotencyKey = $"chore-approval:{completion.Id:N}",
+                ChoreCompletionId = completion.Id,
+                CreatedAt = now,
+                HouseholdMember = completion.CompletedByMember,
+                CreatedByMember = reviewer,
+            };
+            dbContext.PointTransactions.Add(completion.PointTransaction);
+        }
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
         catch (DbUpdateException) { return new(ChoreOperationStatus.ConcurrencyConflict); }
         return new(ChoreOperationStatus.Success, MapCompletion(completion));
     }
@@ -309,6 +339,7 @@ public sealed class ChoreService(
             .Include(item => item.HouseholdMember)
             .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember)
             .Include(item => item.Completions).ThenInclude(item => item.ReviewedByMember)
+            .Include(item => item.Completions).ThenInclude(item => item.PointTransaction)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == assignmentId,
                 cancellationToken);
         if (assignment is null) return new(ChoreOperationStatus.NotFound);
@@ -342,7 +373,8 @@ public sealed class ChoreService(
             .Select(item => item.HouseholdMember).SingleOrDefaultAsync(cancellationToken);
 
     private static ChoreDefinitionResponse MapDefinition(ChoreDefinition item) =>
-        new(item.Id, item.Title, item.Description, item.IsActive, item.Version, item.CreatedAt, item.UpdatedAt);
+        new(item.Id, item.Title, item.Description, item.DefaultPointValue, item.IsActive,
+            item.Version, item.CreatedAt, item.UpdatedAt);
 
     private static ChoreParticipantResponse MapMember(HouseholdMember member) =>
         new(member.Id, member.DisplayName, member.Role.ToString().ToLowerInvariant(), member.AvatarColor);
@@ -350,15 +382,17 @@ public sealed class ChoreService(
     private static ChoreCompletionResponse MapCompletion(ChoreCompletion item) =>
         new(item.Id, item.ChoreAssignmentId, MapMember(item.CompletedByMember),
             item.Status.ToString()[..1].ToLowerInvariant() + item.Status.ToString()[1..], item.WasSharedDisplay,
-            item.CompletedAt, item.ReviewedByMember is null ? null : MapMember(item.ReviewedByMember),
-            item.ReviewedAt, item.ReviewNote, item.Version);
+            item.PointValueSnapshot, item.CompletedAt,
+            item.ReviewedByMember is null ? null : MapMember(item.ReviewedByMember),
+            item.ReviewedAt, item.ReviewNote, item.Version,
+            item.PointTransaction is null ? null : new PointAwardResponse(item.PointTransaction.Id, item.PointTransaction.Amount));
 
     private static ChoreAssignmentResponse MapAssignment(ChoreAssignment item, DateTimeOffset now)
     {
         var pending = item.Completions.SingleOrDefault(c => c.Status == ChoreCompletionStatus.PendingReview);
         var status = item.Status.ToString();
         return new(item.Id, item.ChoreDefinitionId, item.TitleSnapshot, item.DescriptionSnapshot,
-            MapMember(item.HouseholdMember), item.DueLocalDate, item.DueLocalTime, item.DueAt,
+            item.PointValueSnapshot, MapMember(item.HouseholdMember), item.DueLocalDate, item.DueLocalTime, item.DueAt,
             item.DueTimeZone, item.DueHasExplicitTime,
             status[..1].ToLowerInvariant() + status[1..],
             item.Status == ChoreAssignmentStatus.Pending && item.DueAt < now, item.Version,

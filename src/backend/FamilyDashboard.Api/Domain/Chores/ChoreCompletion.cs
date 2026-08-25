@@ -12,6 +12,7 @@ public sealed class ChoreCompletion
     public Guid CompletedByMemberId { get; set; }
     public Guid? SubmittedByUserAccountId { get; set; }
     public bool WasSharedDisplay { get; set; }
+    public int PointValueSnapshot { get; set; }
     public Guid? ReviewedByMemberId { get; set; }
     public ChoreCompletionStatus Status { get; set; } = ChoreCompletionStatus.PendingReview;
     public DateTimeOffset CompletedAt { get; set; } = DateTimeOffset.UtcNow;

@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyDashboard.Api.Features.Points;
 
-public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvider timeProvider)
+public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvider timeProvider,
+    PointLedgerLock ledgerLock)
 {
     public async Task<HouseholdPointSummaryResponse> GetSummaryAsync(
         Guid householdId, CancellationToken cancellationToken)
@@ -49,6 +50,8 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
         Guid householdId, Guid actorUserAccountId, CreatePointAdjustmentRequest request,
         CancellationToken cancellationToken)
     {
+        await using var databaseTransaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await ledgerLock.AcquireAsync(householdId, request.HouseholdMemberId, cancellationToken);
         var key = $"adjustment:{request.ClientRequestId:N}";
         var existing = await TransactionQuery(householdId)
             .SingleOrDefaultAsync(item => item.IdempotencyKey == key, cancellationToken);
@@ -77,7 +80,7 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
             CreatedByMember = actor,
         };
         dbContext.PointTransactions.Add(transaction);
-        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        try { await dbContext.SaveChangesAsync(cancellationToken); await databaseTransaction.CommitAsync(cancellationToken); }
         catch (DbUpdateException) { return new(PointOperationStatus.ConcurrencyConflict); }
         return new(PointOperationStatus.Success, MapTransaction(transaction));
     }
@@ -98,6 +101,19 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
         var original = await TransactionQuery(householdId)
             .SingleOrDefaultAsync(item => item.Id == transactionId, cancellationToken);
         if (original is null) return new(PointOperationStatus.TransactionNotFound);
+        await using var databaseTransaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await ledgerLock.AcquireAsync(householdId, original.HouseholdMemberId, cancellationToken);
+        existing = await TransactionQuery(householdId)
+            .SingleOrDefaultAsync(item => item.IdempotencyKey == key, cancellationToken);
+        if (existing is not null)
+            return existing.Type == PointTransactionType.Reversal
+                && existing.ReversesPointTransactionId == transactionId
+                && existing.Description == request.Reason
+                ? new(PointOperationStatus.Success, MapTransaction(existing))
+                : new(PointOperationStatus.IdempotencyConflict);
+        original = await TransactionQuery(householdId)
+            .SingleOrDefaultAsync(item => item.Id == transactionId, cancellationToken);
+        if (original is null) return new(PointOperationStatus.TransactionNotFound);
         if (original.Type is not (PointTransactionType.ChoreCompletion or PointTransactionType.Adjustment))
             return new(PointOperationStatus.NotReversible);
         if (original.ReversalTransaction is not null) return new(PointOperationStatus.AlreadyReversed);
@@ -116,7 +132,7 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
             CreatedAt = timeProvider.GetUtcNow(),
         };
         dbContext.PointTransactions.Add(reversal);
-        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        try { await dbContext.SaveChangesAsync(cancellationToken); await databaseTransaction.CommitAsync(cancellationToken); }
         catch (DbUpdateException) { return new(PointOperationStatus.ConcurrencyConflict); }
         reversal.HouseholdMember = original.HouseholdMember;
         reversal.CreatedByMember = actor;
@@ -145,7 +161,7 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
     private static PointTransactionResponse MapTransaction(PointTransaction item) =>
         new(item.Id, MapMember(item.HouseholdMember), item.Amount,
             item.Type.ToString()[..1].ToLowerInvariant() + item.Type.ToString()[1..],
-            item.Description, item.ChoreCompletionId, item.ReversesPointTransactionId,
+            item.Description, item.ChoreCompletionId, item.RewardRedemptionId, item.ReversesPointTransactionId,
             item.CreatedByMember is null ? null : MapMember(item.CreatedByMember), item.CreatedAt,
             item.ReversalTransaction is not null);
 }

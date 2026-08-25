@@ -11,6 +11,7 @@ const transaction: PointTransactionResponse = {
   type: 'choreCompletion',
   description: 'Completed Feed Milo',
   choreCompletionId: 'completion-1',
+  rewardRedemptionId: null,
   reversesPointTransactionId: null,
   createdByMember: { id: 'adult-1', displayName: 'Ryan', role: 'adult', avatarColor: null, isActive: true },
   createdAt: '2026-08-25T12:00:00Z',

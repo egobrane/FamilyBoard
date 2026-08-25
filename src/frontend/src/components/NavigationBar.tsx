@@ -4,7 +4,7 @@ const navigationItems = [
   { id: 'home', label: 'Home', icon: '⌂', to: '/' },
   { id: 'calendar', label: 'Calendar', icon: '□', to: '/calendar' },
   { id: 'chores', label: 'Chores', icon: '✓', to: '/chores' },
-  { id: 'points', label: 'Points', icon: '★', to: '/points' },
+  { id: 'rewards', label: 'Rewards', icon: '★', to: '/rewards' },
 ] as const
 
 export function NavigationBar() {
@@ -17,7 +17,7 @@ export function NavigationBar() {
           : location.pathname === `/${item.id}`
         return (
           <Link
-            aria-current={current ? item.id === 'chores' || item.id === 'points' ? 'location' : 'page' : undefined}
+            aria-current={current ? item.id === 'chores' || item.id === 'rewards' ? 'location' : 'page' : undefined}
             className={`navigation__item ${current ? 'navigation__item--current' : ''}`}
             key={item.label}
             to={item.to}

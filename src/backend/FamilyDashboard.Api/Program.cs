@@ -7,6 +7,7 @@ using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Features.Invitations;
 using FamilyDashboard.Api.Features.ParentAccess;
 using FamilyDashboard.Api.Features.Points;
+using FamilyDashboard.Api.Features.Rewards;
 using FamilyDashboard.Api.Persistence;
 using FamilyDashboard.Api.Security;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -34,6 +35,8 @@ builder.Services.AddScoped<ChoreService>();
 builder.Services.AddScoped<ChoreScheduleService>();
 builder.Services.AddScoped<ChoreAssignmentGenerator>();
 builder.Services.AddScoped<PointService>();
+builder.Services.AddScoped<PointLedgerLock>();
+builder.Services.AddScoped<RewardService>();
 builder.Services.AddSingleton<ChoreRecurrenceCalculator>();
 builder.Services.AddSingleton<ChoreDueTimeService>();
 builder.Services.AddSingleton<CalendarTokenProtector>();
@@ -247,6 +250,7 @@ app.MapParentAccessEndpoints();
 app.MapGoogleCalendarEndpoints();
 app.MapChoreEndpoints();
 app.MapPointEndpoints();
+app.MapRewardEndpoints();
 
 await app.RunAsync();
 

@@ -109,4 +109,37 @@ public sealed class DatabaseMigrationTests
         Assert.Empty(context.PointTransactions);
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());
     }
+
+    [PostgreSqlFact]
+    public async Task RewardWorkflowMigrationBackfillsAndPreservesExistingRedemptions()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!;
+        var options = new DbContextOptionsBuilder<FamilyDashboardDbContext>().UseNpgsql(connectionString).Options;
+        await using var context = new FamilyDashboardDbContext(options);
+        await context.Database.EnsureDeletedAsync();
+        var migrator = context.Database.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260825122424_AddChorePointLedger");
+        var householdId = Guid.NewGuid(); var memberId = Guid.NewGuid(); var rewardId = Guid.NewGuid();
+        var redemptionId = Guid.NewGuid(); var now = DateTimeOffset.UtcNow;
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "Households" ("Id", "Name", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({householdId}, {"Existing Reward Family"}, {true}, {now}, {now});
+            INSERT INTO "HouseholdMembers" ("Id", "HouseholdId", "DisplayName", "Role", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({memberId}, {householdId}, {"Existing Child"}, {"Child"}, {true}, {now}, {now});
+            INSERT INTO "Rewards" ("Id", "HouseholdId", "Title", "Description", "PointCost", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({rewardId}, {householdId}, {"Existing Reward"}, {"Existing description"}, {75}, {true}, {now}, {now});
+            INSERT INTO "RewardRedemptions" ("Id", "RewardId", "HouseholdMemberId", "PointCostSnapshot", "Status", "RequestedAt")
+            VALUES ({redemptionId}, {rewardId}, {memberId}, {75}, {"Requested"}, {now});
+            """);
+
+        await migrator.MigrateAsync(); context.ChangeTracker.Clear();
+        var reward = await context.Rewards.SingleAsync(item => item.Id == rewardId);
+        var redemption = await context.RewardRedemptions.SingleAsync(item => item.Id == redemptionId);
+        Assert.Equal(rewardId, reward.ClientRequestId); Assert.Equal(1, reward.Version);
+        Assert.Equal(householdId, redemption.HouseholdId); Assert.Equal(redemptionId, redemption.ClientRequestId);
+        Assert.Equal("Existing Reward", redemption.RewardTitleSnapshot);
+        Assert.Equal("Existing description", redemption.RewardDescriptionSnapshot);
+        Assert.Equal(1, redemption.Version); Assert.Null(redemption.PointTransaction);
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync());
+    }
 }

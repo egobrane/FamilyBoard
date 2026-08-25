@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import { DashboardCard } from '../../components/DashboardCard'
 import { DashboardCalendarCard } from '../calendar/DashboardCalendarCard'
 import { DashboardChoresCard } from '../chores/DashboardChoresCard'
-import { DashboardPointsCard } from '../points/DashboardPointsCard'
+import { DashboardRewardsCard } from '../rewards/DashboardRewardsCard'
 import { demoHouseholdPhotoUrl } from './mockDashboardData'
 
 export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
@@ -25,7 +25,7 @@ export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { h
 
       <DashboardChoresCard />
 
-      <DashboardPointsCard />
+      <DashboardRewardsCard />
     </main>
   )
 }

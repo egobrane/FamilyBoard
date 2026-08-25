@@ -16,6 +16,8 @@ public sealed class PointTransactionEntityConfiguration : IEntityTypeConfigurati
                 "(\"Type\" = 'Reversal' AND \"ReversesPointTransactionId\" IS NOT NULL) OR (\"Type\" <> 'Reversal' AND \"ReversesPointTransactionId\" IS NULL)");
             table.HasCheckConstraint("CK_PointTransactions_ChoreCompletionLink",
                 "\"Type\" <> 'ChoreCompletion' OR (\"ChoreCompletionId\" IS NOT NULL AND \"Amount\" > 0)");
+            table.HasCheckConstraint("CK_PointTransactions_RewardRedemptionLink",
+                "\"Type\" <> 'RewardRedemption' OR (\"RewardRedemptionId\" IS NOT NULL AND \"Amount\" < 0)");
         });
         builder.HasKey(transaction => transaction.Id);
         builder.HasAlternateKey(transaction => new { transaction.HouseholdId, transaction.Id });
@@ -50,7 +52,8 @@ public sealed class PointTransactionEntityConfiguration : IEntityTypeConfigurati
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(transaction => transaction.RewardRedemption)
             .WithOne(redemption => redemption.PointTransaction)
-            .HasForeignKey<PointTransaction>(transaction => transaction.RewardRedemptionId)
+            .HasForeignKey<PointTransaction>(transaction => new { transaction.HouseholdId, transaction.RewardRedemptionId })
+            .HasPrincipalKey<RewardRedemption>(redemption => new { redemption.HouseholdId, redemption.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(transaction => transaction.ReversesPointTransaction)
             .WithOne(transaction => transaction.ReversalTransaction)

@@ -81,6 +81,17 @@ public static class ApiProblemCodes
     public const string PointTransactionAlreadyReversed = "point_transaction_already_reversed";
     public const string PointTransactionNotReversible = "point_transaction_not_reversible";
     public const string PointConcurrencyConflict = "point_concurrency_conflict";
+    public const string RewardNotFound = "reward_not_found";
+    public const string RewardMemberNotFound = "reward_member_not_found";
+    public const string RewardInactive = "reward_inactive";
+    public const string RewardMemberInactive = "reward_member_inactive";
+    public const string RewardInsufficientPoints = "reward_insufficient_points";
+    public const string RewardIdempotencyConflict = "reward_idempotency_conflict";
+    public const string RewardConcurrencyConflict = "reward_concurrency_conflict";
+    public const string RewardRedemptionNotFound = "reward_redemption_not_found";
+    public const string RewardRedemptionIdempotencyConflict = "reward_redemption_idempotency_conflict";
+    public const string RewardRedemptionInvalidTransition = "reward_redemption_invalid_transition";
+    public const string RewardRedemptionLegacyRequiresResolution = "reward_redemption_legacy_requires_resolution";
     public const string UnexpectedError = "unexpected_error";
 }
 

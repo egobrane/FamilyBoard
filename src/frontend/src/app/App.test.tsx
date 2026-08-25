@@ -81,13 +81,13 @@ describe('App', () => {
         upcoming: [],
         awaitingReviewCount: 0,
       })
-      if (path.endsWith('/points/summary')) return jsonResponse({
-        householdBalance: 145,
+      if (path.endsWith('/rewards')) return jsonResponse({
+        rewards: [{ id: 'reward-1', title: 'Movie night', description: null, pointCost: 50, isActive: true, version: 1,
+          createdAt: '2026-08-25T12:00:00Z', updatedAt: '2026-08-25T12:00:00Z' }],
         members: [
           { memberId: 'member-2', displayName: 'Oliver', role: 'child', avatarColor: 'coral', isActive: true, balance: 85 },
           { memberId: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', isActive: true, balance: 60 },
         ],
-        recentTransactions: [],
       })
       if (path.endsWith('/calendar/events')) return jsonResponse({
         events: [{

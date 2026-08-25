@@ -52,6 +52,7 @@ let householdInvitations: Array<{
   revokedAt: string | null
 }> = []
 let choreSchedules: Array<Record<string, unknown>> = []
+let rewardRedemptions: Array<Record<string, unknown>> = []
 
 test.beforeEach(async ({ page }) => {
   householdName = authenticatedUser.households[0].name
@@ -66,6 +67,7 @@ test.beforeEach(async ({ page }) => {
   }]
   householdInvitations = []
   choreSchedules = []
+  rewardRedemptions = []
   await page.route('http://localhost:8080/api/**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/me') {
@@ -303,6 +305,27 @@ test.beforeEach(async ({ page }) => {
       })), recentTransactions: [] } })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/rewards`) {
+      await route.fulfill({ json: { rewards: [{ id: 'reward-1', title: 'Movie night', description: 'Choose the movie',
+        pointCost: 20, isActive: true, version: 1, createdAt: '2026-08-25T12:00:00Z', updatedAt: '2026-08-25T12:00:00Z' }],
+        members: householdMembers.map((member, index) => ({ memberId: member.id, displayName: member.displayName,
+          role: member.role, avatarColor: member.avatarColor, isActive: member.isActive, balance: index === 0 ? 25 : 10 })) } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/reward-redemptions`) {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON() as { rewardId: string; householdMemberId: string }
+        const item = { id: 'redemption-1', rewardId: body.rewardId, rewardTitle: 'Movie night',
+          rewardDescription: 'Choose the movie', pointCost: 20, householdMember: householdMembers[0],
+          status: 'requested', requestedByMember: householdMembers[0], wasSharedDisplay: currentSession.isSharedDisplay,
+          requestedAt: '2026-08-25T12:00:00Z', reviewedByMember: null, reviewedAt: null, reviewNote: null,
+          fulfilledByMember: null, fulfilledAt: null, cancelledByMember: null, cancelledAt: null,
+          cancellationReason: null, version: 1 }
+        rewardRedemptions.unshift(item); await route.fulfill({ status: 201, json: item }); return
+      }
+      await route.fulfill({ json: { items: rewardRedemptions, nextCursor: null } })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-transactions`) {
       await route.fulfill({ json: { items: [], nextCursor: null } })
       return
@@ -373,15 +396,25 @@ test('dashboard shell has no automatically detectable serious accessibility issu
     .toEqual([])
 })
 
-test('primary navigation opens real household points with a pointer click', async ({ page }) => {
+test('primary navigation opens the reward catalog with a pointer click', async ({ page }) => {
   await page.goto('/')
 
-  const pointsLink = page.getByRole('link', { name: 'Points', exact: true })
-  await pointsLink.click()
+  const rewardsLink = page.getByRole('link', { name: 'Rewards', exact: true })
+  await rewardsLink.click()
 
-  await expect(page).toHaveURL(/\/points$/)
-  await expect(pointsLink).toHaveAttribute('aria-current', 'location')
-  await expect(page.getByRole('heading', { name: 'Member balances' })).toBeVisible()
+  await expect(page).toHaveURL(/\/rewards$/)
+  await expect(rewardsLink).toHaveAttribute('aria-current', 'location')
+  await expect(page.getByRole('heading', { name: 'Reward catalog' })).toBeVisible()
+})
+
+test('reward redemption requires explicit member attribution and confirms the request', async ({ page }) => {
+  await page.goto('/rewards')
+  await page.getByLabel('Points belong to').selectOption(authenticatedUser.households[0].memberId)
+  await page.getByRole('button', { name: 'Redeem reward' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Request for 20 points' }).click()
+  await expect(page.getByText('Reward request sent for adult review.')).toBeVisible()
+  await expect(page.getByText(/requested/i)).toBeVisible()
 })
 
 test('chore board supports explicit household-member completion', async ({ page }) => {

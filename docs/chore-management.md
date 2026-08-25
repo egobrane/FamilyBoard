@@ -1,6 +1,6 @@
 # Chore Management
 
-Chore Management Increment 1 implements product-owned chore definitions, one-time assignments, attributed completion, and adult review. Increment 2 adds household-local recurring schedules and automatic assignment generation. Points, rewards, notifications, and Calendar coupling remain intentionally deferred.
+Chore Management Increment 1 implements product-owned chore definitions, one-time assignments, attributed completion, and adult review. Increment 2 adds household-local recurring schedules and automatic assignment generation. Increment 3 adds snapshotted point awards, derived member balances, and an append-only correction ledger. Rewards, notifications, and Calendar coupling remain intentionally deferred.
 
 ## Behavior
 
@@ -89,3 +89,7 @@ The job runs `--generate-chore-assignments` on schedule `7 * * * *`, uses the sa
 Each definition has a point value from 0 through 10,000. One-time and generated assignments snapshot that value, and each completion attempt snapshots it again. Definition edits therefore affect only future assignments. Approval and the assignment status update commit in the same PostgreSQL transaction as at most one normal point award; rejection and zero-point approval create no award. Previously approved completions are not awarded retroactively.
 
 Point history is append-only. Household and member balances are derived by summing signed transactions instead of trusting a client or mutable balance column. Adults may record signed administrative adjustments, and may reverse a chore award or adjustment through an exact compensating transaction. Original entries remain visible. Routine balance/history reads remain available on a locked shared display, while review, adjustment, and reversal require parent elevation there. Inactive members retain their history and balance.
+
+## Increment 3 staging result
+
+The additive `AddChorePointLedger` migration and matching API/PWA release succeeded on 2026-08-25. Recurring chores continued to operate, editing a definition to provide points affected new assignment snapshots, approval produced the expected member balance and history, and an administrative negative correction changed the balance while retaining the append-only audit trail. Concurrent single-award behavior, zero-point approval, inactive-member history, household isolation, parent-elevation enforcement, and responsive point-history behavior remain proven by automated tests unless separately owner-confirmed.

@@ -13,6 +13,7 @@ public sealed record PointTransactionResponse(
     string Type,
     string Description,
     Guid? ChoreCompletionId,
+    Guid? RewardRedemptionId,
     Guid? ReversesPointTransactionId,
     PointMemberResponse? CreatedByMember,
     DateTimeOffset CreatedAt,

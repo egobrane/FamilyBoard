@@ -269,11 +269,29 @@ export interface PointTransactionResponse {
   type: 'choreCompletion' | 'rewardRedemption' | 'adjustment' | 'reversal'
   description: string
   choreCompletionId: string | null
+  rewardRedemptionId: string | null
   reversesPointTransactionId: string | null
   createdByMember: PointMemberResponse | null
   createdAt: string
   isReversed: boolean
 }
+
+export interface RewardResponse {
+  id: string; title: string; description: string | null; pointCost: number
+  isActive: boolean; version: number; createdAt: string; updatedAt: string
+}
+export interface RewardRedemptionResponse {
+  id: string; rewardId: string; rewardTitle: string; rewardDescription: string | null
+  pointCost: number; householdMember: PointMemberResponse
+  status: 'requested' | 'approved' | 'fulfilled' | 'rejected' | 'cancelled'
+  requestedByMember: PointMemberResponse | null; wasSharedDisplay: boolean; requestedAt: string
+  reviewedByMember: PointMemberResponse | null; reviewedAt: string | null; reviewNote: string | null
+  fulfilledByMember: PointMemberResponse | null; fulfilledAt: string | null
+  cancelledByMember: PointMemberResponse | null; cancelledAt: string | null
+  cancellationReason: string | null; version: number
+}
+export interface RewardCatalogResponse { rewards: RewardResponse[]; members: PointMemberBalanceResponse[] }
+export interface RewardRedemptionListResponse { items: RewardRedemptionResponse[]; nextCursor: string | null }
 
 export interface HouseholdPointSummaryResponse {
   householdBalance: number
@@ -609,6 +627,46 @@ export function reversePointTransaction(householdId: string, transactionId: stri
     `/api/households/${encodeURIComponent(householdId)}/point-transactions/${encodeURIComponent(transactionId)}/reverse`,
     'POST', { clientRequestId, reason },
   )
+}
+
+export function getRewardCatalog(householdId: string) {
+  return request<RewardCatalogResponse>(`/api/households/${encodeURIComponent(householdId)}/rewards`)
+}
+export function listRewardDefinitions(householdId: string) {
+  return request<RewardResponse[]>(`/api/households/${encodeURIComponent(householdId)}/reward-definitions`)
+}
+export function createRewardDefinition(householdId: string, body: {
+  clientRequestId: string; title: string; description: string | null; pointCost: number
+}) { return unsafeRequest<RewardResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-definitions`, 'POST', body) }
+export function updateRewardDefinition(householdId: string, reward: RewardResponse, body: {
+  title: string; description: string | null; pointCost: number
+}) { return unsafeRequest<RewardResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-definitions/${encodeURIComponent(reward.id)}`,
+  'PATCH', { ...body, expectedVersion: reward.version }) }
+export function setRewardActive(householdId: string, reward: RewardResponse, active: boolean) {
+  return unsafeRequest<RewardResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-definitions/${encodeURIComponent(reward.id)}/${active ? 'activate' : 'deactivate'}`,
+    'POST', { expectedVersion: reward.version })
+}
+export function requestRewardRedemption(householdId: string, rewardId: string,
+  householdMemberId: string | null, clientRequestId: string) {
+  return unsafeRequest<RewardRedemptionResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-redemptions`,
+    'POST', { clientRequestId, rewardId, householdMemberId })
+}
+export function listRewardRedemptions(householdId: string, status?: string) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return request<RewardRedemptionListResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-redemptions${query}`)
+}
+export function reviewRewardRedemption(householdId: string, item: RewardRedemptionResponse,
+  decision: 'approved' | 'rejected', note: string | null) {
+  return unsafeRequest<RewardRedemptionResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-redemptions/${encodeURIComponent(item.id)}/review`,
+    'POST', { expectedVersion: item.version, decision, note })
+}
+export function fulfillRewardRedemption(householdId: string, item: RewardRedemptionResponse) {
+  return unsafeRequest<RewardRedemptionResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-redemptions/${encodeURIComponent(item.id)}/fulfill`,
+    'POST', { expectedVersion: item.version })
+}
+export function cancelRewardRedemption(householdId: string, item: RewardRedemptionResponse, reason: string) {
+  return unsafeRequest<RewardRedemptionResponse>(`/api/households/${encodeURIComponent(householdId)}/reward-redemptions/${encodeURIComponent(item.id)}/cancel`,
+    'POST', { expectedVersion: item.version, reason })
 }
 
 export function listHouseholdInvitations(householdId: string) {

@@ -17,6 +17,33 @@ namespace FamilyDashboard.Api.Tests.Endpoints;
 public sealed class RewardEndpointTests
 {
     [PostgreSqlFact]
+    public async Task CatalogReturnsActiveRewardsAndActiveMemberBalances()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount { DisplayName = "Catalog Adult", PrimaryEmail = "reward-catalog@example.test" };
+        database.DbContext.UserAccounts.Add(account); await database.DbContext.SaveChangesAsync();
+        using var client = Client(database.Factory, account.Id);
+        var household = await Bootstrap(client);
+
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-adjustments",
+            new CreatePointAdjustmentRequest(Guid.NewGuid(), household.Access.MemberId, 75, "Starting points"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/reward-definitions",
+            new CreateRewardRequest(Guid.NewGuid(), "Movie night", "Choose the movie", 40))).StatusCode);
+
+        var catalog = await client.GetFromJsonAsync<RewardCatalogResponse>($"/api/households/{household.Id}/rewards");
+
+        var reward = Assert.Single(catalog!.Rewards);
+        Assert.Equal("Movie night", reward.Title);
+        Assert.Equal(40, reward.PointCost);
+        var member = Assert.Single(catalog.Members);
+        Assert.Equal(household.Access.MemberId, member.MemberId);
+        Assert.Equal(75, member.Balance);
+        Assert.True(member.IsActive);
+    }
+
+    [PostgreSqlFact]
     public async Task RedemptionReservesPointsAndRejectionRestoresThemAppendOnly()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();

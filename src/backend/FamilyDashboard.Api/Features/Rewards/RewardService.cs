@@ -12,8 +12,18 @@ public sealed class RewardService(FamilyDashboardDbContext db, TimeProvider cloc
     {
         var rewards = await db.Rewards.AsNoTracking().Where(x => x.HouseholdId == householdId && x.IsActive)
             .OrderBy(x => x.PointCost).ThenBy(x => x.Title).ToListAsync(token);
-        var members = await BalanceQuery(householdId).Where(x => x.IsActive).ToListAsync(token);
-        return new(rewards.Select(MapReward).ToList(), members);
+        var members = await db.HouseholdMembers.AsNoTracking()
+            .Where(x => x.HouseholdId == householdId && x.IsActive)
+            .OrderBy(x => x.DisplayName)
+            .ToListAsync(token);
+        var balances = await db.PointTransactions.AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
+            .GroupBy(x => x.HouseholdMemberId)
+            .Select(x => new { MemberId = x.Key, Balance = x.Sum(item => (long)item.Amount) })
+            .ToDictionaryAsync(x => x.MemberId, x => x.Balance, token);
+        return new(rewards.Select(MapReward).ToList(), members.Select(x => new PointMemberBalanceResponse(
+            x.Id, x.DisplayName, x.Role == HouseholdMemberRole.Adult ? "adult" : "child", x.AvatarColor,
+            x.IsActive, balances.GetValueOrDefault(x.Id))).ToList());
     }
 
     public async Task<IReadOnlyList<RewardResponse>> ListDefinitionsAsync(Guid householdId, CancellationToken token) =>
@@ -182,10 +192,6 @@ public sealed class RewardService(FamilyDashboardDbContext db, TimeProvider cloc
         .Include(x => x.HouseholdMember).Include(x => x.RequestedByMember).Include(x => x.ReviewedByMember)
         .Include(x => x.FulfilledByMember).Include(x => x.CancelledByMember).Include(x => x.PointTransaction)
         .Where(x => x.HouseholdId == householdId);
-    private IQueryable<PointMemberBalanceResponse> BalanceQuery(Guid householdId) => db.HouseholdMembers.AsNoTracking()
-        .Where(m => m.HouseholdId == householdId).Select(m => new PointMemberBalanceResponse(m.Id, m.DisplayName,
-            m.Role == HouseholdMemberRole.Adult ? "adult" : "child", m.AvatarColor, m.IsActive,
-            db.PointTransactions.Where(t => t.HouseholdId == householdId && t.HouseholdMemberId == m.Id).Sum(t => (long?)t.Amount) ?? 0));
     private Task<HouseholdMember?> AdultAsync(Guid householdId, Guid userId, CancellationToken token) => db.HouseholdMemberships
         .Where(x => x.HouseholdId == householdId && x.UserAccountId == userId && x.HouseholdMember.IsActive)
         .Select(x => x.HouseholdMember).SingleOrDefaultAsync(token);

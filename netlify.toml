@@ -6,6 +6,9 @@
 [build.environment]
   NODE_VERSION = "24"
 
+[context.deploy-preview]
+  command = "npm ci && VITE_API_BASE_URL=https://api-preview.invalid npm run build"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

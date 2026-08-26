@@ -2,7 +2,7 @@
 
 ## Ownership
 
-PostgreSQL stores product-owned household, integration configuration, chore, point, reward, and preference data. Google Calendar and Google Tasks data remain externally owned; Calendar Increment 1 caches normalized event responses only in process memory and never persists events.
+PostgreSQL stores product-owned household, integration configuration, chore, point, reward, and preference data. Google Calendar and Google Tasks data remain externally owned; Calendar event responses are cached only in process memory and are never persisted. Creation and mutation receipts retain only opaque provider/source references, hashes, attribution, versions, operation status, timestamps, and trace correlation—not event titles, notes, locations, or times.
 
 ## Model
 
@@ -46,7 +46,7 @@ Migration `AddRecurringChoreSchedules` is additive. It creates `ChoreSchedules`,
 
 Migration `AddChorePointLedger` is additive and preservation-oriented. It adds point snapshots to assignments and completions, backfills them from definitions and assignments, adds point actors and compensating-reversal relationships, scopes idempotency to a household, and adds household-safe foreign keys and ledger indexes. It creates no retroactive award for an existing approved completion. Empty-database and populated-history migration tests pass against PostgreSQL 18. Azure execution `family-dashboard-staging-mig-n77m6k1` applied `20260825122424_AddChorePointLedger` with EF Core `10.0.10` on 2026-08-25 before API revision `family-dashboard-staging-api--0000029` received traffic. Current balances are calculated as 64-bit sums of immutable signed transactions rather than stored in a mutable cache.
 
-Migration `AddRewardRedemptionWorkflow` is additive and preservation-oriented. It backfills existing rewards and redemptions with household scope, stable request IDs, snapshots, and version values before adding uniqueness and household-safe foreign keys. It deliberately creates no point reservation for a legacy redemption; such a row can be rejected or cancelled but cannot be approved or fulfilled without an explicit future resolution workflow.
+Migration `AddRewardRedemptionWorkflow` is additive and preservation-oriented. It backfills existing rewards and redemptions with household scope, stable request IDs, snapshots, and version values before adding uniqueness and household-safe foreign keys. It deliberately creates no point reservation for a legacy redemption; such a row can be rejected or cancelled but cannot be approved or fulfilled without an explicit future resolution workflow. Azure execution `family-dashboard-staging-mig-ljztzuk` completed successfully before reward API revision `family-dashboard-staging-api--0000030` received traffic; correction execution `family-dashboard-staging-mig-9oznksx` subsequently confirmed the reviewed release could migrate before revision `family-dashboard-staging-api--0000031`.
 
 ## Creating a migration
 

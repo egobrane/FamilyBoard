@@ -60,6 +60,7 @@ jobs:
           PARENT_ACCESS_ENABLED="$(jq -r '.parameters.enableParentAccess.value' <<< "$parameters")"
           GOOGLE_CALENDAR_ENABLED="$(jq -r '.parameters.enableGoogleCalendar.value' <<< "$parameters")"
           GOOGLE_CALENDAR_EVENT_CREATION_ENABLED="$(jq -r '.parameters.enableGoogleCalendarEventCreation.value' <<< "$parameters")"
+          GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED="$(jq -r '.parameters.enableGoogleCalendarEventManagement.value' <<< "$parameters")"
           GOOGLE_CALENDAR_CLIENT_ID="$(jq -r '.parameters.googleCalendarClientId.value' <<< "$parameters")"
           CHORE_GENERATION_HORIZON_HOURS="$(jq -r '.parameters.choreGenerationHorizonHours.value' <<< "$parameters")"
           CHORE_GENERATION_MAXIMUM_ASSIGNMENTS="$(jq -r '.parameters.choreGenerationMaximumAssignmentsPerRun.value' <<< "$parameters")"
@@ -82,6 +83,7 @@ jobs:
             echo "PARENT_ACCESS_ENABLED=$PARENT_ACCESS_ENABLED"
             echo "GOOGLE_CALENDAR_ENABLED=$GOOGLE_CALENDAR_ENABLED"
             echo "GOOGLE_CALENDAR_EVENT_CREATION_ENABLED=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
+            echo "GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED=$GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED"
             echo "GOOGLE_CALENDAR_CLIENT_ID=$GOOGLE_CALENDAR_CLIENT_ID"
             echo "CHORE_GENERATION_HORIZON_HOURS=$CHORE_GENERATION_HORIZON_HOURS"
             echo "CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
@@ -142,6 +144,7 @@ jobs:
           env_value() {
             jq -r --arg name "$1" '.properties.template.containers[0].env[] | select(.name == $name) | .value // empty' <<< "$api_json"
           }
+          previous_google_calendar_event_management_enabled="$(env_value 'GoogleCalendar__EventManagementEnabled')"
 
           {
             echo "PREVIOUS_IMAGE=$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
@@ -152,6 +155,7 @@ jobs:
             echo "PREVIOUS_PARENT_ACCESS_ENABLED=$(env_value 'ParentAccess__Enabled')"
             echo "PREVIOUS_GOOGLE_CALENDAR_ENABLED=$(env_value 'GoogleCalendar__Enabled')"
             echo "PREVIOUS_GOOGLE_CALENDAR_EVENT_CREATION_ENABLED=$(env_value 'GoogleCalendar__EventCreationEnabled')"
+            echo "PREVIOUS_GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED=${previous_google_calendar_event_management_enabled:-false}"
             echo "PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID=$(env_value 'GoogleCalendar__ClientId')"
             echo "PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL=$(env_value 'GoogleCalendar__CallbackUrl')"
             echo "PREVIOUS_CHORE_GENERATION_HORIZON_HOURS=$(env_value 'ChoreGeneration__HorizonHours')"
@@ -224,6 +228,7 @@ jobs:
               "ParentAccess__Enabled=$PARENT_ACCESS_ENABLED" \
               "GoogleCalendar__Enabled=$GOOGLE_CALENDAR_ENABLED" \
               "GoogleCalendar__EventCreationEnabled=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
+              "GoogleCalendar__EventManagementEnabled=$GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED" \
               "GoogleCalendar__ClientId=$GOOGLE_CALENDAR_CLIENT_ID" \
               "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback" \
               "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS" \
@@ -311,6 +316,7 @@ jobs:
           assert_env 'ParentAccess__Enabled' "$PARENT_ACCESS_ENABLED"
           assert_env 'GoogleCalendar__Enabled' "$GOOGLE_CALENDAR_ENABLED"
           assert_env 'GoogleCalendar__EventCreationEnabled' "$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
+          assert_env 'GoogleCalendar__EventManagementEnabled' "$GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED"
           assert_env 'GoogleCalendar__ClientId' "$GOOGLE_CALENDAR_CLIENT_ID"
           assert_env 'GoogleCalendar__CallbackUrl' "https://$API_HOSTNAME/api/integrations/google-calendar/callback"
           assert_env 'ChoreGeneration__HorizonHours' "$CHORE_GENERATION_HORIZON_HOURS"
@@ -351,6 +357,7 @@ jobs:
               "ParentAccess__Enabled=$PREVIOUS_PARENT_ACCESS_ENABLED" \
               "GoogleCalendar__Enabled=$PREVIOUS_GOOGLE_CALENDAR_ENABLED" \
               "GoogleCalendar__EventCreationEnabled=$PREVIOUS_GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
+              "GoogleCalendar__EventManagementEnabled=$PREVIOUS_GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED" \
               "GoogleCalendar__ClientId=$PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID" \
               "GoogleCalendar__CallbackUrl=$PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL" \
               "ChoreGeneration__HorizonHours=$PREVIOUS_CHORE_GENERATION_HORIZON_HOURS" \

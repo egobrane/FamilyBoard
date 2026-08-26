@@ -86,7 +86,50 @@ public sealed record CalendarEventResponse(
     string End,
     string? TimeZone,
     string? Location,
-    string? Color);
+    string? Color,
+    bool CanEdit = false,
+    bool CanDelete = false,
+    Guid? ManagementId = null,
+    string? ProviderVersion = null,
+    string? ManagementUnavailableReason = null);
+
+public sealed record ManagedCalendarEventResponse(
+    Guid ManagementId,
+    Guid SourceId,
+    string CalendarName,
+    string Title,
+    string? Location,
+    string? Notes,
+    bool IsAllDay,
+    string Start,
+    string End,
+    string? TimeZone,
+    string ProviderVersion,
+    bool CanEdit,
+    bool CanDelete,
+    string? ManagementUnavailableReason);
+
+public sealed record UpdateCalendarEventRequest(
+    Guid IdempotencyKey,
+    string? ExpectedProviderVersion,
+    string? Title,
+    string? Location,
+    string? Notes,
+    bool IsAllDay,
+    string? Start,
+    string? End,
+    string? TimeZone);
+
+public sealed record DeleteCalendarEventRequest(
+    Guid IdempotencyKey,
+    string? ExpectedProviderVersion,
+    bool ConfirmDelete);
+
+public sealed record CalendarEventMutationResponse(
+    string Operation,
+    DateTimeOffset CompletedAt,
+    bool RecoveredExistingMutation,
+    ManagedCalendarEventResponse? Event);
 
 public sealed record CalendarWarningResponse(Guid SourceId, string Code, string Message);
 

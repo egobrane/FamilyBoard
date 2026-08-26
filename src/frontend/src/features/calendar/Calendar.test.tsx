@@ -38,6 +38,9 @@ describe('calendar integration', () => {
           id: 'event-1', sourceId: 'source-1', calendarName: 'School', title: 'Fall concert',
           isAllDay: false, start: '2026-08-20T22:00:00Z', end: '2026-08-21T00:00:00Z',
           timeZone: 'America/New_York', location: 'Auditorium', color: '#4285f4',
+          canEdit: true, canDelete: true,
+          managementId: '60000000-0000-0000-0000-000000000001',
+          providerVersion: 'etag-one', managementUnavailableReason: null,
         }],
         nextCursor: null, isStale: false, warnings: [],
       })
@@ -49,6 +52,8 @@ describe('calendar integration', () => {
     expect(await screen.findByText('Fall concert')).toBeInTheDocument()
     expect(screen.getByText('Auditorium')).toBeInTheDocument()
     expect(screen.getByText(/School/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Manage' })).toHaveAttribute(
+      'href', '/calendar/events/60000000-0000-0000-0000-000000000001/edit')
   })
 
   it('loads and saves the calendars selected for a household', async () => {

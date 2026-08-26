@@ -9,3 +9,4 @@ data:
   ParentAccess__Enabled: "true"
   GoogleCalendar__Enabled: "false"
   GoogleCalendar__EventCreationEnabled: "false"
+  GoogleCalendar__EventManagementEnabled: "false"

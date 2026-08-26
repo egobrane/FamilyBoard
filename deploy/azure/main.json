@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "5425065150020748780"
+      "templateHash": "16183956187832834802"
     }
   },
   "parameters": {
@@ -81,6 +81,13 @@
       "defaultValue": false,
       "metadata": {
         "description": "Enable only after Calendar write scopes are approved and Increment 2 is deployed and migrated."
+      }
+    },
+    "enableGoogleCalendarEventManagement": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable only after the Calendar event-management migration and reviewed API image are deployed."
       }
     },
     "googleCalendarClientId": {
@@ -909,6 +916,9 @@
           "enableGoogleCalendarEventCreation": {
             "value": "[parameters('enableGoogleCalendarEventCreation')]"
           },
+          "enableGoogleCalendarEventManagement": {
+            "value": "[parameters('enableGoogleCalendarEventManagement')]"
+          },
           "googleCalendarClientId": {
             "value": "[parameters('googleCalendarClientId')]"
           },
@@ -947,7 +957,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "8540737287174847437"
+              "templateHash": "10214091927424561768"
             }
           },
           "parameters": {
@@ -995,6 +1005,9 @@
               "type": "bool"
             },
             "enableGoogleCalendarEventCreation": {
+              "type": "bool"
+            },
+            "enableGoogleCalendarEventManagement": {
               "type": "bool"
             },
             "googleCalendarClientId": {
@@ -1105,7 +1118,7 @@
                         "cpu": "[json('0.25')]",
                         "memory": "0.5Gi"
                       },
-                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()))]",
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__EventManagementEnabled', 'value', string(parameters('enableGoogleCalendarEventManagement'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()))]",
                       "probes": [
                         {
                           "type": "Startup",

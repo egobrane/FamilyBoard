@@ -121,6 +121,12 @@ public sealed class CalendarEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, lockedResponse.StatusCode);
         Assert.Equal(ApiProblemCodes.ParentElevationRequired, await ProblemCodeAsync(lockedResponse));
 
+        using var lockedManagementResponse = await sharedClient.GetAsync(
+            $"/api/households/{firstHousehold.Id}/calendar/managed-events/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.Forbidden, lockedManagementResponse.StatusCode);
+        Assert.Equal(ApiProblemCodes.ParentElevationRequired,
+            await ProblemCodeAsync(lockedManagementResponse));
+
         using var routineResponse = await sharedClient.GetAsync(
             $"/api/households/{firstHousehold.Id}/calendar/events?from={Uri.EscapeDataString(DateTimeOffset.UtcNow.ToString("O"))}&to={Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(1).ToString("O"))}");
         Assert.Equal(HttpStatusCode.OK, routineResponse.StatusCode);

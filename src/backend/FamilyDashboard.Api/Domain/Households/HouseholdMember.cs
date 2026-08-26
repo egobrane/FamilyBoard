@@ -24,4 +24,5 @@ public sealed class HouseholdMember
     public ICollection<PointTransaction> CreatedPointTransactions { get; set; } = [];
     public ICollection<RewardRedemption> RewardRedemptions { get; set; } = [];
     public ICollection<CalendarEventCreationReceipt> AttributedCalendarEventCreations { get; set; } = [];
+    public ICollection<CalendarEventMutationReceipt> ActedCalendarEventMutations { get; set; } = [];
 }

@@ -626,6 +626,17 @@ public sealed class GoogleCalendarService(
         if (page is not null)
             sources = sources.Where(source => page.RemainingSources.ContainsKey(source.Id)).ToList();
 
+        var sourceIds = sources.Select(source => source.Id).ToArray();
+        var managedReceipts = await dbContext.CalendarEventCreationReceipts.AsNoTracking()
+            .Where(receipt => receipt.HouseholdId == householdId
+                && sourceIds.Contains(receipt.HouseholdCalendarSourceId)
+                && receipt.Status == CalendarEventCreationReceiptStatus.Succeeded
+                && receipt.ProviderEventId != null)
+            .ToDictionaryAsync(
+                receipt => (receipt.HouseholdCalendarSourceId, receipt.ProviderEventId!),
+                receipt => receipt.Id,
+                cancellationToken);
+
         var events = new List<CalendarEventResponse>();
         var warnings = new List<CalendarWarningResponse>();
         var remaining = new Dictionary<Guid, string?>();
@@ -659,10 +670,26 @@ public sealed class GoogleCalendarService(
                 if (result.Warning?.Code == Common.ApiProblemCodes.CalendarReauthorizationRequired
                     && connectionsRequiringAuthorization.Add(connection.Id))
                     await MarkReauthorizationRequiredAsync(connection, cancellationToken);
-                events.AddRange(result.Page.Events.Select(item => new CalendarEventResponse(
-                    item.Id, source.Id, source.DisplayNameSnapshot, item.Title,
-                    item.IsAllDay, item.Start, item.End, item.TimeZone,
-                    item.Location, source.Color)));
+                events.AddRange(result.Page.Events.Select(item =>
+                {
+                    var isManaged = managedReceipts.TryGetValue((source.Id, item.Id), out var managementId);
+                    var canManage = _configuration.EventManagementEnabled && isManaged
+                        && !item.IsRecurring && !item.HasUnsupportedStructure
+                        && !string.IsNullOrWhiteSpace(item.ProviderVersion);
+                    var reason = !isManaged ? null
+                        : !_configuration.EventManagementEnabled ? "Event management is not enabled."
+                        : item.IsRecurring ? "Recurring events remain read-only."
+                        : item.HasUnsupportedStructure ? "This event has Google features Family Dashboard does not modify."
+                        : string.IsNullOrWhiteSpace(item.ProviderVersion) ? "Google did not provide a version for this event."
+                        : null;
+                    return new CalendarEventResponse(
+                        item.Id, source.Id, source.DisplayNameSnapshot, item.Title,
+                        item.IsAllDay, item.Start, item.End, item.TimeZone,
+                        item.Location, source.Color, canManage, canManage,
+                        isManaged ? managementId : null,
+                        isManaged ? item.ProviderVersion : null,
+                        reason);
+                }));
                 remainingCapacity -= result.Page.Events.Count;
                 if (result.Page.NextPageToken is not null)
                     remaining[source.Id] = result.Page.NextPageToken;
@@ -733,7 +760,7 @@ public sealed class GoogleCalendarService(
         return connection;
     }
 
-    private async Task<string> GetAccessTokenAsync(
+    internal async Task<string> GetAccessTokenAsync(
         GoogleCalendarConnection connection, CancellationToken cancellationToken)
     {
         try
@@ -770,7 +797,7 @@ public sealed class GoogleCalendarService(
         }
     }
 
-    private async Task MarkReauthorizationRequiredAsync(
+    internal async Task MarkReauthorizationRequiredAsync(
         GoogleCalendarConnection connection, CancellationToken cancellationToken)
     {
         connection.Status = GoogleCalendarConnectionStatus.ReauthorizationRequired;

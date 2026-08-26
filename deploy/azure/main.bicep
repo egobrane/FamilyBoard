@@ -35,6 +35,9 @@ param enableGoogleCalendar bool = false
 @description('Enable only after Calendar write scopes are approved and Increment 2 is deployed and migrated.')
 param enableGoogleCalendarEventCreation bool = false
 
+@description('Enable only after the Calendar event-management migration and reviewed API image are deployed.')
+param enableGoogleCalendarEventManagement bool = false
+
 @description('Public client ID for the separate Google Calendar OAuth web client.')
 param googleCalendarClientId string = ''
 
@@ -123,6 +126,7 @@ module containerApps 'modules/container-apps.bicep' = {
     googleClientSecretUri: authenticationSecurity.outputs.googleClientSecretUri
     enableGoogleCalendar: enableGoogleCalendar
     enableGoogleCalendarEventCreation: enableGoogleCalendarEventCreation
+    enableGoogleCalendarEventManagement: enableGoogleCalendarEventManagement
     googleCalendarClientId: googleCalendarClientId
     googleCalendarClientSecretUri: authenticationSecurity.outputs.googleCalendarClientSecretUri
     enableParentAccess: enableParentAccess

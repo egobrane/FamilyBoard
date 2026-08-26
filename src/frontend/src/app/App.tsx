@@ -13,6 +13,7 @@ import { ChoresPage } from '../features/chores/ChoresPage'
 import { HouseholdChoresPage } from '../features/chores/HouseholdChoresPage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
 import { CreateCalendarEventPage } from '../features/calendar/CreateCalendarEventPage'
+import { EditCalendarEventPage } from '../features/calendar/EditCalendarEventPage'
 import { HouseholdCalendarsPage } from '../features/calendar/HouseholdCalendarsPage'
 import { HouseholdAdminLayout } from '../features/household-admin/HouseholdAdminLayout'
 import { HouseholdMembersPage } from '../features/household-admin/HouseholdMembersPage'
@@ -165,6 +166,7 @@ function AuthenticatedRoutes() {
         <Route element={<><PointsPage /><NavigationBar /></>} path="/points" />
         <Route element={<><RewardsPage /><NavigationBar /></>} path="/rewards" />
         <Route element={<CreateCalendarEventPage />} path="/calendar/new" />
+        <Route element={<EditCalendarEventPage />} path="/calendar/events/:managementId/edit" />
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
           <Route element={<HouseholdSettingsPage />} path="settings" />
           <Route element={<HouseholdMembersPage />} path="members" />

@@ -1,4 +1,5 @@
 import type { CalendarEventResponse } from '../../lib/api'
+import { Link } from 'react-router'
 
 function eventTime(event: CalendarEventResponse) {
   if (event.isAllDay) return 'All day'
@@ -25,6 +26,11 @@ export function CalendarEventList({ events, compact = false }: {
             <span>{eventTime(event)} · {event.calendarName}</span>
             {!compact && event.location && <small>{event.location}</small>}
           </div>
+          {!compact && event.canEdit && event.managementId && (
+            <Link className="secondary-action calendar-event__manage" to={`/calendar/events/${event.managementId}/edit`}>
+              Manage
+            </Link>
+          )}
         </li>
       ))}
     </ol>

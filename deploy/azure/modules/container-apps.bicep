@@ -17,6 +17,7 @@ param googleClientId string
 param googleClientSecretUri string
 param enableGoogleCalendar bool
 param enableGoogleCalendarEventCreation bool
+param enableGoogleCalendarEventManagement bool
 param googleCalendarClientId string
 param googleCalendarClientSecretUri string
 param enableParentAccess bool
@@ -213,6 +214,10 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'GoogleCalendar__EventCreationEnabled'
               value: string(enableGoogleCalendarEventCreation)
+            }
+            {
+              name: 'GoogleCalendar__EventManagementEnabled'
+              value: string(enableGoogleCalendarEventManagement)
             }
             {
               name: 'GoogleCalendar__ClientId'

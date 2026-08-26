@@ -110,6 +110,11 @@ test.beforeEach(async ({ page }) => {
           timeZone: body.timeZone,
           location: null,
           color: '#73b49a',
+          canEdit: true,
+          canDelete: true,
+          managementId: '60000000-0000-0000-0000-000000000001',
+          providerVersion: 'etag-one',
+          managementUnavailableReason: null,
           attributedMemberId: authenticatedUser.households[0].memberId,
           recoveredExistingEvent: false,
         } })
@@ -127,10 +132,41 @@ test.beforeEach(async ({ page }) => {
           timeZone: 'America/New_York',
           location: null,
           color: '#73b49a',
+          canEdit: true,
+          canDelete: true,
+          managementId: '60000000-0000-0000-0000-000000000001',
+          providerVersion: 'etag-one',
+          managementUnavailableReason: null,
         }],
         nextCursor: null,
         isStale: false,
         warnings: [],
+      } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/managed-events/60000000-0000-0000-0000-000000000001`) {
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON() as { title: string }
+        await route.fulfill({ json: {
+          operation: 'update', completedAt: new Date().toISOString(), recoveredExistingMutation: false,
+          event: { managementId: '60000000-0000-0000-0000-000000000001', sourceId: '50000000-0000-0000-0000-000000000001', calendarName: 'Family', title: body.title, location: null, notes: null, isAllDay: false, start: '2026-08-18T12:00:00Z', end: '2026-08-18T12:30:00Z', timeZone: 'America/New_York', providerVersion: 'etag-two', canEdit: true, canDelete: true, managementUnavailableReason: null },
+        } })
+        return
+      }
+      await route.fulfill({ json: {
+        managementId: '60000000-0000-0000-0000-000000000001',
+        sourceId: '50000000-0000-0000-0000-000000000001', calendarName: 'Family',
+        title: 'School drop-off', location: null, notes: null, isAllDay: false,
+        start: '2026-08-18T12:00:00Z', end: '2026-08-18T12:30:00Z',
+        timeZone: 'America/New_York', providerVersion: 'etag-one', canEdit: true,
+        canDelete: true, managementUnavailableReason: null,
+      } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/managed-events/60000000-0000-0000-0000-000000000001/delete`) {
+      await route.fulfill({ json: {
+        operation: 'delete', completedAt: new Date().toISOString(),
+        recoveredExistingMutation: false, event: null,
       } })
       return
     }
@@ -474,6 +510,23 @@ test('controlled event creation is keyboard accessible and returns to the calend
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
+})
+
+test('a Family Dashboard-created event has accessible edit and explicit delete controls', async ({ page }) => {
+  await page.goto('/calendar')
+  await page.getByRole('link', { name: 'Manage' }).click()
+  await expect(page.getByRole('heading', { name: 'Manage event' })).toBeVisible()
+  await page.getByLabel('Event title').fill('Updated school drop-off')
+  await page.getByRole('button', { name: 'Save to Google Calendar' }).click()
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(page.getByText('Event updated in Google Calendar.')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Manage' }).click()
+  await page.getByRole('button', { name: 'Delete event' }).click()
+  await expect(page.getByRole('dialog', { name: 'Delete from Google Calendar?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Delete from Google Calendar' }).click()
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(page.getByText('Event deleted from Google Calendar.')).toBeVisible()
 })
 
 test('a waiting PWA update cannot interrupt an active form', async ({ page }) => {

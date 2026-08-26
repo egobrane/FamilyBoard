@@ -12,6 +12,7 @@ param enableGoogleAuthentication = true
 param enableParentAccess = true
 param enableGoogleCalendar = true
 param enableGoogleCalendarEventCreation = true
+param enableGoogleCalendarEventManagement = true
 param choreGenerationHorizonHours = 36
 param choreGenerationMaximumAssignmentsPerRun = 100
 param googleCalendarClientId = '964271653840-45pheoqseb8obgsf5vaka6nsso7nbjc6.apps.googleusercontent.com'

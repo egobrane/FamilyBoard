@@ -31,6 +31,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient(nameof(GoogleCalendarProviderClient));
 builder.Services.AddScoped<IGoogleCalendarProviderClient, GoogleCalendarProviderClient>();
 builder.Services.AddScoped<GoogleCalendarService>();
+builder.Services.AddScoped<CalendarEventManagementService>();
 builder.Services.AddScoped<ChoreService>();
 builder.Services.AddScoped<ChoreScheduleService>();
 builder.Services.AddScoped<ChoreAssignmentGenerator>();
@@ -44,7 +45,9 @@ builder.Services.AddSingleton<CalendarStateProtector>();
 builder.Services.AddSingleton<CalendarCorrelationCookieService>();
 builder.Services.AddOptions<GoogleCalendarConfiguration>()
     .Bind(builder.Configuration.GetSection(GoogleCalendarConfiguration.SectionName))
-    .Validate(options => (!options.EventCreationEnabled || options.Enabled) && (!options.Enabled || (
+    .Validate(options => (!options.EventCreationEnabled || options.Enabled)
+        && (!options.EventManagementEnabled || options.EventCreationEnabled)
+        && (!options.Enabled || (
         !string.IsNullOrWhiteSpace(options.ClientId)
         && !string.IsNullOrWhiteSpace(options.ClientSecret)
         && Uri.TryCreate(options.CallbackUrl, UriKind.Absolute, out var callback)

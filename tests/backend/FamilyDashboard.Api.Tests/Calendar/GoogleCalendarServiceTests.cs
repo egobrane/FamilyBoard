@@ -284,6 +284,65 @@ public sealed class GoogleCalendarServiceTests
         Assert.Empty(await database.DbContext.CalendarEventCreationReceipts.ToArrayAsync());
     }
 
+    [PostgreSqlFact]
+    public async Task ManagedEventUpdateAndDeleteUseProviderVersionAndReplayFromAppendOnlyReceipts()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = Dependencies.Create(enableEventCreation: true);
+        var seeded = await SeedAsync(database, dependencies.TokenProtector, enableEventCreation: true);
+        var provider = new FakeProvider
+        {
+            Calendars =
+            [
+                new GoogleProviderCalendar(
+                    "family@example.test", "Family", "America/New_York", "#73b49a", false, "owner"),
+            ],
+        };
+        var eventRange = TomorrowEveningInNewYork();
+        await dependencies.Service(database, provider).CreateEventAsync(
+            seeded.Household.Id, seeded.Account.Id, seeded.Session.Id,
+            new CreateCalendarEventRequest(seeded.Source.Id, Guid.NewGuid(), null,
+                "Original", null, null, false, eventRange.Start, eventRange.End, "America/New_York"),
+            "create-trace", CancellationToken.None);
+        database.DbContext.ChangeTracker.Clear();
+        var request = new UpdateCalendarEventRequest(
+            Guid.NewGuid(), "created-version", "Updated", "Kitchen", "Bring dessert", false,
+            eventRange.Start, eventRange.End, "America/New_York");
+        var management = dependencies.Management(database, provider);
+
+        var first = await management.UpdateAsync(seeded.Household.Id,
+            (await database.DbContext.CalendarEventCreationReceipts.SingleAsync()).Id,
+            seeded.Account.Id, seeded.Session.Id, request, "update-one", CancellationToken.None);
+        database.DbContext.ChangeTracker.Clear();
+        var replay = await management.UpdateAsync(seeded.Household.Id,
+            (await database.DbContext.CalendarEventCreationReceipts.SingleAsync()).Id,
+            seeded.Account.Id, seeded.Session.Id, request, "update-two", CancellationToken.None);
+
+        Assert.NotNull(replay.Event?.ManagementId);
+        Assert.Equal("Updated", first.Event?.Title);
+        Assert.False(first.RecoveredExistingMutation);
+        Assert.True(replay.RecoveredExistingMutation);
+        Assert.Equal(1, provider.UpdateCount);
+        var managementId = (await database.DbContext.CalendarEventCreationReceipts.SingleAsync()).Id;
+        var deleteRequest = new DeleteCalendarEventRequest(Guid.NewGuid(), "updated-version", true);
+        var deleted = await management.DeleteAsync(seeded.Household.Id, managementId,
+            seeded.Account.Id, seeded.Session.Id, deleteRequest, "delete-one", CancellationToken.None);
+        database.DbContext.ChangeTracker.Clear();
+        var deleteReplay = await management.DeleteAsync(seeded.Household.Id, managementId,
+            seeded.Account.Id, seeded.Session.Id, deleteRequest, "delete-two", CancellationToken.None);
+
+        Assert.False(deleted.RecoveredExistingMutation);
+        Assert.True(deleteReplay.RecoveredExistingMutation);
+        Assert.Equal(1, provider.DeleteCount);
+        var receipts = await database.DbContext.CalendarEventMutationReceipts.ToArrayAsync();
+        Assert.Equal(2, receipts.Length);
+        Assert.All(receipts, receipt =>
+            Assert.Equal(CalendarEventMutationReceiptStatus.Succeeded, receipt.Status));
+        Assert.Equal("updated-version", receipts.Single(item =>
+            item.Operation == CalendarEventMutationOperation.Update).ResultProviderVersion);
+        Assert.Contains(receipts, item => item.Operation == CalendarEventMutationOperation.Delete);
+    }
+
     private static async Task<Seeded> SeedAsync(
         PostgreSqlTestDatabase database, CalendarTokenProtector tokenProtector,
         bool enableEventCreation = false)
@@ -382,6 +441,7 @@ public sealed class GoogleCalendarServiceTests
             {
                 Enabled = true,
                 EventCreationEnabled = enableEventCreation,
+                EventManagementEnabled = enableEventCreation,
             });
             TokenProtector = new CalendarTokenProtector(
                 services.GetRequiredService<IDataProtectionProvider>());
@@ -406,6 +466,15 @@ public sealed class GoogleCalendarServiceTests
                 provider,
                 TokenProtector,
                 StateProtector,
+                _cache,
+                _options,
+                TimeProvider.System);
+
+        public CalendarEventManagementService Management(
+            PostgreSqlTestDatabase database, IGoogleCalendarProviderClient provider) => new(
+                database.DbContext,
+                Service(database, provider),
+                provider,
                 _cache,
                 _options,
                 TimeProvider.System);
@@ -436,6 +505,8 @@ public sealed class GoogleCalendarServiceTests
 
         public int CreateCount { get; private set; }
         public int GetCount { get; private set; }
+        public int UpdateCount { get; private set; }
+        public int DeleteCount { get; private set; }
         public IReadOnlyList<GoogleProviderCalendar> Calendars { get; init; } = [];
         private readonly ConcurrentDictionary<string, GoogleProviderEvent> _createdEvents = [];
 
@@ -470,7 +541,7 @@ public sealed class GoogleCalendarServiceTests
             CreateCount++;
             var created = new GoogleProviderEvent(
                 request.Id, request.Title, request.IsAllDay, request.Start, request.End,
-                request.TimeZone, request.Location);
+                request.TimeZone, request.Location, request.Notes, "created-version");
             return Task.FromResult(_createdEvents.GetOrAdd(request.Id, created));
         }
 
@@ -480,6 +551,27 @@ public sealed class GoogleCalendarServiceTests
         {
             GetCount++;
             return Task.FromResult(_createdEvents[eventId]);
+        }
+
+        public Task<GoogleProviderEvent> UpdateEventAsync(
+            string accessToken, string calendarId, string eventId, string expectedProviderVersion,
+            GoogleProviderUpdateEvent request, CancellationToken cancellationToken)
+        {
+            UpdateCount++;
+            var updated = new GoogleProviderEvent(eventId, request.Title, request.IsAllDay,
+                request.Start, request.End, request.TimeZone, request.Location, request.Notes,
+                "updated-version");
+            _createdEvents[eventId] = updated;
+            return Task.FromResult(updated);
+        }
+
+        public Task DeleteEventAsync(
+            string accessToken, string calendarId, string eventId, string expectedProviderVersion,
+            CancellationToken cancellationToken)
+        {
+            DeleteCount++;
+            _createdEvents.TryRemove(eventId, out _);
+            return Task.CompletedTask;
         }
 
         public Task RevokeAsync(string token, CancellationToken cancellationToken) =>

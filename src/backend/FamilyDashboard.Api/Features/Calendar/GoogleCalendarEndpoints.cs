@@ -35,6 +35,14 @@ public static class GoogleCalendarEndpoints
         endpoints.MapPost("/api/households/{householdId:guid}/calendar/events", CreateEventAsync)
             .RequireAuthorization().RequireFamilyDashboardAntiforgery()
             .RequireRateLimiting("calendar-event-creation");
+        endpoints.MapGet("/api/households/{householdId:guid}/calendar/managed-events/{managementId:guid}", GetManagedEventAsync)
+            .RequireAuthorization();
+        endpoints.MapPut("/api/households/{householdId:guid}/calendar/managed-events/{managementId:guid}", UpdateManagedEventAsync)
+            .RequireAuthorization().RequireFamilyDashboardAntiforgery()
+            .RequireRateLimiting("calendar-event-creation");
+        endpoints.MapPost("/api/households/{householdId:guid}/calendar/managed-events/{managementId:guid}/delete", DeleteManagedEventAsync)
+            .RequireAuthorization().RequireFamilyDashboardAntiforgery()
+            .RequireRateLimiting("calendar-event-creation");
         return endpoints;
     }
 
@@ -229,6 +237,55 @@ public static class GoogleCalendarEndpoints
             return Results.Created(
                 $"/api/households/{householdId:D}/calendar/events/{Uri.EscapeDataString(created.Id)}",
                 created);
+        });
+
+    private static async Task<IResult> GetManagedEventAsync(
+        Guid householdId, Guid managementId, HttpContext context,
+        IAuthorizationService authorization, CalendarEventManagementService service,
+        CancellationToken cancellationToken) => await RunAsync(context, async () =>
+        {
+            var access = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Administration, cancellationToken);
+            return access.Result ?? Results.Ok(await service.GetAsync(
+                householdId, managementId, cancellationToken));
+        });
+
+    private static async Task<IResult> UpdateManagedEventAsync(
+        Guid householdId, Guid managementId, UpdateCalendarEventRequest? request,
+        HttpContext context, IAuthorizationService authorization,
+        CalendarEventManagementService service, CancellationToken cancellationToken) =>
+        await RunAsync(context, async () =>
+        {
+            var access = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Administration, cancellationToken);
+            if (access.Result is not null) return access.Result;
+            if (request is null)
+                return HouseholdEndpoints.ValidationFailed(context,
+                    new Dictionary<string, string[]> { ["event"] = ["Event details are required."] });
+            if (!context.User.TryGetUserSessionId(out var sessionId))
+                return HouseholdEndpoints.AccountUnavailable(context);
+            return Results.Ok(await service.UpdateAsync(householdId, managementId,
+                access.UserAccountId!.Value, sessionId, request, context.TraceIdentifier,
+                cancellationToken));
+        });
+
+    private static async Task<IResult> DeleteManagedEventAsync(
+        Guid householdId, Guid managementId, DeleteCalendarEventRequest? request,
+        HttpContext context, IAuthorizationService authorization,
+        CalendarEventManagementService service, CancellationToken cancellationToken) =>
+        await RunAsync(context, async () =>
+        {
+            var access = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Administration, cancellationToken);
+            if (access.Result is not null) return access.Result;
+            if (request is null)
+                return HouseholdEndpoints.ValidationFailed(context,
+                    new Dictionary<string, string[]> { ["event"] = ["Delete confirmation is required."] });
+            if (!context.User.TryGetUserSessionId(out var sessionId))
+                return HouseholdEndpoints.AccountUnavailable(context);
+            return Results.Ok(await service.DeleteAsync(householdId, managementId,
+                access.UserAccountId!.Value, sessionId, request, context.TraceIdentifier,
+                cancellationToken));
         });
 
     private static async Task<(Guid? UserAccountId, IResult? Result)> RequireAccessAsync(

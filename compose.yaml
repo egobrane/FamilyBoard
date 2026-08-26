@@ -51,6 +51,7 @@ services:
       ParentAccess__Pepper: ${ParentAccess__Pepper:-}
       GoogleCalendar__Enabled: ${GoogleCalendar__Enabled:-false}
       GoogleCalendar__EventCreationEnabled: ${GoogleCalendar__EventCreationEnabled:-false}
+      GoogleCalendar__EventManagementEnabled: ${GoogleCalendar__EventManagementEnabled:-false}
       GoogleCalendar__ClientId: ${GoogleCalendar__ClientId:-}
       GoogleCalendar__ClientSecret: ${GoogleCalendar__ClientSecret:-}
       GoogleCalendar__CallbackUrl: ${GoogleCalendar__CallbackUrl:-}

@@ -26,4 +26,5 @@ public sealed class HouseholdCalendarSource
     public UserAccount AddedByUserAccount { get; set; } = null!;
     public UserAccount? EventCreationEnabledByUserAccount { get; set; }
     public ICollection<CalendarEventCreationReceipt> EventCreationReceipts { get; set; } = [];
+    public ICollection<CalendarEventMutationReceipt> EventMutationReceipts { get; set; } = [];
 }

@@ -80,7 +80,7 @@ export function CalendarPage() {
         <div>
           <p className="eyebrow">The next seven days</p>
           <h2>Family calendar</h2>
-          <p>Read-only plans from the Google calendars your household has chosen.</p>
+          <p>Plans from the Google calendars your household has chosen.</p>
         </div>
         <div className="calendar-page__actions">
           {creation.key === household.id && creation.isReady && (
@@ -95,6 +95,12 @@ export function CalendarPage() {
       </header>
       {location.state?.calendarEventCreated === true && (
         <CalendarStatusBanner kind="success">Event added to Google Calendar.</CalendarStatusBanner>
+      )}
+      {location.state?.calendarEventUpdated === true && (
+        <CalendarStatusBanner kind="success">Event updated in Google Calendar.</CalendarStatusBanner>
+      )}
+      {location.state?.calendarEventDeleted === true && (
+        <CalendarStatusBanner kind="success">Event deleted from Google Calendar.</CalendarStatusBanner>
       )}
       {loading && <CalendarStatusBanner>Loading family plans…</CalendarStatusBanner>}
       {failure && <CalendarStatusBanner kind="error">{failure}</CalendarStatusBanner>}

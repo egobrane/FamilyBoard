@@ -58,6 +58,14 @@ public static class ApiProblemCodes
     public const string CalendarEventCreationTargetInvalid = "calendar_event_creation_target_invalid";
     public const string CalendarIdempotencyConflict = "calendar_idempotency_conflict";
     public const string CalendarEventCreationRateLimited = "calendar_event_creation_rate_limited";
+    public const string CalendarEventManagementUnavailable = "calendar_event_management_unavailable";
+    public const string CalendarEventNotManaged = "calendar_event_not_managed";
+    public const string CalendarEventNotFound = "calendar_event_not_found";
+    public const string CalendarEventUnsupported = "calendar_event_unsupported";
+    public const string CalendarEventVersionConflict = "calendar_event_version_conflict";
+    public const string CalendarEventMutationIdempotencyConflict = "calendar_event_mutation_idempotency_conflict";
+    public const string CalendarEventDeleteConfirmationRequired = "calendar_event_delete_confirmation_required";
+    public const string CalendarEventWriteForbidden = "calendar_event_write_forbidden";
     public const string HouseholdSelectionRequired = "household_selection_required";
     public const string ChoreDefinitionNotFound = "chore_definition_not_found";
     public const string ChoreDefinitionInactive = "chore_definition_inactive";

@@ -156,7 +156,7 @@ export function CreateCalendarEventPage() {
       <header>
         <p className="eyebrow">{target.name}</p>
         <h2>Add a family event</h2>
-        <p>The event is saved directly to Google Calendar. It can be changed or deleted there.</p>
+        <p>The event is saved directly to Google Calendar and can be managed here afterward.</p>
       </header>
       {error && <CalendarStatusBanner kind="error">{error}</CalendarStatusBanner>}
       <form className="calendar-event-form" onSubmit={(event) => void submit(event)}>

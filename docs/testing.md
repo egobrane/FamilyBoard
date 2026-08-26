@@ -10,7 +10,7 @@ npm test
 npm run build
 ```
 
-Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation, chore-list completion states, recurring-schedule summaries and weekday controls, real point-history semantics, dashboard semantics, and keyboard and pointer navigation.
+Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation and managed-event navigation, chore-list completion states, recurring-schedule summaries and weekday controls, real point-history semantics, dashboard semantics, and keyboard and pointer navigation.
 
 ## Browser tests
 
@@ -39,7 +39,7 @@ Chore Management Increment 2 is deployed with the matching Azure API and Netlify
 
 Chore Management Increment 3 local validation passed 102 backend tests against disposable PostgreSQL 18 with no skips, 30 frontend component tests, and 26 wall-display/phone Playwright tests. Coverage includes migration preservation, point snapshots, atomic and concurrent approval, single-award idempotency, zero-point approval, rejection/retry, recurring snapshots, derived balances, inactive-member history, adjustments, exact reversals, household isolation, shared-display correction gates, pointer/keyboard navigation, responsive layout, and serious automated accessibility checks.
 
-Reward Management Increment 1 adds PostgreSQL endpoint coverage for atomic point reservation, exact append-only release, insufficient-balance rejection, and household isolation. Frontend component coverage verifies explicit member attribution and keyboard-operable redemption actions. Full staging verification remains pending until the migration, backend image, and matching Netlify build are deployed.
+Reward Management Increment 1 has PostgreSQL endpoint coverage for authorized catalog reads and balances, atomic point reservation, exact append-only release, insufficient-balance rejection, concurrent overspend prevention, and household isolation. Frontend component coverage verifies explicit member attribution and keyboard-operable redemption actions. The owner completed the staging checklist across definition lifecycle, catalog/balances, private and shared-display attribution, review and terminal states, point-cost snapshots, parent-PIN enforcement, isolation, and responsive input modes. After the catalog query correction, the complete backend suite passed 107 tests against disposable PostgreSQL 18 with no skips.
 
 The owner completed the Increment 3 staging deployment path on 2026-08-25 and confirmed recurring chores, definition point edits, point-bearing completion/approval, balance and history display, and administrative negative correction. Zero-point approval, concurrent duplicate prevention, inactive-member history, household isolation, shared-display elevation, and responsive behavior retain automated coverage but are not recorded as separate owner checks.
 

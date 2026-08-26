@@ -89,6 +89,8 @@ Set the public `googleCalendarClientId` and `enableGoogleCalendar=true` only aft
 
 Controlled Calendar event creation has its own `enableGoogleCalendarEventCreation` parameter. Keep it `false` while applying the additive migration. After the existing Calendar OAuth client's consent configuration includes the exact `calendar.events` scope, set it to `true` and redeploy the same reviewed backend digest. No additional Azure secret is required.
 
+Controlled editing and deletion of Family Dashboard-created events uses `enableGoogleCalendarEventManagement`. Deploy the additive migration before enabling it. It reuses the existing `calendar.events` authorization and requires no new OAuth client, secret, or Azure resource.
+
 Before enabling Increment 6, generate and save a random 32-byte parent-access pepper without printing it or placing it in shell history. Seed it as the separately named `parent-access-pepper-v1` secret through Azure Resource Manager, then unset the variable:
 
 ```sh

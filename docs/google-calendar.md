@@ -124,3 +124,21 @@ A fresh static scan of the deployed bundle found no OAuth secret/token, PostgreS
 ## Rollback
 
 The migration is additive and the feature is gated. First set `GoogleCalendar__Enabled=false` and redeploy configuration; this stops authorization/configuration while leaving ciphertext dormant. A previous API revision can then be reactivated because it ignores the new tables. Do not delete the Data Protection key ring. Remove the Key Vault secret only after all connections have been locally disconnected or intentionally abandoned. Schema removal is not part of routine rollback; use a forward fix.
+
+## Increment 3: controlled event editing and deletion
+
+Increment 3 manages only events with a successful Family Dashboard creation receipt. Externally created, recurring, moved, structurally complex, or versionless events remain read-only. Google Calendar remains the sole event source of truth; PostgreSQL adds an append-only `CalendarEventMutationReceipt` containing an idempotency fingerprint, opaque relationships, actor/shared-display attribution, expected/result provider versions, operation status, timestamps, and trace correlation. Event content is never copied into the receipt.
+
+The existing `calendar.events` grant supports update and delete, so no reauthorization, package, client secret, or Azure resource is added. `GoogleCalendar__EventManagementEnabled` defaults to false and requires both Calendar integration and event creation to be enabled. Private adults may manage eligible household events. Shared displays require current household parent-PIN elevation; mutations are attributed to the authenticated adult session rather than a child profile.
+
+Routes are deliberately opaque and use the creation-receipt UUID rather than a Google event ID:
+
+- `GET /api/households/{householdId}/calendar/managed-events/{managementId}`
+- `PUT /api/households/{householdId}/calendar/managed-events/{managementId}`
+- `POST /api/households/{householdId}/calendar/managed-events/{managementId}/delete`
+
+Unsafe requests require credentialed CORS and antiforgery. Update and delete accept a client UUID and the last Google ETag. Google receives an `If-Match` precondition; stale versions return `409 calendar_event_version_conflict`. Same-key/same-body retries recover from the append-only receipt, while different bodies fail with `calendar_event_mutation_idempotency_conflict`. Delete requires an explicit confirmation value and treats a provider `404`/`410` during a pending retry as successful recovery. A successful mutation invalidates only the disposable source cache.
+
+The frontend adds a large Manage action only to eligible full-list events and `/calendar/events/{managementId}/edit` for the responsive form and explicit “Delete from Google Calendar” confirmation dialog. It warns before unloading dirty forms. Deletion never offers a one-click list action. Recurrence instance/series mutation, attendee/conference/attachment changes, and management of externally sourced events remain deferred.
+
+Deployment is migration-first through the immutable-image staging workflow. The workflow reads, applies, asserts, and on failure restores `GoogleCalendar__EventManagementEnabled` with the rest of its approved non-secret runtime allowlist. Rollback disables this gate; Calendar reads and creation continue, receipts remain inert, and no Google event is automatically reverted.

@@ -128,6 +128,35 @@ export interface CalendarEventResponse {
   timeZone: string | null
   location: string | null
   color: string | null
+  canEdit?: boolean
+  canDelete?: boolean
+  managementId?: string | null
+  providerVersion?: string | null
+  managementUnavailableReason?: string | null
+}
+
+export interface ManagedCalendarEventResponse {
+  managementId: string
+  sourceId: string
+  calendarName: string
+  title: string
+  location: string | null
+  notes: string | null
+  isAllDay: boolean
+  start: string
+  end: string
+  timeZone: string | null
+  providerVersion: string
+  canEdit: boolean
+  canDelete: boolean
+  managementUnavailableReason: string | null
+}
+
+export interface CalendarEventMutationResponse {
+  operation: 'update' | 'delete'
+  completedAt: string
+  recoveredExistingMutation: boolean
+  event: ManagedCalendarEventResponse | null
 }
 
 export interface CalendarEventsResponse {
@@ -830,6 +859,44 @@ export function createCalendarEvent(
     `/api/households/${encodeURIComponent(householdId)}/calendar/events`,
     'POST',
     body,
+  )
+}
+
+export function getManagedCalendarEvent(householdId: string, managementId: string) {
+  return request<ManagedCalendarEventResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/managed-events/${encodeURIComponent(managementId)}`,
+  )
+}
+
+export function updateManagedCalendarEvent(
+  householdId: string,
+  managementId: string,
+  body: {
+    idempotencyKey: string
+    expectedProviderVersion: string
+    title: string
+    location: string | null
+    notes: string | null
+    isAllDay: boolean
+    start: string
+    end: string
+    timeZone: string | null
+  },
+) {
+  return unsafeRequest<CalendarEventMutationResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/managed-events/${encodeURIComponent(managementId)}`,
+    'PUT', body,
+  )
+}
+
+export function deleteManagedCalendarEvent(
+  householdId: string,
+  managementId: string,
+  body: { idempotencyKey: string; expectedProviderVersion: string; confirmDelete: boolean },
+) {
+  return unsafeRequest<CalendarEventMutationResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/managed-events/${encodeURIComponent(managementId)}/delete`,
+    'POST', body,
   )
 }
 

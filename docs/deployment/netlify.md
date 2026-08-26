@@ -2,7 +2,7 @@
 
 1. Link the GitHub repository to a Netlify site.
 2. Netlify reads the root `netlify.toml`, builds from `src/frontend`, and publishes `dist`.
-3. Set `VITE_API_BASE_URL` separately for production and Deploy Preview contexts.
+3. Set `VITE_API_BASE_URL` for production; the checked-in Deploy Preview context deliberately overrides it with `https://api-preview.invalid`.
 4. Set `VITE_APP_NAME` if the default product name should change.
 5. Confirm the production API allows the exact production frontend origin.
 
@@ -20,4 +20,8 @@ The mounted PWA update provider checks at startup, every fifteen minutes, when t
 
 After publishing a PWA lifecycle change, verify it with two real consecutive Netlify releases in Safari and on the wall display. Confirm that the older client discovers the newer worker, an open form blocks activation, leaving the form permits activation, the new bundle controls the page after reload, and manual service-worker/cache deletion is unnecessary.
 
-The hardened lifecycle bundle was published successfully on 2026-08-21. Public inspection on 2026-08-26 confirmed that the production bundle contains the accessible update prompt and form-protection behavior and that direct Netlify delivery serves `/sw.js` with the configured `no-cache, max-age=0, must-revalidate` policy. Cloudflare currently returns the same worker body but overrides it with a four-hour edge cache lifetime. Add a narrowly scoped bypass rule matching only host `family.egobrane.net` and path `/sw.js`, purge that single URL, and complete the two-version physical-device proof before treating immediate custom-domain update discovery as proven. Hashed assets should remain immutable.
+The hardened lifecycle bundle was published successfully on 2026-08-21. On 2026-08-26, the owner added a narrowly scoped Cloudflare bypass rule matching only host `family.egobrane.net` and path `/sw.js` and purged that URL. Subsequent public verification returned the origin `no-cache, max-age=0, must-revalidate` policy with `cf-cache-status: DYNAMIC`; hashed assets remain immutable.
+
+Pull request #24 proved the safe preview boundary. Netlify deploy `6a8f3c2119e3360008e7f2c1` served `https://deploy-preview-24--effortless-bubblegum-ad0643.netlify.app` from commit `c323e4e387503c4bba7afaf5f5b4df825ca5d6c6`; its compiled bundle contained `https://api-preview.invalid` exactly once and no `https://api.egobrane.net`. The owner confirmed the expected static application and fail-closed API-unavailable experience. Merged production deploy `6a8f3db6556aee000886b5b1` is ready for commit `04e1a12672950bd88467c85b0436b26673530ff4`.
+
+The owner recorded production bundle `/assets/index-D2ZJAxw2.js` as the Version 1 baseline in Safari. Keep that worker registered; the next genuine frontend feature release should be Version 2. Complete the form-protection, manual activation, safe idle wall-display activation, offline retention, session continuity, and new-bundle checks without unregistering the worker or clearing Cache Storage.

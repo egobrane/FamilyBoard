@@ -166,6 +166,53 @@ export interface CalendarEventsResponse {
   warnings: { sourceId: string; code: string; message: string }[]
 }
 
+export interface TasksConnectionResponse {
+  isAvailable: boolean
+  connectionId: string | null
+  status: 'active' | 'reauthorizationRequired' | 'disconnected'
+  providerEmail: string | null
+  connectedAt: string | null
+  activeSourceCount: number
+  activeHouseholdCount: number
+}
+
+export interface ProviderTaskListResponse {
+  id: string
+  name: string
+  isSelected: boolean
+}
+
+export interface TaskListSourceResponse {
+  id: string
+  connectionId: string
+  externalTaskListId: string
+  name: string
+  isActive: boolean
+  isOwnedByCurrentAdult: boolean
+}
+
+export interface GoogleTaskResponse {
+  id: string
+  sourceId: string
+  taskListName: string
+  title: string
+  notes: string | null
+  status: string
+  dueDate: string | null
+  completedAt: string | null
+  parentTaskId: string | null
+  position: string
+  isSubtask: boolean
+  isAssigned: boolean
+}
+
+export interface GoogleTasksResponse {
+  tasks: GoogleTaskResponse[]
+  nextCursor: string | null
+  isStale: boolean
+  warnings: { sourceId: string; code: string; message: string }[]
+}
+
 export type CurrentSession = NonNullable<CurrentUser['session']>
 
 export interface CreateHouseholdRequest {
@@ -918,6 +965,53 @@ export function listCalendarEvents(
   if (cursor) parameters.set('cursor', cursor)
   return request<CalendarEventsResponse>(
     `/api/households/${encodeURIComponent(householdId)}/calendar/events?${parameters.toString()}`,
+  )
+}
+
+export function getTasksConnection(householdId: string) {
+  return request<TasksConnectionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/connection`,
+  )
+}
+
+export function beginTasksAuthorization(householdId: string, returnPath: string) {
+  return unsafeRequest<{ authorizationUrl: string; expiresAt: string }>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/authorization`,
+    'POST', { returnPath },
+  )
+}
+
+export function listProviderTaskLists(householdId: string) {
+  return request<ProviderTaskListResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/provider-task-lists`,
+  )
+}
+
+export function listTaskListSources(householdId: string) {
+  return request<TaskListSourceResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/sources`,
+  )
+}
+
+export function updateTaskListSources(householdId: string, connectionId: string, externalTaskListIds: string[]) {
+  return unsafeRequest<TaskListSourceResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/sources`,
+    'PUT', { connectionId, externalTaskListIds },
+  )
+}
+
+export function disconnectTasks(householdId: string, connectionId: string) {
+  return unsafeRequest<void>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/disconnect`,
+    'POST', { connectionId, confirmGlobalDisconnect: true },
+  )
+}
+
+export function listGoogleTasks(householdId: string, includeCompleted = false, cursor?: string) {
+  const parameters = new URLSearchParams({ includeCompleted: String(includeCompleted) })
+  if (cursor) parameters.set('cursor', cursor)
+  return request<GoogleTasksResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks?${parameters.toString()}`,
   )
 }
 

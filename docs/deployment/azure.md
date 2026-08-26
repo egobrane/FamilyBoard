@@ -1,5 +1,7 @@
 # Azure staging deployment
 
+Google Tasks Increment 1 reuses the runtime identity, private Key Vault, Blob-backed Data Protection key ring, Container App, and PostgreSQL server. It adds a dedicated Key Vault secret reference named `google-tasks-client-secret` and separate public OAuth settings. Migration and scheduled jobs receive neither the Tasks secret nor provider tokens. Keep `enableGoogleTasks=false` through publication and migration, then provision the secret reference and enable the same reviewed digest only after the exact callback and read-only scope are approved. See [Google Tasks integration](../google-tasks.md).
+
 ## Topology
 
 ```mermaid

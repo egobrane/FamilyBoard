@@ -80,6 +80,7 @@ export function HouseholdAdminLayout() {
             <NavLink to={`${basePath}/members`}>Members</NavLink>
             <NavLink to={`${basePath}/invitations`}>Invitations</NavLink>
             <NavLink to={`${basePath}/calendars`}>Calendars</NavLink>
+            <NavLink to={`${basePath}/tasks`}>Tasks</NavLink>
             <NavLink to={`${basePath}/chores`}>Chores</NavLink>
             <NavLink to={`${basePath}/points`}>Points</NavLink>
             <NavLink to={`${basePath}/rewards`}>Rewards</NavLink>

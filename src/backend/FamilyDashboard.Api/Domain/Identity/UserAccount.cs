@@ -21,7 +21,9 @@ public sealed class UserAccount
     public ICollection<HouseholdAccessPin> ChangedHouseholdAccessPins { get; set; } = [];
     public ICollection<ParentAccessAuditEvent> ParentAccessAuditEvents { get; set; } = [];
     public GoogleCalendarConnection? GoogleCalendarConnection { get; set; }
+    public GoogleTasksConnection? GoogleTasksConnection { get; set; }
     public ICollection<HouseholdCalendarSource> AddedHouseholdCalendarSources { get; set; } = [];
+    public ICollection<HouseholdTaskListSource> AddedHouseholdTaskListSources { get; set; } = [];
     public ICollection<HouseholdCalendarSource> EnabledCalendarEventCreationSources { get; set; } = [];
     public ICollection<CalendarEventCreationReceipt> RequestedCalendarEventCreations { get; set; } = [];
     public ICollection<CalendarEventMutationReceipt> RequestedCalendarEventMutations { get; set; } = [];

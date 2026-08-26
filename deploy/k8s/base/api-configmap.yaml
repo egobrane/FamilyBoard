@@ -10,3 +10,6 @@ data:
   GoogleCalendar__Enabled: "false"
   GoogleCalendar__EventCreationEnabled: "false"
   GoogleCalendar__EventManagementEnabled: "false"
+  GoogleTasks__Enabled: "false"
+  GoogleTasks__ClientId: ""
+  GoogleTasks__CallbackUrl: ""

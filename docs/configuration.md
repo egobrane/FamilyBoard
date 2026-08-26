@@ -51,6 +51,15 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `GoogleCalendar__StaleCacheLifetime` | Public policy | Maximum stale fallback lifetime; default fifteen minutes |
 | `GoogleCalendar__MaximumCalendarsPerHousehold` | Public policy | Source-selection limit; default 25 |
 | `GoogleCalendar__MaximumEventsPerRequest` | Public policy | Normalized event cap; default 1,000 |
+| `GoogleTasks__Enabled` | Public configuration | Separate read-only Google Tasks feature gate; disabled by default |
+| `GoogleTasks__ClientId` | Public identifier | Dedicated Tasks OAuth web client ID; never the sign-in or Calendar client |
+| `GoogleTasks__ClientSecret` | Secret | Dedicated Tasks OAuth client secret; backend and Key Vault only |
+| `GoogleTasks__CallbackUrl` | Public configuration | Exact backend Tasks OAuth callback URL |
+| `GoogleTasks__AuthorizationLifetime` | Public policy | Protected OAuth state lifetime; default ten minutes |
+| `GoogleTasks__FreshCacheLifetime` | Public policy | Fresh disposable task-cache lifetime; default two minutes |
+| `GoogleTasks__StaleCacheLifetime` | Public policy | Maximum stale fallback lifetime; default fifteen minutes |
+| `GoogleTasks__MaximumTaskListsPerHousehold` | Public policy | Household source-selection limit; default 25 |
+| `GoogleTasks__MaximumTasksPerRequest` | Public policy | Normalized task cap; default 200 |
 
 Calendar OAuth access and refresh tokens are encrypted by the existing persisted Data Protection key ring before PostgreSQL storage. The separate Calendar client secret and all future signing keys belong only in backend runtime secret storage.
 

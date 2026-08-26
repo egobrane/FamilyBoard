@@ -20,6 +20,9 @@ param enableGoogleCalendarEventCreation bool
 param enableGoogleCalendarEventManagement bool
 param googleCalendarClientId string
 param googleCalendarClientSecretUri string
+param enableGoogleTasks bool
+param googleTasksClientId string
+param googleTasksClientSecretUri string
 param enableParentAccess bool
 param parentAccessPepperSecretUri string
 param runtimeIdentityId string
@@ -118,6 +121,12 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
           {
             name: 'google-calendar-client-secret'
             keyVaultUrl: googleCalendarClientSecretUri
+            identity: runtimeIdentityId
+          }
+        ] : [], enableGoogleTasks ? [
+          {
+            name: 'google-tasks-client-secret'
+            keyVaultUrl: googleTasksClientSecretUri
             identity: runtimeIdentityId
           }
         ] : [])
@@ -230,6 +239,23 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'GoogleCalendar__CallbackUrl'
               value: 'https://${apiHostname}/api/integrations/google-calendar/callback'
+            }
+          ] : [], enableGoogleTasks ? [
+            {
+              name: 'GoogleTasks__Enabled'
+              value: 'true'
+            }
+            {
+              name: 'GoogleTasks__ClientId'
+              value: googleTasksClientId
+            }
+            {
+              name: 'GoogleTasks__ClientSecret'
+              secretRef: 'google-tasks-client-secret'
+            }
+            {
+              name: 'GoogleTasks__CallbackUrl'
+              value: 'https://${apiHostname}/api/integrations/google-tasks/callback'
             }
           ] : [])
           probes: [

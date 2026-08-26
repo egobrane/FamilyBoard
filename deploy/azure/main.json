@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "16183956187832834802"
+      "templateHash": "2394108290518266839"
     }
   },
   "parameters": {
@@ -95,6 +95,20 @@
       "defaultValue": "",
       "metadata": {
         "description": "Public client ID for the separate Google Calendar OAuth web client."
+      }
+    },
+    "enableGoogleTasks": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable only after the separate Google Tasks client secret exists in Key Vault."
+      }
+    },
+    "googleTasksClientId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Public client ID for the separate Google Tasks OAuth web client."
       }
     },
     "enableParentAccess": {
@@ -563,7 +577,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "2435774969408506934"
+              "templateHash": "13799889677458912644"
             }
           },
           "parameters": {
@@ -842,6 +856,10 @@
               "type": "string",
               "value": "[format('{0}secrets/google-calendar-client-secret', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri)]"
             },
+            "googleTasksClientSecretUri": {
+              "type": "string",
+              "value": "[format('{0}secrets/google-tasks-client-secret', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri)]"
+            },
             "parentAccessPepperSecretUri": {
               "type": "string",
               "value": "[format('{0}secrets/parent-access-pepper-v1', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-11-01').vaultUri)]"
@@ -925,6 +943,15 @@
           "googleCalendarClientSecretUri": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.googleCalendarClientSecretUri.value]"
           },
+          "enableGoogleTasks": {
+            "value": "[parameters('enableGoogleTasks')]"
+          },
+          "googleTasksClientId": {
+            "value": "[parameters('googleTasksClientId')]"
+          },
+          "googleTasksClientSecretUri": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}-authentication-security', variables('nameStem'))), '2025-04-01').outputs.googleTasksClientSecretUri.value]"
+          },
           "enableParentAccess": {
             "value": "[parameters('enableParentAccess')]"
           },
@@ -957,7 +984,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "10214091927424561768"
+              "templateHash": "14216553045328210121"
             }
           },
           "parameters": {
@@ -1014,6 +1041,15 @@
               "type": "string"
             },
             "googleCalendarClientSecretUri": {
+              "type": "string"
+            },
+            "enableGoogleTasks": {
+              "type": "bool"
+            },
+            "googleTasksClientId": {
+              "type": "string"
+            },
+            "googleTasksClientSecretUri": {
               "type": "string"
             },
             "enableParentAccess": {
@@ -1107,7 +1143,7 @@
                     "allowInsecure": false,
                     "customDomains": "[if(parameters('enableCustomDomain'), createArray(createObject('name', parameters('apiHostname'), 'bindingType', 'SniEnabled', 'certificateId', resourceId('Microsoft.App/managedEnvironments/managedCertificates', format('{0}-env', parameters('nameStem')), format('{0}-api-certificate', parameters('nameStem'))))), createArray())]"
                   },
-                  "secrets": "[concat(createArray(createObject('name', 'postgres-connection', 'value', parameters('postgresConnectionString'))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'google-client-secret', 'keyVaultUrl', parameters('googleClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'parent-access-pepper', 'keyVaultUrl', parameters('parentAccessPepperSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'google-calendar-client-secret', 'keyVaultUrl', parameters('googleCalendarClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()))]"
+                  "secrets": "[concat(createArray(createObject('name', 'postgres-connection', 'value', parameters('postgresConnectionString'))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'google-client-secret', 'keyVaultUrl', parameters('googleClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'parent-access-pepper', 'keyVaultUrl', parameters('parentAccessPepperSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'google-calendar-client-secret', 'keyVaultUrl', parameters('googleCalendarClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()), if(parameters('enableGoogleTasks'), createArray(createObject('name', 'google-tasks-client-secret', 'keyVaultUrl', parameters('googleTasksClientSecretUri'), 'identity', parameters('runtimeIdentityId'))), createArray()))]"
                 },
                 "template": {
                   "containers": [
@@ -1118,7 +1154,7 @@
                         "cpu": "[json('0.25')]",
                         "memory": "0.5Gi"
                       },
-                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__EventManagementEnabled', 'value', string(parameters('enableGoogleCalendarEventManagement'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()))]",
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__EventManagementEnabled', 'value', string(parameters('enableGoogleCalendarEventManagement'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()), if(parameters('enableGoogleTasks'), createArray(createObject('name', 'GoogleTasks__Enabled', 'value', 'true'), createObject('name', 'GoogleTasks__ClientId', 'value', parameters('googleTasksClientId')), createObject('name', 'GoogleTasks__ClientSecret', 'secretRef', 'google-tasks-client-secret'), createObject('name', 'GoogleTasks__CallbackUrl', 'value', format('https://{0}/api/integrations/google-tasks/callback', parameters('apiHostname')))), createArray()))]",
                       "probes": [
                         {
                           "type": "Startup",

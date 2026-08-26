@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router'
 const navigationItems = [
   { id: 'home', label: 'Home', icon: '⌂', to: '/' },
   { id: 'calendar', label: 'Calendar', icon: '□', to: '/calendar' },
+  { id: 'tasks', label: 'Tasks', icon: '☑', to: '/tasks' },
   { id: 'chores', label: 'Chores', icon: '✓', to: '/chores' },
   { id: 'rewards', label: 'Rewards', icon: '★', to: '/rewards' },
 ] as const

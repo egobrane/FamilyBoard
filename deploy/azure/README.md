@@ -1,5 +1,19 @@
 # Azure staging infrastructure
 
+Google Tasks uses a dedicated OAuth web client with exact callback `https://api.egobrane.net/api/integrations/google-tasks/callback`. Keep `enableGoogleTasks=false` while the additive migration runs. Seed `google-tasks-client-secret` through `google-tasks-secret.bicepparam`, then put only the public client ID in `staging.bicepparam`, enable the gate, and deploy the main template with the same reviewed digest.
+
+```sh
+read -s FAMILY_DASHBOARD_GOOGLE_TASKS_CLIENT_SECRET
+export FAMILY_DASHBOARD_GOOGLE_TASKS_CLIENT_SECRET
+az deployment group create \
+  --name family-dashboard-staging-google-tasks-secret \
+  --subscription b8255fca-4e0c-4f4b-933b-1cd8fcbc91b8 \
+  --resource-group ryan-dev \
+  --mode Incremental \
+  --parameters deploy/azure/google-tasks-secret.bicepparam
+unset FAMILY_DASHBOARD_GOOGLE_TASKS_CLIENT_SECRET
+```
+
 These Bicep templates deploy Family Dashboard staging into the **existing** `ryan-dev` resource group. They never create the group. Use incremental deployment mode only.
 
 ## Safety boundary

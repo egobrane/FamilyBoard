@@ -3,6 +3,7 @@ import { DashboardCard } from '../../components/DashboardCard'
 import { DashboardCalendarCard } from '../calendar/DashboardCalendarCard'
 import { DashboardChoresCard } from '../chores/DashboardChoresCard'
 import { DashboardRewardsCard } from '../rewards/DashboardRewardsCard'
+import { DashboardTasksCard } from '../tasks/DashboardTasksCard'
 import { demoHouseholdPhotoUrl } from './mockDashboardData'
 
 export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
@@ -24,6 +25,8 @@ export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { h
       </DashboardCard>
 
       <DashboardChoresCard />
+
+      <DashboardTasksCard />
 
       <DashboardRewardsCard />
     </main>

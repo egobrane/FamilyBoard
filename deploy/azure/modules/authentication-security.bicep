@@ -198,6 +198,7 @@ output dataProtectionBlobUri string = 'https://${storage.name}.blob.${environmen
 output dataProtectionKeyIdentifier string = '${keyVault.properties.vaultUri}keys/${dataProtectionKey.name}'
 output googleClientSecretUri string = '${keyVault.properties.vaultUri}secrets/google-client-secret'
 output googleCalendarClientSecretUri string = '${keyVault.properties.vaultUri}secrets/google-calendar-client-secret'
+output googleTasksClientSecretUri string = '${keyVault.properties.vaultUri}secrets/google-tasks-client-secret'
 output parentAccessPepperSecretUri string = '${keyVault.properties.vaultUri}secrets/parent-access-pepper-v1'
 output keyVaultName string = keyVault.name
 output storageAccountName string = storage.name

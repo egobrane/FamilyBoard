@@ -13,6 +13,7 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
     string connectionString,
     bool enableCalendar = false,
     bool enableCalendarEventCreation = false,
+    bool enableTasks = false,
     Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<Program>
 {
@@ -29,6 +30,11 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
         builder.UseSetting("GoogleCalendar:CallbackUrl", enableCalendar
             ? "https://api.example.test/api/integrations/google-calendar/callback"
             : "");
+        builder.UseSetting("GoogleTasks:Enabled", enableTasks.ToString());
+        builder.UseSetting("GoogleTasks:ClientId", enableTasks ? "tasks-client-id" : "");
+        builder.UseSetting("GoogleTasks:ClientSecret", enableTasks ? "tasks-client-secret" : "");
+        builder.UseSetting("GoogleTasks:CallbackUrl", enableTasks
+            ? "https://api.example.test/api/integrations/google-tasks/callback" : "");
         builder.UseSetting(
             "ParentAccess:Pepper",
             "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");

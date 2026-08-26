@@ -1,5 +1,7 @@
 # Testing
 
+Google Tasks Increment 1 adds backend protection tests for connection- and token-kind-specific ciphertext, protected OAuth state, and protected pagination cursors. PostgreSQL service tests cover encrypted offline tokens, active-adult household source eligibility, provider-owned task reads, and absence of a task-content entity. Frontend component tests cover date-only task rendering and credentialed antiforgery-protected source selection. Live staging must still prove Google consent, refresh/revocation, multi-household isolation, locked shared-display reads and elevated administration, and provider-error stale fallback.
+
 ## Frontend
 
 ```sh
@@ -51,4 +53,4 @@ Calendar Increment 3 was exercised in staging on 2026-08-26. The owner confirmed
 
 PWA update component tests cover reliable prompt delivery and form blocking. Playwright repeats the form-blocking boundary at wall-display and phone sizes. The production build is additionally inspected for a waiting worker that activates only after the application sends `SKIP_WAITING`; physical Safari/installed-PWA update timing cannot be fully simulated by these tests.
 
-Deploy Preview builds deliberately compile against `https://api-preview.invalid`. Preview validation covers the static application shell, routes, responsive assets, manifest, service worker, and safe API-unavailable state without production cookies, credentials, CORS expansion, or household data. Authenticated staging behavior remains covered by the exact production origin and owner-operated staging checks.
+Deploy Preview builds deliberately compile against `https://api-preview.invalid`. Pull request #24 proved the deployed artifact contained that reserved origin and no production API origin; the owner confirmed the expected static shell and fail-closed unavailable state. Preview validation covers routes, responsive assets, manifest, service worker, and safe API-unavailable behavior without production cookies, credentials, CORS expansion, or household data. Authenticated staging behavior remains covered by the exact production origin and owner-operated staging checks.

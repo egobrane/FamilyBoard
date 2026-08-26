@@ -8,6 +8,7 @@ using FamilyDashboard.Api.Features.Invitations;
 using FamilyDashboard.Api.Features.ParentAccess;
 using FamilyDashboard.Api.Features.Points;
 using FamilyDashboard.Api.Features.Rewards;
+using FamilyDashboard.Api.Features.Tasks;
 using FamilyDashboard.Api.Persistence;
 using FamilyDashboard.Api.Security;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -31,6 +32,9 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient(nameof(GoogleCalendarProviderClient));
 builder.Services.AddScoped<IGoogleCalendarProviderClient, GoogleCalendarProviderClient>();
 builder.Services.AddScoped<GoogleCalendarService>();
+builder.Services.AddHttpClient(nameof(GoogleTasksProviderClient));
+builder.Services.AddScoped<IGoogleTasksProviderClient, GoogleTasksProviderClient>();
+builder.Services.AddScoped<GoogleTasksService>();
 builder.Services.AddScoped<CalendarEventManagementService>();
 builder.Services.AddScoped<ChoreService>();
 builder.Services.AddScoped<ChoreScheduleService>();
@@ -43,6 +47,9 @@ builder.Services.AddSingleton<ChoreDueTimeService>();
 builder.Services.AddSingleton<CalendarTokenProtector>();
 builder.Services.AddSingleton<CalendarStateProtector>();
 builder.Services.AddSingleton<CalendarCorrelationCookieService>();
+builder.Services.AddSingleton<TasksTokenProtector>();
+builder.Services.AddSingleton<TasksStateProtector>();
+builder.Services.AddSingleton<TasksCorrelationCookieService>();
 builder.Services.AddOptions<GoogleCalendarConfiguration>()
     .Bind(builder.Configuration.GetSection(GoogleCalendarConfiguration.SectionName))
     .Validate(options => (!options.EventCreationEnabled || options.Enabled)
@@ -59,6 +66,21 @@ builder.Services.AddOptions<GoogleCalendarConfiguration>()
         && options.MaximumCalendarsPerHousehold is > 0 and <= 100
         && options.MaximumEventsPerRequest is > 0 and <= 2500)),
         "Google Calendar configuration is incomplete or invalid.")
+    .ValidateOnStart();
+builder.Services.AddOptions<GoogleTasksConfiguration>()
+    .Bind(builder.Configuration.GetSection(GoogleTasksConfiguration.SectionName))
+    .Validate(options => !options.Enabled || (
+        !string.IsNullOrWhiteSpace(options.ClientId)
+        && !string.IsNullOrWhiteSpace(options.ClientSecret)
+        && Uri.TryCreate(options.CallbackUrl, UriKind.Absolute, out var callback)
+        && (callback.Scheme == Uri.UriSchemeHttps
+            || (callback.Scheme == Uri.UriSchemeHttp && callback.IsLoopback))
+        && options.AuthorizationLifetime > TimeSpan.Zero
+        && options.FreshCacheLifetime > TimeSpan.Zero
+        && options.StaleCacheLifetime >= options.FreshCacheLifetime
+        && options.MaximumTaskListsPerHousehold is > 0 and <= 100
+        && options.MaximumTasksPerRequest is > 0 and <= 2500),
+        "Google Tasks configuration is incomplete or invalid.")
     .ValidateOnStart();
 builder.Services.AddOptions<ParentAccessConfiguration>()
     .Bind(builder.Configuration.GetSection(ParentAccessConfiguration.SectionName))
@@ -251,6 +273,7 @@ app.MapHouseholdMemberEndpoints();
 app.MapInvitationEndpoints();
 app.MapParentAccessEndpoints();
 app.MapGoogleCalendarEndpoints();
+app.MapGoogleTasksEndpoints();
 app.MapChoreEndpoints();
 app.MapPointEndpoints();
 app.MapRewardEndpoints();

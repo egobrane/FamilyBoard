@@ -208,6 +208,29 @@ test.beforeEach(async ({ page }) => {
         : [{ id: '50000000-0000-0000-0000-000000000001', connectionId: '40000000-0000-0000-0000-000000000001', externalCalendarId: 'family@example.test', name: 'Family', isActive: true, isOwnedByCurrentAdult: true, isEventCreationTarget: true }] })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks`) {
+      await route.fulfill({ json: { tasks: [{ id: 'task-1', sourceId: 'task-source-1', taskListName: 'Family tasks',
+        title: 'Pack lunches', notes: null, status: 'needsAction', dueDate: '2026-08-27', completedAt: null,
+        parentTaskId: null, position: '1', isSubtask: false, isAssigned: false }], nextCursor: null,
+        isStale: false, warnings: [] } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/connection`) {
+      await route.fulfill({ json: { isAvailable: true, connectionId: 'tasks-connection-1', status: 'active',
+        providerEmail: 'tasks@example.test', connectedAt: '2026-08-26T12:00:00Z', activeSourceCount: 1,
+        activeHouseholdCount: 1 } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/provider-task-lists`) {
+      await route.fulfill({ json: [{ id: 'list-1', name: 'Family tasks', isSelected: true },
+        { id: 'list-2', name: 'School tasks', isSelected: false }] })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/sources`) {
+      await route.fulfill({ json: [{ id: 'task-source-1', connectionId: 'tasks-connection-1',
+        externalTaskListId: 'list-1', name: 'Family tasks', isActive: true, isOwnedByCurrentAdult: true }] })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/parent-access`) {
       await route.fulfill({ json: parentAccess })
       return
@@ -496,6 +519,20 @@ test('calendar navigation and household source selection work with touch-sized c
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
+})
+
+test('Google Tasks navigation and household list selection are accessible', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('link', { name: 'Tasks', exact: true }).click()
+  await expect(page).toHaveURL(/\/tasks$/)
+  await expect(page.getByText('Pack lunches')).toBeVisible()
+  await page.getByRole('link', { name: 'Task settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Google Tasks' })).toBeVisible()
+  await page.getByRole('checkbox', { name: /School tasks/ }).check()
+  await page.getByRole('button', { name: 'Save visible task lists' }).click()
+  await expect(page.getByText('Visible Google task lists saved.')).toBeVisible()
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
 })
 
 test('controlled event creation is keyboard accessible and returns to the calendar', async ({ page }) => {

@@ -41,6 +41,12 @@ param enableGoogleCalendarEventManagement bool = false
 @description('Public client ID for the separate Google Calendar OAuth web client.')
 param googleCalendarClientId string = ''
 
+@description('Enable only after the separate Google Tasks client secret exists in Key Vault.')
+param enableGoogleTasks bool = false
+
+@description('Public client ID for the separate Google Tasks OAuth web client.')
+param googleTasksClientId string = ''
+
 @description('Enable only after parent-access-pepper-v1 exists in Key Vault.')
 param enableParentAccess bool = false
 
@@ -129,6 +135,9 @@ module containerApps 'modules/container-apps.bicep' = {
     enableGoogleCalendarEventManagement: enableGoogleCalendarEventManagement
     googleCalendarClientId: googleCalendarClientId
     googleCalendarClientSecretUri: authenticationSecurity.outputs.googleCalendarClientSecretUri
+    enableGoogleTasks: enableGoogleTasks
+    googleTasksClientId: googleTasksClientId
+    googleTasksClientSecretUri: authenticationSecurity.outputs.googleTasksClientSecretUri
     enableParentAccess: enableParentAccess
     parentAccessPepperSecretUri: authenticationSecurity.outputs.parentAccessPepperSecretUri
     runtimeIdentityId: authenticationSecurity.outputs.runtimeIdentityId

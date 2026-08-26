@@ -1,5 +1,7 @@
 # Authentication Boundary
 
+Google Calendar and Google Tasks authorization are independent from identity sign-in and from one another. Each integration has its own OAuth client, exact callback, protected state and correlation cookie, encrypted backend-only refresh token, revocation lifecycle, and household source-selection boundary. A Google Tasks grant cannot authenticate an application session or authorize Calendar access.
+
 Identity Increment 3 implements the backend Google authorization-code flow and revocable application-cookie sessions. Google authentication is active in Azure staging with its client secret held in Key Vault. Protected endpoints continue to fail closed with stable `401 ProblemDetails` when no valid application session is present; disabling Google configuration makes the login endpoint return `503 authentication_unavailable`.
 
 Household authorization uses persistence-backed membership lookup and requires an active account, household, and linked member profile. Backend tests retain a test-assembly-only header scheme for household authorization and use real protected cookies plus database sessions for authentication tests. Neither test bypass is available in production.

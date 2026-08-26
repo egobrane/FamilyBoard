@@ -26,6 +26,7 @@ Create `family-dashboard-secrets` directly in the cluster or through an approved
 - `postgres-username`
 - `postgres-password`
 - `connection-string`
+- `google-tasks-client-secret` when `GoogleTasks__Enabled=true`; omit it while the integration is disabled
 
 Use real values only at the terminal or secret-management boundary. Never create a populated Secret YAML file in the repository.
 

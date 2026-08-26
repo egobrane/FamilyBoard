@@ -29,6 +29,29 @@ const calendarErrors: Record<string, { heading: string; message: string }> = {
   },
 }
 
+const tasksErrors: Record<string, { heading: string; message: string }> = {
+  tasks_authorization_denied: {
+    heading: 'Google Tasks access was not granted.',
+    message: 'Nothing was connected. You can return to Tasks settings when you are ready.',
+  },
+  tasks_authorization_expired: {
+    heading: 'The Tasks connection request expired.',
+    message: 'Return to Tasks settings and start a fresh connection request.',
+  },
+  tasks_authorization_failed: {
+    heading: 'Google Tasks could not be connected.',
+    message: 'Google returned an unexpected response. No Tasks connection was saved.',
+  },
+  tasks_offline_access_required: {
+    heading: 'Google Tasks needs renewed permission.',
+    message: 'Return to Tasks settings and approve offline access.',
+  },
+  tasks_scope_missing: {
+    heading: 'Google Tasks permission was incomplete.',
+    message: 'No connection was saved because read-only Tasks access was unavailable.',
+  },
+}
+
 export function AuthenticationErrorPage() {
   const [searchParams] = useSearchParams()
   const { state } = useAuthentication()
@@ -40,6 +63,21 @@ export function AuthenticationErrorPage() {
           message: 'No connection was saved. Return to Calendar settings and try again.',
         }
       : null)
+  const tasksError = tasksErrors[code]
+    ?? (code.startsWith('tasks_')
+      ? { heading: 'Google Tasks could not be connected.', message: 'No connection was saved. Return to Tasks settings and try again.' }
+      : null)
+
+  if (tasksError !== null) {
+    const selectedHouseholdId = state.status === 'authenticated' ? state.currentUser.selectedHouseholdId : null
+    return <main className="entry-page" id="main-content"><div className="entry-card" role="alert">
+      <p className="eyebrow">Tasks connection paused</p><h1>{tasksError.heading}</h1>
+      <p className="entry-card__lede">{tasksError.message}</p>
+      {selectedHouseholdId === null
+        ? <a className="primary-action" href={googleLoginUrl('/')}>Sign in to continue</a>
+        : <Link className="primary-action" to={`/households/${selectedHouseholdId}/tasks`}>Return to Tasks settings</Link>}
+    </div></main>
+  }
 
   if (calendarError !== null) {
     const selectedHouseholdId = state.status === 'authenticated'

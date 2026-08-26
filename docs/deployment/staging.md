@@ -1,5 +1,11 @@
 # Staging Deployment Proof
 
+## Google Tasks Increment 1 implementation handoff: 2026-08-26
+
+- Operational hardening is merged: Cloudflare bypasses only `/sw.js`, the safe production-isolated Netlify Deploy Preview was owner-confirmed, and production bundle `/assets/index-D2ZJAxw2.js` remains the recorded Version 1 Safari baseline.
+- The approved read-only Google Tasks increment is implemented with a dedicated authorization boundary, encrypted backend-only tokens, additive connection/source persistence, no task-content table, disposable request caching, household isolation, and parent-elevated administration on shared displays.
+- The genuine Tasks interface is the intended Version 2 PWA release. CI, migration, Azure activation, Google consent, live behavior, and two-version Safari/wall-display proof remain deployment steps and are not yet recorded as successful staging evidence.
+
 Staging is proven only when one identifiable commit passes CI, produces immutable deployable artifacts, and is verified through the deployed frontend and API. A successful Netlify frontend build is an important part of this proof, but it does not prove the backend, database, migration, or cross-origin configuration.
 
 ## Required evidence
@@ -362,8 +368,9 @@ Chore Management Increment 1 is proven end to end in staging. Automatic immutabl
 
 ## Operational hardening implementation: 2026-08-26
 
-- The Netlify Deploy Preview context now forces `VITE_API_BASE_URL=https://api-preview.invalid` in its build command. This prevents a broadly scoped Netlify UI value from compiling the production API into a preview and preserves exact production CORS plus host-only `SameSite=Lax` cookies. A real pull-request preview remains to be created after these changes are pushed.
+- The Netlify Deploy Preview context forces `VITE_API_BASE_URL=https://api-preview.invalid` in its build command. Pull request #24 and deploy `6a8f3c2119e3360008e7f2c1` proved the preview at `https://deploy-preview-24--effortless-bubblegum-ad0643.netlify.app`: its bundle contains the reserved invalid origin and no production API origin. The owner confirmed the expected static shell and fail-closed unavailable state without production cookies, household data, or CORS expansion.
 - The application recovery runbook records 15-minute application rollback RTO, zero application rollback RPO, provisional 30-minute database RTO, and provisional five-minute database RPO, plus the forward-fix and pre-parent-access shared-session safety boundaries.
 - The approved Azure rehearsal shifted 100% traffic from revision `family-dashboard-staging-api--0000032` to known-compatible post-parent-access revision `family-dashboard-staging-api--0000031`. Public liveness/readiness returned HTTP 200 and unauthenticated authentication failed closed with HTTP 401 `authentication_required`.
 - Traffic was restored within approximately two minutes to revision `family-dashboard-staging-api--0000032`. Independent inspection confirmed latest-ready status, 100% traffic, reviewed digest `sha256:93ac0319cc0f870c2d12059dd343bbeae7b5b069765342258ae0430570d2dfcf`, and healthy liveness/readiness. PostgreSQL and migrations were unchanged. An authenticated owner check during the temporary rollback was not performed.
-- Direct Netlify and Cloudflare returned byte-identical `/sw.js` bodies during verification, but Cloudflare still supplied `cache-control: max-age=14400, must-revalidate`. No Cloudflare API credential or functioning authenticated browser-control path was available, so the narrowly scoped bypass rule and physical two-version proof remain owner actions rather than recorded successes.
+- The owner added the narrowly scoped Cloudflare cache-bypass rule for only `family.egobrane.net/sw.js` and purged that URL. Public verification now returns `cache-control: no-cache,max-age=0,must-revalidate` with `cf-cache-status: DYNAMIC`.
+- Merge commit `04e1a12672950bd88467c85b0436b26673530ff4` passed frontend, backend, and container/manifests checks. Production Netlify deploy `6a8f3db6556aee000886b5b1` is ready; its unchanged application bundle `/assets/index-D2ZJAxw2.js` is recorded as Version 1 in Safari. The two-version Safari and physical wall-display proof remains intentionally paused until the next genuine frontend release supplies Version 2.

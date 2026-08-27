@@ -250,7 +250,6 @@ jobs:
             actual_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$api_json")"
             latest_revision="$(jq -r '.properties.latestRevisionName // empty' <<< "$api_json")"
             latest_ready_revision="$(jq -r '.properties.latestReadyRevisionName // empty' <<< "$api_json")"
-            traffic_weight="$(jq -r --arg revision "$latest_revision" '[.properties.configuration.ingress.traffic[]? | select(.latestRevision == true or .revisionName == $revision) | (.weight // 0)] | add // 0' <<< "$api_json")"
 
             revision_health="Unknown"
             revision_provisioning="Unknown"
@@ -267,15 +266,14 @@ jobs:
               fi
             fi
 
-            echo "API convergence attempt $attempt: latest=${latest_revision:-none}, ready=${latest_ready_revision:-none}, health=$revision_health, provisioning=$revision_provisioning, traffic=$traffic_weight%."
+            echo "API readiness attempt $attempt: latest=${latest_revision:-none}, ready=${latest_ready_revision:-none}, health=$revision_health, provisioning=$revision_provisioning."
 
             if [[ "$actual_image" == "$DEPLOY_IMAGE" && \
                   "$revision_image" == "$DEPLOY_IMAGE" && \
                   -n "$latest_revision" && \
                   "$latest_revision" == "$latest_ready_revision" && \
                   "$revision_health" == "Healthy" && \
-                  "$revision_provisioning" == "Provisioned" && \
-                  "$traffic_weight" == "100" ]]; then
+                  "$revision_provisioning" == "Provisioned" ]]; then
               break
             fi
 
@@ -288,11 +286,34 @@ jobs:
               echo "Latest revision image: ${revision_image:-none}" >&2
               echo "Latest revision health: $revision_health" >&2
               echo "Latest revision provisioning: $revision_provisioning" >&2
-              echo "Latest revision traffic: $traffic_weight%" >&2
               exit 1
             fi
 
             sleep 10
+          done
+
+          az containerapp ingress traffic set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$API_NAME" \
+            --revision-weight "$latest_revision=100" \
+            --output none
+
+          for attempt in {1..30}; do
+            api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
+            traffic_weight="$(jq -r --arg revision "$latest_revision" '[.properties.configuration.ingress.traffic[]? | select(.revisionName == $revision) | (.weight // 0)] | add // 0' <<< "$api_json")"
+
+            echo "API traffic attempt $attempt: revision=$latest_revision, traffic=$traffic_weight%."
+
+            if [[ "$traffic_weight" == "100" ]]; then
+              break
+            fi
+
+            if [[ "$attempt" == "30" ]]; then
+              echo "Azure Container Apps did not route 100% traffic to $latest_revision." >&2
+              exit 1
+            fi
+
+            sleep 5
           done
 
           for attempt in {1..30}; do
@@ -379,6 +400,67 @@ jobs:
               "GoogleTasks__CallbackUrl=$PREVIOUS_GOOGLE_TASKS_CALLBACK_URL" \
               "ChoreGeneration__HorizonHours=$PREVIOUS_CHORE_GENERATION_HORIZON_HOURS" \
               "ChoreGeneration__MaximumAssignmentsPerRun=$PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+
+          rollback_revision=""
+          for attempt in {1..60}; do
+            rollback_api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
+            rollback_revision="$(jq -r '.properties.latestRevisionName // empty' <<< "$rollback_api_json")"
+            rollback_ready_revision="$(jq -r '.properties.latestReadyRevisionName // empty' <<< "$rollback_api_json")"
+            rollback_health="Unknown"
+            rollback_provisioning="Unknown"
+            rollback_image=""
+
+            if [[ -n "$rollback_revision" ]]; then
+              if rollback_revision_json="$(az containerapp revision show \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$API_NAME" \
+                --revision "$rollback_revision" \
+                --output json 2>/dev/null)"; then
+                rollback_health="$(jq -r '.properties.healthState // "Unknown"' <<< "$rollback_revision_json")"
+                rollback_provisioning="$(jq -r '.properties.provisioningState // "Unknown"' <<< "$rollback_revision_json")"
+                rollback_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$rollback_revision_json")"
+              fi
+            fi
+
+            echo "Rollback readiness attempt $attempt: latest=${rollback_revision:-none}, ready=${rollback_ready_revision:-none}, health=$rollback_health, provisioning=$rollback_provisioning."
+
+            if [[ "$rollback_image" == "$PREVIOUS_IMAGE" && \
+                  -n "$rollback_revision" && \
+                  "$rollback_revision" == "$rollback_ready_revision" && \
+                  "$rollback_health" == "Healthy" && \
+                  "$rollback_provisioning" == "Provisioned" ]]; then
+              break
+            fi
+
+            if [[ "$attempt" == "60" ]]; then
+              echo "The previous API release did not become ready during rollback." >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          az containerapp ingress traffic set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$API_NAME" \
+            --revision-weight "$rollback_revision=100" \
+            --output none
+
+          for attempt in {1..30}; do
+            rollback_api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
+            rollback_traffic="$(jq -r --arg revision "$rollback_revision" '[.properties.configuration.ingress.traffic[]? | select(.revisionName == $revision) | (.weight // 0)] | add // 0' <<< "$rollback_api_json")"
+
+            if [[ "$rollback_traffic" == "100" ]]; then
+              break
+            fi
+
+            if [[ "$attempt" == "30" ]]; then
+              echo "Rollback did not restore 100% traffic to $rollback_revision." >&2
+              exit 1
+            fi
+
+            sleep 5
+          done
 
           if [[ "$CHORE_GENERATOR_EXISTS" == "true" && -n "${PREVIOUS_CHORE_GENERATOR_IMAGE:-}" ]]; then
             az containerapp job update --resource-group "$RESOURCE_GROUP" \

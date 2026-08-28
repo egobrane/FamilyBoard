@@ -15,6 +15,10 @@ public sealed class HouseholdTaskListSourceEntityConfiguration
         builder.Property(source => source.ExternalTaskListId).HasMaxLength(1024).IsRequired();
         builder.Property(source => source.DisplayNameSnapshot).HasMaxLength(200).IsRequired();
         builder.HasIndex(source => new { source.HouseholdId, source.IsActive });
+        builder.HasIndex(source => source.HouseholdId).IsUnique()
+            .HasFilter("\"IsWriteTarget\" = TRUE");
+        builder.HasIndex(source => new { source.GoogleTasksConnectionId, source.ExternalTaskListId })
+            .IsUnique().HasFilter("\"IsWriteTarget\" = TRUE");
         builder.HasIndex(source => new
         {
             source.HouseholdId,
@@ -37,6 +41,10 @@ public sealed class HouseholdTaskListSourceEntityConfiguration
         builder.HasOne(source => source.AddedByUserAccount)
             .WithMany(account => account.AddedHouseholdTaskListSources)
             .HasForeignKey(source => source.AddedByUserAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(source => source.WriteTargetConfiguredByUserAccount)
+            .WithMany(account => account.ConfiguredWritableTaskListSources)
+            .HasForeignKey(source => source.WriteTargetConfiguredByUserAccountId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

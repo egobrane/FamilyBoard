@@ -38,7 +38,7 @@ The accepted identity, session, household-membership, invitation, Google sign-in
 
 Netlify Deploy Preview origins are dynamic. Before authenticated previews are enabled, define whether they use a dedicated non-production backend, an explicit per-preview allowlist, or no authenticated API access. Broad wildcard credentialed CORS is not acceptable.
 
-Google Tasks token storage and any future separately provisioned wall-display credential remain separate approval decisions. Azure Data Protection keys are persisted in private Blob Storage and wrapped by a versionless Key Vault key using the API runtime managed identity.
+Google Tasks authorization is active in staging through its dedicated client and exact callback. Its client secret reaches only the API through the `google-tasks-client-secret` Key Vault reference and runtime managed identity; access and refresh tokens are purpose-protected with the persisted Azure Data Protection key ring before PostgreSQL storage. Increment 2 requests the broad Tasks scope only through explicit administrative reauthorization and never treats that grant as an application session or Calendar authorization. Locked shared displays may perform enabled routine task mutations only with explicit active-member attribution; connection, scope, list, and writable-target configuration remain parent-elevated administration.
 
 ## Shared-display parent access
 

@@ -18,6 +18,7 @@ public sealed class Household
     public ICollection<HouseholdInvitation> Invitations { get; set; } = [];
     public ICollection<HouseholdCalendarSource> CalendarSources { get; set; } = [];
     public ICollection<HouseholdTaskListSource> TaskListSources { get; set; } = [];
+    public ICollection<GoogleTaskMutationReceipt> GoogleTaskMutationReceipts { get; set; } = [];
     public ICollection<CalendarEventCreationReceipt> CalendarEventCreationReceipts { get; set; } = [];
     public ICollection<CalendarEventMutationReceipt> CalendarEventMutationReceipts { get; set; } = [];
     public HouseholdAccessPin? AccessPin { get; set; }

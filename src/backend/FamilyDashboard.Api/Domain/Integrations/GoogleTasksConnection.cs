@@ -20,4 +20,5 @@ public sealed class GoogleTasksConnection
 
     public UserAccount UserAccount { get; set; } = null!;
     public ICollection<HouseholdTaskListSource> HouseholdSources { get; set; } = [];
+    public ICollection<GoogleTaskMutationReceipt> MutationReceipts { get; set; } = [];
 }

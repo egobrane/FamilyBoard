@@ -18,7 +18,9 @@ public static class GoogleTasksScopes
     public const string OpenId = "openid";
     public const string Email = "email";
     public const string TasksReadOnly = "https://www.googleapis.com/auth/tasks.readonly";
+    public const string Tasks = "https://www.googleapis.com/auth/tasks";
     public static readonly string[] Required = [OpenId, Email, TasksReadOnly];
+    public static readonly string[] WriteRequired = [OpenId, Email, Tasks];
 }
 
 public sealed record GoogleTasksTokenResult(
@@ -40,7 +42,8 @@ public sealed record GoogleProviderTask(
     DateTimeOffset? CompletedAt,
     string? ParentTaskId,
     string Position,
-    bool IsAssigned);
+    bool IsAssigned,
+    string ETag);
 public sealed record GoogleProviderTaskPage(IReadOnlyList<GoogleProviderTask> Tasks, string? NextPageToken);
 
 public enum GoogleTasksProviderFailure
@@ -49,6 +52,8 @@ public enum GoogleTasksProviderFailure
     RateLimited,
     ReauthorizationRequired,
     InvalidResponse,
+    NotFound,
+    VersionConflict,
 }
 
 public sealed class GoogleTasksProviderException(
@@ -61,7 +66,7 @@ public sealed class GoogleTasksProviderException(
 
 public interface IGoogleTasksProviderClient
 {
-    string CreateAuthorizationUrl(string state);
+    string CreateAuthorizationUrl(string state, bool requestWriteAccess = false);
     Task<GoogleTasksTokenResult> ExchangeCodeAsync(string code, CancellationToken cancellationToken);
     Task<GoogleTasksRefreshResult> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
     Task<IReadOnlyList<GoogleProviderTaskList>> ListTaskListsAsync(
@@ -69,6 +74,14 @@ public interface IGoogleTasksProviderClient
     Task<GoogleProviderTaskPage> ListTasksAsync(
         string accessToken, string taskListId, bool includeCompleted,
         string? pageToken, int maximumResults, CancellationToken cancellationToken);
+    Task<GoogleProviderTask> GetTaskAsync(
+        string accessToken, string taskListId, string taskId, CancellationToken cancellationToken);
+    Task<GoogleProviderTask> CreateTaskAsync(
+        string accessToken, string taskListId, string title, string? notes,
+        string? dueDate, CancellationToken cancellationToken);
+    Task<GoogleProviderTask> UpdateTaskStatusAsync(
+        string accessToken, string taskListId, string taskId, string expectedETag,
+        string targetStatus, CancellationToken cancellationToken);
     Task RevokeAsync(string token, CancellationToken cancellationToken);
 }
 
@@ -79,14 +92,15 @@ public sealed class GoogleTasksProviderClient(
 {
     private readonly GoogleTasksConfiguration _configuration = options.Value;
 
-    public string CreateAuthorizationUrl(string state)
+    public string CreateAuthorizationUrl(string state, bool requestWriteAccess = false)
     {
         var query = new Dictionary<string, string?>
         {
             ["client_id"] = _configuration.ClientId,
             ["redirect_uri"] = _configuration.CallbackUrl,
             ["response_type"] = "code",
-            ["scope"] = string.Join(' ', GoogleTasksScopes.Required),
+            ["scope"] = string.Join(' ', requestWriteAccess
+                ? GoogleTasksScopes.WriteRequired : GoogleTasksScopes.Required),
             ["access_type"] = "offline",
             ["include_granted_scopes"] = "true",
             ["prompt"] = "consent select_account",
@@ -203,13 +217,59 @@ public sealed class GoogleTasksProviderClient(
                 DateTimeOffset.TryParse(item.Completed, out var completed) ? completed : null,
                 item.Parent,
                 item.Position ?? string.Empty,
-                item.AssignmentInfo is not null)).ToArray();
+                item.AssignmentInfo is not null,
+                item.ETag ?? string.Empty)).ToArray();
             return new GoogleProviderTaskPage(tasks, response.NextPageToken);
         }
         catch (GoogleApiException exception)
         {
             throw Map(exception);
         }
+    }
+
+    public async Task<GoogleProviderTask> GetTaskAsync(
+        string accessToken, string taskListId, string taskId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var service = CreateService(accessToken);
+            return ToProviderTask(await service.Tasks.Get(taskListId, taskId)
+                .ExecuteAsync(cancellationToken));
+        }
+        catch (GoogleApiException exception) { throw Map(exception); }
+    }
+
+    public async Task<GoogleProviderTask> CreateTaskAsync(
+        string accessToken, string taskListId, string title, string? notes,
+        string? dueDate, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var service = CreateService(accessToken);
+            var task = new Google.Apis.Tasks.v1.Data.Task { Title = title, Notes = notes };
+            if (dueDate is not null) task.Due = $"{dueDate}T00:00:00.000Z";
+            return ToProviderTask(await service.Tasks.Insert(task, taskListId)
+                .ExecuteAsync(cancellationToken));
+        }
+        catch (GoogleApiException exception) { throw Map(exception); }
+    }
+
+    public async Task<GoogleProviderTask> UpdateTaskStatusAsync(
+        string accessToken, string taskListId, string taskId, string expectedETag,
+        string targetStatus, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var service = CreateService(accessToken);
+            var existing = await service.Tasks.Get(taskListId, taskId).ExecuteAsync(cancellationToken);
+            existing.ETag = expectedETag;
+            existing.Status = targetStatus;
+            existing.Completed = targetStatus == "completed" ? DateTimeOffset.UtcNow.ToString("O") : null;
+            var patch = service.Tasks.Patch(existing, taskListId, taskId);
+            patch.ETagAction = Google.Apis.ETagAction.IfMatch;
+            return ToProviderTask(await patch.ExecuteAsync(cancellationToken));
+        }
+        catch (GoogleApiException exception) { throw Map(exception); }
     }
 
     public async Task RevokeAsync(string token, CancellationToken cancellationToken)
@@ -230,6 +290,18 @@ public sealed class GoogleTasksProviderClient(
         HttpClientInitializer = GoogleCredential.FromAccessToken(accessToken),
         ApplicationName = "Family Dashboard",
     });
+
+    private static GoogleProviderTask ToProviderTask(Google.Apis.Tasks.v1.Data.Task item) => new(
+        item.Id,
+        item.Title ?? "Untitled task",
+        string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes,
+        item.Status ?? "needsAction",
+        string.IsNullOrWhiteSpace(item.Due) ? null : item.Due[..Math.Min(10, item.Due.Length)],
+        DateTimeOffset.TryParse(item.Completed, out var completed) ? completed : null,
+        item.Parent,
+        item.Position ?? string.Empty,
+        item.AssignmentInfo is not null,
+        item.ETag ?? string.Empty);
 
     private async Task<OAuthTokenResponse> SendTokenRequestAsync(
         Dictionary<string, string> values, CancellationToken cancellationToken)
@@ -256,6 +328,9 @@ public sealed class GoogleTasksProviderClient(
     {
         var failure = exception.HttpStatusCode switch
         {
+            HttpStatusCode.PreconditionFailed or HttpStatusCode.Conflict =>
+                GoogleTasksProviderFailure.VersionConflict,
+            HttpStatusCode.NotFound => GoogleTasksProviderFailure.NotFound,
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden =>
                 GoogleTasksProviderFailure.ReauthorizationRequired,
             HttpStatusCode.TooManyRequests => GoogleTasksProviderFailure.RateLimited,

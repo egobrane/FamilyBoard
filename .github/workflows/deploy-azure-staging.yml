@@ -63,6 +63,7 @@ jobs:
           GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED="$(jq -r '.parameters.enableGoogleCalendarEventManagement.value' <<< "$parameters")"
           GOOGLE_CALENDAR_CLIENT_ID="$(jq -r '.parameters.googleCalendarClientId.value' <<< "$parameters")"
           GOOGLE_TASKS_ENABLED="$(jq -r '.parameters.enableGoogleTasks.value' <<< "$parameters")"
+          GOOGLE_TASK_MUTATIONS_ENABLED="$(jq -r '.parameters.enableGoogleTaskMutations.value' <<< "$parameters")"
           GOOGLE_TASKS_CLIENT_ID="$(jq -r '.parameters.googleTasksClientId.value' <<< "$parameters")"
           CHORE_GENERATION_HORIZON_HOURS="$(jq -r '.parameters.choreGenerationHorizonHours.value' <<< "$parameters")"
           CHORE_GENERATION_MAXIMUM_ASSIGNMENTS="$(jq -r '.parameters.choreGenerationMaximumAssignmentsPerRun.value' <<< "$parameters")"
@@ -88,6 +89,7 @@ jobs:
             echo "GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED=$GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED"
             echo "GOOGLE_CALENDAR_CLIENT_ID=$GOOGLE_CALENDAR_CLIENT_ID"
             echo "GOOGLE_TASKS_ENABLED=$GOOGLE_TASKS_ENABLED"
+            echo "GOOGLE_TASK_MUTATIONS_ENABLED=$GOOGLE_TASK_MUTATIONS_ENABLED"
             echo "GOOGLE_TASKS_CLIENT_ID=$GOOGLE_TASKS_CLIENT_ID"
             echo "CHORE_GENERATION_HORIZON_HOURS=$CHORE_GENERATION_HORIZON_HOURS"
             echo "CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
@@ -150,6 +152,7 @@ jobs:
           }
           previous_google_calendar_event_management_enabled="$(env_value 'GoogleCalendar__EventManagementEnabled')"
           previous_google_tasks_enabled="$(env_value 'GoogleTasks__Enabled')"
+          previous_google_task_mutations_enabled="$(env_value 'GoogleTasks__MutationsEnabled')"
 
           {
             echo "PREVIOUS_IMAGE=$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
@@ -165,6 +168,7 @@ jobs:
             echo "PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL=$(env_value 'GoogleCalendar__CallbackUrl')"
             echo "PREVIOUS_GOOGLE_TASKS_ENABLED=${previous_google_tasks_enabled:-false}"
             echo "PREVIOUS_GOOGLE_TASKS_CLIENT_ID=$(env_value 'GoogleTasks__ClientId')"
+            echo "PREVIOUS_GOOGLE_TASK_MUTATIONS_ENABLED=${previous_google_task_mutations_enabled:-false}"
             echo "PREVIOUS_GOOGLE_TASKS_CALLBACK_URL=$(env_value 'GoogleTasks__CallbackUrl')"
             echo "PREVIOUS_CHORE_GENERATION_HORIZON_HOURS=$(env_value 'ChoreGeneration__HorizonHours')"
             echo "PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$(env_value 'ChoreGeneration__MaximumAssignmentsPerRun')"
@@ -240,6 +244,7 @@ jobs:
               "GoogleCalendar__ClientId=$GOOGLE_CALENDAR_CLIENT_ID" \
               "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback" \
               "GoogleTasks__Enabled=$GOOGLE_TASKS_ENABLED" \
+              "GoogleTasks__MutationsEnabled=$GOOGLE_TASK_MUTATIONS_ENABLED" \
               "GoogleTasks__ClientId=$GOOGLE_TASKS_CLIENT_ID" \
               "GoogleTasks__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-tasks/callback" \
               "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS" \
@@ -352,6 +357,7 @@ jobs:
           assert_env 'GoogleCalendar__ClientId' "$GOOGLE_CALENDAR_CLIENT_ID"
           assert_env 'GoogleCalendar__CallbackUrl' "https://$API_HOSTNAME/api/integrations/google-calendar/callback"
           assert_env 'GoogleTasks__Enabled' "$GOOGLE_TASKS_ENABLED"
+          assert_env 'GoogleTasks__MutationsEnabled' "$GOOGLE_TASK_MUTATIONS_ENABLED"
           assert_env 'GoogleTasks__ClientId' "$GOOGLE_TASKS_CLIENT_ID"
           assert_env 'GoogleTasks__CallbackUrl' "https://$API_HOSTNAME/api/integrations/google-tasks/callback"
           assert_env 'ChoreGeneration__HorizonHours' "$CHORE_GENERATION_HORIZON_HOURS"
@@ -396,6 +402,7 @@ jobs:
               "GoogleCalendar__ClientId=$PREVIOUS_GOOGLE_CALENDAR_CLIENT_ID" \
               "GoogleCalendar__CallbackUrl=$PREVIOUS_GOOGLE_CALENDAR_CALLBACK_URL" \
               "GoogleTasks__Enabled=$PREVIOUS_GOOGLE_TASKS_ENABLED" \
+              "GoogleTasks__MutationsEnabled=$PREVIOUS_GOOGLE_TASK_MUTATIONS_ENABLED" \
               "GoogleTasks__ClientId=$PREVIOUS_GOOGLE_TASKS_CLIENT_ID" \
               "GoogleTasks__CallbackUrl=$PREVIOUS_GOOGLE_TASKS_CALLBACK_URL" \
               "ChoreGeneration__HorizonHours=$PREVIOUS_CHORE_GENERATION_HORIZON_HOURS" \

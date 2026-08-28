@@ -49,6 +49,7 @@ builder.Services.AddSingleton<CalendarStateProtector>();
 builder.Services.AddSingleton<CalendarCorrelationCookieService>();
 builder.Services.AddSingleton<TasksTokenProtector>();
 builder.Services.AddSingleton<TasksStateProtector>();
+builder.Services.AddSingleton<TasksMutationProtector>();
 builder.Services.AddSingleton<TasksCorrelationCookieService>();
 builder.Services.AddOptions<GoogleCalendarConfiguration>()
     .Bind(builder.Configuration.GetSection(GoogleCalendarConfiguration.SectionName))
@@ -69,7 +70,7 @@ builder.Services.AddOptions<GoogleCalendarConfiguration>()
     .ValidateOnStart();
 builder.Services.AddOptions<GoogleTasksConfiguration>()
     .Bind(builder.Configuration.GetSection(GoogleTasksConfiguration.SectionName))
-    .Validate(options => !options.Enabled || (
+    .Validate(options => (!options.MutationsEnabled || options.Enabled) && (!options.Enabled || (
         !string.IsNullOrWhiteSpace(options.ClientId)
         && !string.IsNullOrWhiteSpace(options.ClientSecret)
         && Uri.TryCreate(options.CallbackUrl, UriKind.Absolute, out var callback)
@@ -79,7 +80,7 @@ builder.Services.AddOptions<GoogleTasksConfiguration>()
         && options.FreshCacheLifetime > TimeSpan.Zero
         && options.StaleCacheLifetime >= options.FreshCacheLifetime
         && options.MaximumTaskListsPerHousehold is > 0 and <= 100
-        && options.MaximumTasksPerRequest is > 0 and <= 2500),
+        && options.MaximumTasksPerRequest is > 0 and <= 2500)),
         "Google Tasks configuration is incomplete or invalid.")
     .ValidateOnStart();
 builder.Services.AddOptions<ParentAccessConfiguration>()

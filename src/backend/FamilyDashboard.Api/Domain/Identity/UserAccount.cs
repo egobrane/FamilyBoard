@@ -24,6 +24,8 @@ public sealed class UserAccount
     public GoogleTasksConnection? GoogleTasksConnection { get; set; }
     public ICollection<HouseholdCalendarSource> AddedHouseholdCalendarSources { get; set; } = [];
     public ICollection<HouseholdTaskListSource> AddedHouseholdTaskListSources { get; set; } = [];
+    public ICollection<HouseholdTaskListSource> ConfiguredWritableTaskListSources { get; set; } = [];
+    public ICollection<GoogleTaskMutationReceipt> RequestedGoogleTaskMutations { get; set; } = [];
     public ICollection<HouseholdCalendarSource> EnabledCalendarEventCreationSources { get; set; } = [];
     public ICollection<CalendarEventCreationReceipt> RequestedCalendarEventCreations { get; set; } = [];
     public ICollection<CalendarEventMutationReceipt> RequestedCalendarEventMutations { get; set; } = [];

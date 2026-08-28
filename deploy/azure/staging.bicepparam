@@ -14,6 +14,7 @@ param enableGoogleCalendar = true
 param enableGoogleCalendarEventCreation = true
 param enableGoogleCalendarEventManagement = true
 param enableGoogleTasks = true
+param enableGoogleTaskMutations = false
 param googleTasksClientId = '964271653840-mcqiag32eve22dsdmoonhimi2j33aa92.apps.googleusercontent.com'
 param choreGenerationHorizonHours = 36
 param choreGenerationMaximumAssignmentsPerRun = 100

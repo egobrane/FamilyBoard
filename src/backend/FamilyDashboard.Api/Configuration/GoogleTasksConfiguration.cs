@@ -5,6 +5,7 @@ public sealed class GoogleTasksConfiguration
     public const string SectionName = "GoogleTasks";
 
     public bool Enabled { get; init; }
+    public bool MutationsEnabled { get; init; }
     public string ClientId { get; init; } = string.Empty;
     public string ClientSecret { get; init; } = string.Empty;
     public string CallbackUrl { get; init; } = string.Empty;

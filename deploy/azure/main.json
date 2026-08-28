@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "2394108290518266839"
+      "templateHash": "10899520840495457709"
     }
   },
   "parameters": {
@@ -103,6 +103,10 @@
       "metadata": {
         "description": "Enable only after the separate Google Tasks client secret exists in Key Vault."
       }
+    },
+    "enableGoogleTaskMutations": {
+      "type": "bool",
+      "defaultValue": false
     },
     "googleTasksClientId": {
       "type": "string",
@@ -946,6 +950,9 @@
           "enableGoogleTasks": {
             "value": "[parameters('enableGoogleTasks')]"
           },
+          "enableGoogleTaskMutations": {
+            "value": "[parameters('enableGoogleTaskMutations')]"
+          },
           "googleTasksClientId": {
             "value": "[parameters('googleTasksClientId')]"
           },
@@ -984,7 +991,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.46.1.21595",
-              "templateHash": "14216553045328210121"
+              "templateHash": "16814714490270389839"
             }
           },
           "parameters": {
@@ -1044,6 +1051,9 @@
               "type": "string"
             },
             "enableGoogleTasks": {
+              "type": "bool"
+            },
+            "enableGoogleTaskMutations": {
               "type": "bool"
             },
             "googleTasksClientId": {
@@ -1154,7 +1164,7 @@
                         "cpu": "[json('0.25')]",
                         "memory": "0.5Gi"
                       },
-                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__EventManagementEnabled', 'value', string(parameters('enableGoogleCalendarEventManagement'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()), if(parameters('enableGoogleTasks'), createArray(createObject('name', 'GoogleTasks__Enabled', 'value', 'true'), createObject('name', 'GoogleTasks__ClientId', 'value', parameters('googleTasksClientId')), createObject('name', 'GoogleTasks__ClientSecret', 'secretRef', 'google-tasks-client-secret'), createObject('name', 'GoogleTasks__CallbackUrl', 'value', format('https://{0}/api/integrations/google-tasks/callback', parameters('apiHostname')))), createArray()))]",
+                      "env": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', 'Staging'), createObject('name', 'ASPNETCORE_HTTP_PORTS', 'value', '8080'), createObject('name', 'ASPNETCORE_FORWARDEDHEADERS_ENABLED', 'value', 'true'), createObject('name', 'Cors__AllowedOrigins__0', 'value', parameters('frontendOrigin')), createObject('name', 'ConnectionStrings__FamilyDashboard', 'secretRef', 'postgres-connection'), createObject('name', 'Authentication__FrontendOrigin', 'value', parameters('frontendOrigin')), createObject('name', 'Authentication__Google__Enabled', 'value', string(parameters('enableGoogleAuthentication'))), createObject('name', 'Authentication__Google__ClientId', 'value', parameters('googleClientId')), createObject('name', 'DataProtection__UseAzure', 'value', 'true'), createObject('name', 'DataProtection__ApplicationName', 'value', 'FamilyDashboard'), createObject('name', 'DataProtection__BlobUri', 'value', parameters('dataProtectionBlobUri')), createObject('name', 'DataProtection__KeyIdentifier', 'value', parameters('dataProtectionKeyIdentifier')), createObject('name', 'DataProtection__ManagedIdentityClientId', 'value', parameters('runtimeIdentityClientId')), createObject('name', 'ChoreGeneration__HorizonHours', 'value', string(parameters('choreGenerationHorizonHours'))), createObject('name', 'ChoreGeneration__MaximumAssignmentsPerRun', 'value', string(parameters('choreGenerationMaximumAssignmentsPerRun')))), if(parameters('enableGoogleAuthentication'), createArray(createObject('name', 'Authentication__Google__ClientSecret', 'secretRef', 'google-client-secret')), createArray()), if(parameters('enableParentAccess'), createArray(createObject('name', 'ParentAccess__Enabled', 'value', 'true'), createObject('name', 'ParentAccess__Pepper', 'secretRef', 'parent-access-pepper')), createArray()), if(parameters('enableGoogleCalendar'), createArray(createObject('name', 'GoogleCalendar__Enabled', 'value', 'true'), createObject('name', 'GoogleCalendar__EventCreationEnabled', 'value', string(parameters('enableGoogleCalendarEventCreation'))), createObject('name', 'GoogleCalendar__EventManagementEnabled', 'value', string(parameters('enableGoogleCalendarEventManagement'))), createObject('name', 'GoogleCalendar__ClientId', 'value', parameters('googleCalendarClientId')), createObject('name', 'GoogleCalendar__ClientSecret', 'secretRef', 'google-calendar-client-secret'), createObject('name', 'GoogleCalendar__CallbackUrl', 'value', format('https://{0}/api/integrations/google-calendar/callback', parameters('apiHostname')))), createArray()), if(parameters('enableGoogleTasks'), createArray(createObject('name', 'GoogleTasks__Enabled', 'value', 'true'), createObject('name', 'GoogleTasks__MutationsEnabled', 'value', string(parameters('enableGoogleTaskMutations'))), createObject('name', 'GoogleTasks__ClientId', 'value', parameters('googleTasksClientId')), createObject('name', 'GoogleTasks__ClientSecret', 'secretRef', 'google-tasks-client-secret'), createObject('name', 'GoogleTasks__CallbackUrl', 'value', format('https://{0}/api/integrations/google-tasks/callback', parameters('apiHostname')))), createArray()))]",
                       "probes": [
                         {
                           "type": "Startup",

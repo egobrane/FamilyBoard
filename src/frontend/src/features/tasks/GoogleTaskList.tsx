@@ -6,7 +6,12 @@ function dueLabel(value: string | null) {
     .format(new Date(`${value}T00:00:00Z`))
 }
 
-export function GoogleTaskList({ tasks, compact = false }: { tasks: GoogleTaskResponse[]; compact?: boolean }) {
+export function GoogleTaskList({ tasks, compact = false, busyTaskId, onStatusChange }: {
+  tasks: GoogleTaskResponse[]
+  compact?: boolean
+  busyTaskId?: string | null
+  onStatusChange?: (task: GoogleTaskResponse) => void
+}) {
   return (
     <ul className={`google-task-list ${compact ? 'google-task-list--compact' : ''}`}>
       {tasks.map((task) => (
@@ -17,6 +22,11 @@ export function GoogleTaskList({ tasks, compact = false }: { tasks: GoogleTaskRe
             <small>{task.taskListName}{dueLabel(task.dueDate) ? ` · Due ${dueLabel(task.dueDate)}` : ''}</small>
             {!compact && task.notes && <span>{task.notes}</span>}
           </span>
+          {!compact && task.canChangeStatus && onStatusChange && <button
+            className="secondary-action google-task__action" disabled={busyTaskId === task.id}
+            onClick={() => onStatusChange(task)} type="button">
+            {busyTaskId === task.id ? 'Saving…' : task.status === 'completed' ? 'Reopen' : 'Complete'}
+          </button>}
         </li>
       ))}
     </ul>

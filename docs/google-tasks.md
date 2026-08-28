@@ -1,12 +1,14 @@
 # Google Tasks integration
 
-Google Tasks Increment 1 is a separate, read-only authorization boundary. Google sign-in authenticates the adult, Google Calendar authorizes calendar access, and Google Tasks authorizes task access. Each uses its own OAuth web client, callback, state/correlation protection, connection record, encrypted backend-only tokens, and revocation flow.
+Google Tasks is a separate authorization boundary. Increment 1 provides read-only access. Increment 2 adds feature-gated creation, completion, and reopening through explicit incremental write consent; general editing, deletion, moving, ordering, reminders, recurrence, synchronization, and webhooks remain deferred. Google sign-in, Calendar, and Tasks continue to use separate OAuth clients, callbacks, state/correlation protection, encrypted backend-only tokens, and revocation flows.
 
 ## Ownership and storage
 
-Google Tasks remains the source of truth. Family Dashboard stores one `GoogleTasksConnection` per adult and household-specific `HouseholdTaskListSource` selections. It does not persist task titles, notes, due dates, completion state, subtasks, or provider page tokens. Request-time results use a disposable two-minute fresh/15-minute stale in-memory cache.
+Google Tasks remains the source of truth. Family Dashboard stores one `GoogleTasksConnection` per adult, household-specific `HouseholdTaskListSource` selections, one optional writable source per household, and append-only `GoogleTaskMutationReceipt` metadata. Receipts contain opaque provider identifiers, request fingerprints, attribution, status, ETags, and timestamps—not titles, notes, due dates, or task state. Request-time results use a disposable two-minute fresh/15-minute stale in-memory cache.
 
 An adult connection may contribute selected lists to multiple households. Routine reads include a source only while its owner remains an active adult member of that household. Connecting, selecting lists, and disconnecting require household administration; locked shared displays therefore require current parent-PIN elevation. Routine task viewing remains available on a locked shared display.
+
+Each household may select at most one active, adult-owned writable list. The same provider list cannot be writable for multiple households. Locked shared displays may create, complete, and reopen tasks without elevation only after an active household member is explicitly selected for attribution. Private adult sessions use their linked adult profile. This records supervised intent; it is not independent child authentication.
 
 ## API
 
@@ -16,14 +18,19 @@ An adult connection may contribute selected lists to multiple households. Routin
 - `GET /api/households/{householdId}/tasks/provider-task-lists`
 - `GET /api/households/{householdId}/tasks/sources`
 - `PUT /api/households/{householdId}/tasks/sources`
+- `PUT /api/households/{householdId}/tasks/write-target`
 - `POST /api/households/{householdId}/tasks/disconnect`
 - `GET /api/households/{householdId}/tasks?includeCompleted=false&cursor=...`
+- `POST /api/households/{householdId}/tasks`
+- `PUT /api/households/{householdId}/tasks/status`
 
 Unsafe endpoints require the credentialed application cookie and antiforgery header. OAuth state and pagination cursors are time-limited Data Protection payloads. The callback correlation cookie is Secure, HttpOnly, SameSite=Lax, and scoped to the exact Tasks callback.
 
 ## Provider behavior
 
-The dedicated client requests `openid`, `email`, and `https://www.googleapis.com/auth/tasks.readonly`. Due values are returned as Google date-only values; Family Dashboard does not invent a due time. Completed tasks, subtasks, task ordering, and pagination remain provider data. Assigned-task metadata is exposed only as a boolean. Writes, reminders, notifications, polling, synchronization, and webhooks are deferred.
+The initial connection requests `openid`, `email`, and `https://www.googleapis.com/auth/tasks.readonly`. Enabling task actions explicitly requests the broader `https://www.googleapis.com/auth/tasks` scope because Google provides no narrower create/complete scope. Existing connections remain read-only until reauthorized. Due values are date-only; Family Dashboard does not invent a time. Increment 2 creates top-level tasks only and does not accept parent or ordering input. Assigned tasks are read-only.
+
+Status updates use a short-lived Data-Protection version token binding household, source, task ID, and provider ETag. Stale mutations return a conflict. Mutation idempotency is household-scoped. Because Google Tasks has no provider create-idempotency key, an ambiguous create timeout is retained as `OutcomeUnknown` and is never replayed automatically; the user is told to inspect Google before retrying.
 
 ## Staging activation
 
@@ -35,3 +42,13 @@ The dedicated client requests `openid`, `email`, and `https://www.googleapis.com
 6. Connect, select only household-appropriate lists, verify routine reads on private and locked shared-display sessions, revoke externally, reconnect, and disconnect.
 
 Rollback sets `GoogleTasks__Enabled=false`, preserving encrypted dormant connection metadata and additive source rows. A previous API ignores the tables. Schema rollback should use a forward fix rather than deleting retained authorization metadata.
+
+Increment 2 deployment keeps `enableGoogleTaskMutations=false` while `AddGoogleTaskMutations` runs and the API is deployed. Add the broad Tasks scope to the approved Google OAuth consent configuration, then set the flag true and reconcile the same reviewed digest. Disabling the flag immediately removes application mutations but does not reduce a scope already granted at Google; a security rollback must disconnect/revoke and reconnect read-only.
+
+## Staging activation status: 2026-08-28
+
+Implementation commit `52debdf32f2651aac19dcff40253749ed9e87dbc` supplied the genuine Version 2 PWA and Tasks backend. Workflow correction commit `e6a25776891dab7a13ff147ace18c8479d59bf87` passed CI, published public multi-architecture digest `sha256:99c704484334a863addfce2f155ee7522e6d8591b7e3cae4e38c24edab168580`, and handed it automatically to Azure. The first deployment created healthy revision `0000033` but failed closed at 0% traffic because traffic was still pinned to the prior revision. The corrected release logic now waits for readiness, explicitly promotes the exact healthy revision, and explicitly restores rollback traffic.
+
+The owner enabled the Google Tasks API, configured a dedicated OAuth web client with exact callback `https://api.egobrane.net/api/integrations/google-tasks/callback`, approved the identity and `tasks.readonly` scopes, and seeded `google-tasks-client-secret` into the private staging Key Vault without placing its value in source or frontend configuration. Activation commit `0fa443ba4ad144447d4ba59b9d637541562e32f2` passed CI without redundantly publishing an image; protected manual deployment run `33185643005` then completed migration execution `family-dashboard-staging-mig-qynh433` and reconciled revision `family-dashboard-staging-api--0000037` to the reviewed digest with 100% traffic and `GoogleTasks__Enabled=true`.
+
+Azure exposes only the Container App secret reference `google-tasks-client-secret`, backed by the versionless Key Vault URI and runtime managed identity. PostgreSQL 18 is Ready and contains the `family_dashboard` database. Public liveness/readiness are Healthy and unauthenticated `/api/auth/me` still fails closed with `401 authentication_required`. The owner also confirmed the Safari and wall-display Version 1-to-Version 2 update proof, mounted-form protection, safe idle activation, session continuity, and no manual service-worker/cache removal. Live Tasks connection, list selection/read behavior, revocation, multi-household isolation, locked shared-display access, parent elevation, provider-change caching, disconnect, responsive-device behavior, and leakage inspection are not yet recorded as owner-confirmed.

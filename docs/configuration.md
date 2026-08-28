@@ -52,6 +52,7 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `GoogleCalendar__MaximumCalendarsPerHousehold` | Public policy | Source-selection limit; default 25 |
 | `GoogleCalendar__MaximumEventsPerRequest` | Public policy | Normalized event cap; default 1,000 |
 | `GoogleTasks__Enabled` | Public configuration | Separate read-only Google Tasks feature gate; disabled by default |
+| `GoogleTasks__MutationsEnabled` | Public configuration | Controlled task creation/completion/reopening gate; requires Tasks enabled; disabled by default |
 | `GoogleTasks__ClientId` | Public identifier | Dedicated Tasks OAuth web client ID; never the sign-in or Calendar client |
 | `GoogleTasks__ClientSecret` | Secret | Dedicated Tasks OAuth client secret; backend and Key Vault only |
 | `GoogleTasks__CallbackUrl` | Public configuration | Exact backend Tasks OAuth callback URL |

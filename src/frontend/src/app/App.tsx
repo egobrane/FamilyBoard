@@ -26,6 +26,7 @@ import { RewardsPage } from '../features/rewards/RewardsPage'
 import { HouseholdRewardsPage } from '../features/rewards/HouseholdRewardsPage'
 import { TasksPage } from '../features/tasks/TasksPage'
 import { HouseholdTasksPage } from '../features/tasks/HouseholdTasksPage'
+import { CreateGoogleTaskPage } from '../features/tasks/CreateGoogleTaskPage'
 import { InvitationLandingPage } from '../features/invitations/InvitationLandingPage'
 import { HouseholdSelectionPage } from '../features/households/HouseholdSelectionPage'
 import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
@@ -168,6 +169,7 @@ function AuthenticatedRoutes() {
         <Route element={<><PointsPage /><NavigationBar /></>} path="/points" />
         <Route element={<><RewardsPage /><NavigationBar /></>} path="/rewards" />
         <Route element={<><TasksPage /><NavigationBar /></>} path="/tasks" />
+        <Route element={<CreateGoogleTaskPage />} path="/tasks/new" />
         <Route element={<CreateCalendarEventPage />} path="/calendar/new" />
         <Route element={<EditCalendarEventPage />} path="/calendar/events/:managementId/edit" />
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">

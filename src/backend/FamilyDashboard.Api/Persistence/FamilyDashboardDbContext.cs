@@ -24,6 +24,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<HouseholdCalendarSource> HouseholdCalendarSources => Set<HouseholdCalendarSource>();
     public DbSet<GoogleTasksConnection> GoogleTasksConnections => Set<GoogleTasksConnection>();
     public DbSet<HouseholdTaskListSource> HouseholdTaskListSources => Set<HouseholdTaskListSource>();
+    public DbSet<GoogleTaskMutationReceipt> GoogleTaskMutationReceipts => Set<GoogleTaskMutationReceipt>();
     public DbSet<CalendarEventCreationReceipt> CalendarEventCreationReceipts => Set<CalendarEventCreationReceipt>();
     public DbSet<CalendarEventMutationReceipt> CalendarEventMutationReceipts => Set<CalendarEventMutationReceipt>();
     public DbSet<ApplicationPreference> ApplicationPreferences => Set<ApplicationPreference>();

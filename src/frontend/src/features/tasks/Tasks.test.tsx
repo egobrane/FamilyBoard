@@ -51,4 +51,26 @@ describe('Google Tasks', () => {
       method: 'PUT', credentials: 'include', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'csrf' }),
     }))
   })
+
+  it('creates a task with date-only input and antiforgery', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return response(currentUser)
+      if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/tasks') && init?.method === 'POST') return response({ operation: 'create', taskId: 'created',
+        sourceId: 'source-1', status: 'needsAction', dueDate: '2026-08-30', mutationVersion: 'version',
+        attributedMemberId: 'member-1', recoveredExistingMutation: false })
+      if (path.endsWith('/tasks')) return response({ tasks: [], nextCursor: null, isStale: false, warnings: [], canCreateTasks: true })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter initialEntries={['/tasks/new']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
+    await userEvent.type(await screen.findByLabelText('Task title'), 'Pack lunch')
+    await userEvent.type(screen.getByLabelText(/Due date/), '2026-08-30')
+    await userEvent.click(screen.getByRole('button', { name: 'Add task' }))
+    expect(await screen.findByText('Task added to Google Tasks.')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/tasks'), expect.objectContaining({
+      method: 'POST', credentials: 'include', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'csrf' }),
+    }))
+  })
 })

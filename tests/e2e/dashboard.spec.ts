@@ -209,26 +209,41 @@ test.beforeEach(async ({ page }) => {
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks`) {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ json: { operation: 'create', taskId: 'task-created', sourceId: 'task-source-1',
+          status: 'needsAction', dueDate: null, mutationVersion: 'task-created-version',
+          attributedMemberId: authenticatedUser.households[0].memberId, recoveredExistingMutation: false } })
+        return
+      }
       await route.fulfill({ json: { tasks: [{ id: 'task-1', sourceId: 'task-source-1', taskListName: 'Family tasks',
         title: 'Pack lunches', notes: null, status: 'needsAction', dueDate: '2026-08-27', completedAt: null,
-        parentTaskId: null, position: '1', isSubtask: false, isAssigned: false }], nextCursor: null,
-        isStale: false, warnings: [] } })
+        parentTaskId: null, position: '1', isSubtask: false, isAssigned: false, canChangeStatus: true,
+        mutationVersion: 'task-version' }], nextCursor: null,
+        isStale: false, warnings: [], canCreateTasks: true } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/status`) {
+      await route.fulfill({ json: { operation: 'complete', taskId: 'task-1', sourceId: 'task-source-1',
+        status: 'completed', dueDate: '2026-08-27', mutationVersion: 'task-version-2',
+        attributedMemberId: authenticatedUser.households[0].memberId, recoveredExistingMutation: false } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/connection`) {
       await route.fulfill({ json: { isAvailable: true, connectionId: 'tasks-connection-1', status: 'active',
         providerEmail: 'tasks@example.test', connectedAt: '2026-08-26T12:00:00Z', activeSourceCount: 1,
-        activeHouseholdCount: 1 } })
+        activeHouseholdCount: 1, canRead: true, canWrite: true, writeAuthorizationRequired: false,
+        mutationsAvailable: true } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/provider-task-lists`) {
-      await route.fulfill({ json: [{ id: 'list-1', name: 'Family tasks', isSelected: true },
-        { id: 'list-2', name: 'School tasks', isSelected: false }] })
+      await route.fulfill({ json: [{ id: 'list-1', name: 'Family tasks', isSelected: true, canWrite: true, isWriteTarget: true },
+        { id: 'list-2', name: 'School tasks', isSelected: false, canWrite: true, isWriteTarget: false }] })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/sources`) {
       await route.fulfill({ json: [{ id: 'task-source-1', connectionId: 'tasks-connection-1',
-        externalTaskListId: 'list-1', name: 'Family tasks', isActive: true, isOwnedByCurrentAdult: true }] })
+        externalTaskListId: 'list-1', name: 'Family tasks', isActive: true, isOwnedByCurrentAdult: true,
+        canWrite: true, isWriteTarget: true }] })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/parent-access`) {
@@ -526,6 +541,12 @@ test('Google Tasks navigation and household list selection are accessible', asyn
   await page.getByRole('link', { name: 'Tasks', exact: true }).click()
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByText('Pack lunches')).toBeVisible()
+  await page.getByRole('button', { name: 'Complete', exact: true }).click()
+  await expect(page.getByText('Task completed in Google Tasks.')).toBeVisible()
+  await page.getByRole('link', { name: 'Add task' }).click()
+  await page.getByLabel('Task title').fill('Prepare backpacks')
+  await page.getByRole('button', { name: 'Add task' }).click()
+  await expect(page.getByText('Task added to Google Tasks.')).toBeVisible()
   await page.getByRole('link', { name: 'Task settings' }).click()
   await expect(page.getByRole('heading', { name: 'Google Tasks' })).toBeVisible()
   await page.getByRole('checkbox', { name: /School tasks/ }).check()

@@ -174,12 +174,18 @@ export interface TasksConnectionResponse {
   connectedAt: string | null
   activeSourceCount: number
   activeHouseholdCount: number
+  canRead: boolean
+  canWrite: boolean
+  writeAuthorizationRequired: boolean
+  mutationsAvailable: boolean
 }
 
 export interface ProviderTaskListResponse {
   id: string
   name: string
   isSelected: boolean
+  canWrite: boolean
+  isWriteTarget: boolean
 }
 
 export interface TaskListSourceResponse {
@@ -189,6 +195,8 @@ export interface TaskListSourceResponse {
   name: string
   isActive: boolean
   isOwnedByCurrentAdult: boolean
+  canWrite: boolean
+  isWriteTarget: boolean
 }
 
 export interface GoogleTaskResponse {
@@ -204,6 +212,19 @@ export interface GoogleTaskResponse {
   position: string
   isSubtask: boolean
   isAssigned: boolean
+  canChangeStatus: boolean
+  mutationVersion: string | null
+}
+
+export interface GoogleTaskMutationResponse {
+  operation: 'create' | 'complete' | 'reopen'
+  taskId: string
+  sourceId: string
+  status: string
+  dueDate: string | null
+  mutationVersion: string
+  attributedMemberId: string
+  recoveredExistingMutation: boolean
 }
 
 export interface GoogleTasksResponse {
@@ -211,6 +232,7 @@ export interface GoogleTasksResponse {
   nextCursor: string | null
   isStale: boolean
   warnings: { sourceId: string; code: string; message: string }[]
+  canCreateTasks: boolean
 }
 
 export type CurrentSession = NonNullable<CurrentUser['session']>
@@ -974,10 +996,10 @@ export function getTasksConnection(householdId: string) {
   )
 }
 
-export function beginTasksAuthorization(householdId: string, returnPath: string) {
+export function beginTasksAuthorization(householdId: string, returnPath: string, capability = 'read') {
   return unsafeRequest<{ authorizationUrl: string; expiresAt: string }>(
     `/api/households/${encodeURIComponent(householdId)}/tasks/authorization`,
-    'POST', { returnPath },
+    'POST', { returnPath, capability },
   )
 }
 
@@ -1000,6 +1022,13 @@ export function updateTaskListSources(householdId: string, connectionId: string,
   )
 }
 
+export function updateTaskWriteTarget(householdId: string, sourceId: string | null) {
+  return unsafeRequest<{ isAvailable: boolean; isAuthorized: boolean; sourceId: string | null; name: string | null }>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/write-target`,
+    'PUT', { sourceId },
+  )
+}
+
 export function disconnectTasks(householdId: string, connectionId: string) {
   return unsafeRequest<void>(
     `/api/households/${encodeURIComponent(householdId)}/tasks/disconnect`,
@@ -1012,6 +1041,23 @@ export function listGoogleTasks(householdId: string, includeCompleted = false, c
   if (cursor) parameters.set('cursor', cursor)
   return request<GoogleTasksResponse>(
     `/api/households/${encodeURIComponent(householdId)}/tasks?${parameters.toString()}`,
+  )
+}
+
+export function createGoogleTask(householdId: string, body: {
+  idempotencyKey: string; attributedMemberId: string | null; title: string; notes: string | null; dueDate: string | null
+}) {
+  return unsafeRequest<GoogleTaskMutationResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks`, 'POST', body,
+  )
+}
+
+export function updateGoogleTaskStatus(householdId: string, body: {
+  sourceId: string; taskId: string; idempotencyKey: string; attributedMemberId: string | null
+  targetStatus: 'completed' | 'needsAction'; mutationVersion: string
+}) {
+  return unsafeRequest<GoogleTaskMutationResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/tasks/status`, 'PUT', body,
   )
 }
 

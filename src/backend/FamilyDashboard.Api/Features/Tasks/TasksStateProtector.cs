@@ -10,6 +10,7 @@ public sealed record TasksAuthorizationState(
     Guid UserSessionId,
     Guid HouseholdId,
     string ReturnPath,
+    string Capability,
     string Nonce,
     DateTimeOffset ExpiresAt);
 
@@ -31,7 +32,8 @@ public sealed class TasksStateProtector(
     private readonly GoogleTasksConfiguration _configuration = options.Value;
 
     public (string State, DateTimeOffset ExpiresAt) CreateAuthorization(
-        Guid userAccountId, Guid userSessionId, Guid householdId, string returnPath)
+        Guid userAccountId, Guid userSessionId, Guid householdId, string returnPath,
+        string capability = "read")
     {
         var expiresAt = timeProvider.GetUtcNow() + _configuration.AuthorizationLifetime;
         var value = new TasksAuthorizationState(
@@ -39,6 +41,7 @@ public sealed class TasksStateProtector(
             userSessionId,
             householdId,
             returnPath,
+            capability,
             Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)),
             expiresAt);
         return (_authorization.Protect(JsonSerializer.Serialize(value)), expiresAt);

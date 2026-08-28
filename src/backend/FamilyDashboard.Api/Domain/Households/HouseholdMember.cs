@@ -25,4 +25,5 @@ public sealed class HouseholdMember
     public ICollection<RewardRedemption> RewardRedemptions { get; set; } = [];
     public ICollection<CalendarEventCreationReceipt> AttributedCalendarEventCreations { get; set; } = [];
     public ICollection<CalendarEventMutationReceipt> ActedCalendarEventMutations { get; set; } = [];
+    public ICollection<GoogleTaskMutationReceipt> AttributedGoogleTaskMutations { get; set; } = [];
 }

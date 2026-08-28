@@ -1,6 +1,6 @@
 # Azure staging infrastructure
 
-Google Tasks uses a dedicated OAuth web client with exact callback `https://api.egobrane.net/api/integrations/google-tasks/callback`. Keep `enableGoogleTasks=false` while the additive migration runs. Seed `google-tasks-client-secret` through `google-tasks-secret.bicepparam`, then put only the public client ID in `staging.bicepparam`, enable the gate, and deploy the main template with the same reviewed digest.
+Google Tasks uses a dedicated OAuth web client with exact callback `https://api.egobrane.net/api/integrations/google-tasks/callback`. Seed `google-tasks-client-secret` through `google-tasks-secret.bicepparam`, then put only the public client ID in `staging.bicepparam`. For Increment 2, keep `enableGoogleTaskMutations=false` through `AddGoogleTaskMutations` and the first reviewed-image deployment; approve the broad Tasks scope, then enable the flag and reconcile the same digest.
 
 ```sh
 read -s FAMILY_DASHBOARD_GOOGLE_TASKS_CLIENT_SECRET

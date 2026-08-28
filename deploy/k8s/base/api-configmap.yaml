@@ -11,5 +11,6 @@ data:
   GoogleCalendar__EventCreationEnabled: "false"
   GoogleCalendar__EventManagementEnabled: "false"
   GoogleTasks__Enabled: "false"
+  GoogleTasks__MutationsEnabled: "false"
   GoogleTasks__ClientId: ""
   GoogleTasks__CallbackUrl: ""

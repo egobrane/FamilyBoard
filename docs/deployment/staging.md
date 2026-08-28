@@ -1,10 +1,23 @@
 # Staging Deployment Proof
 
-## Google Tasks Increment 1 implementation handoff: 2026-08-26
+## Google Tasks Increment 2 implementation handoff: 2026-08-28
 
-- Operational hardening is merged: Cloudflare bypasses only `/sw.js`, the safe production-isolated Netlify Deploy Preview was owner-confirmed, and production bundle `/assets/index-D2ZJAxw2.js` remains the recorded Version 1 Safari baseline.
-- The approved read-only Google Tasks increment is implemented with a dedicated authorization boundary, encrypted backend-only tokens, additive connection/source persistence, no task-content table, disposable request caching, household isolation, and parent-elevated administration on shared displays.
-- The genuine Tasks interface is the intended Version 2 PWA release. CI, migration, Azure activation, Google consent, live behavior, and two-version Safari/wall-display proof remain deployment steps and are not yet recorded as successful staging evidence.
+- Controlled top-level creation, completion, and reopening are implemented behind `GoogleTasks__MutationsEnabled=false`; no staging deployment or live Google write consent is claimed yet.
+- Additive migration `AddGoogleTaskMutations` adds one-household write-target constraints and append-only mutation receipts without storing task titles, notes, due dates, or task state.
+- Existing Tasks connections remain read-only until an adult explicitly grants `https://www.googleapis.com/auth/tasks`. Connection/list/disconnect administration and writable-target selection remain parent-elevated on shared displays.
+- Routine locked shared-display mutations require explicit active-member attribution. Private sessions use the linked adult member. ETags are carried only in short-lived protected mutation versions.
+- Deployment order is reviewed image with the gate false, successful migration/API health, Google consent-scope approval, same-digest flag activation, adult reauthorization, writable-list selection, then live private/shared, conflict, retry, isolation, and leakage checks.
+
+## Google Tasks Increment 1 deployment and activation: 2026-08-28
+
+- Current `main` commit `0fa443ba4ad144447d4ba59b9d637541562e32f2` passed CI run `33184643613`. As intended for a parameter-only activation, it did not publish a redundant image. Workflow correction commit `e6a25776891dab7a13ff147ace18c8479d59bf87` passed CI/publication run `33073632836`; public tag `sha-e6a2577` resolves to multi-architecture digest `sha256:99c704484334a863addfce2f155ee7522e6d8591b7e3cae4e38c24edab168580` with amd64, arm64, and attestation manifests.
+- The initial deployment created healthy Tasks image revision `family-dashboard-staging-api--0000033` but failed closed because the workflow waited for 100% traffic without explicitly promoting the revision; traffic remained on healthy prior revision `0000032`. The corrected workflow waits for readiness, explicitly routes the exact revision, verifies traffic separately, and explicitly restores rollback traffic.
+- The owner enabled Google Tasks API, configured the dedicated OAuth client and exact callback, approved the read-only scope, seeded `google-tasks-client-secret` only in Azure Key Vault, and applied the structural activation. Protected run `33185643005` completed successfully, including migration execution `family-dashboard-staging-mig-qynh433`.
+- Azure revision `family-dashboard-staging-api--0000037` is latest-ready, uses the reviewed digest, has `GoogleTasks__Enabled=true`, and receives 100% traffic. The Tasks client ID and exact callback are configured; the client secret appears only as the `google-tasks-client-secret` Key Vault reference using the runtime managed identity. PostgreSQL 18 server `family-dashboard-staging-pg-rwzkcdch6czlm` is Ready, `family_dashboard` exists, public liveness/readiness are Healthy, and unauthenticated `/api/auth/me` returns `401 authentication_required`.
+- Scheduled job `family-dashboard-staging-chore` uses the same reviewed digest, hourly `7 * * * *` schedule, `--generate-chore-assignments` argument, and backend-only `postgres-connection` secret reference. Latest execution `family-dashboard-staging-chore-29798827` succeeded.
+- Netlify production deploy `6a8f566b4b7ff400082e1689` is ready from Tasks implementation commit `52debdf32f2651aac19dcff40253749ed9e87dbc`. Bundle `/assets/index-Ccml6tL4.js` contains the approved API origin and Tasks interface. `/sw.js` returns `no-cache, max-age=0, must-revalidate` with Cloudflare `DYNAMIC` status.
+- The owner confirmed the genuine Version 1-to-Version 2 proof in Safari and on the physical wall display without unregistering the worker or clearing caches. Mounted forms blocked activation, safe idle activation worked, and the authenticated session remained continuous.
+- Live Tasks connection, list selection/read behavior, refresh persistence, due/completed/subtask ordering, provider-side changes and cache, revocation/reconnection, disconnect, multi-household isolation, locked shared-display access, parent elevation, responsive-device behavior, and sensitive-data inspection remain unconfirmed and must not be represented as staging-proven until exercised.
 
 Staging is proven only when one identifiable commit passes CI, produces immutable deployable artifacts, and is verified through the deployed frontend and API. A successful Netlify frontend build is an important part of this proof, but it does not prove the backend, database, migration, or cross-origin configuration.
 

@@ -43,6 +43,7 @@ param googleCalendarClientId string = ''
 
 @description('Enable only after the separate Google Tasks client secret exists in Key Vault.')
 param enableGoogleTasks bool = false
+param enableGoogleTaskMutations bool = false
 
 @description('Public client ID for the separate Google Tasks OAuth web client.')
 param googleTasksClientId string = ''
@@ -136,6 +137,7 @@ module containerApps 'modules/container-apps.bicep' = {
     googleCalendarClientId: googleCalendarClientId
     googleCalendarClientSecretUri: authenticationSecurity.outputs.googleCalendarClientSecretUri
     enableGoogleTasks: enableGoogleTasks
+    enableGoogleTaskMutations: enableGoogleTaskMutations
     googleTasksClientId: googleTasksClientId
     googleTasksClientSecretUri: authenticationSecurity.outputs.googleTasksClientSecretUri
     enableParentAccess: enableParentAccess

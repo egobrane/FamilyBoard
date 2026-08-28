@@ -50,6 +50,26 @@ public sealed class TasksEndpointTests
         Assert.Contains("samesite=lax", cookie, StringComparison.OrdinalIgnoreCase);
     }
 
+    [PostgreSqlFact]
+    public async Task WriteAuthorizationUsesIncrementalTasksScope()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = await AddAccountAsync(database, "Owner", "tasks-write@example.test");
+        await using var factory = new IdentityHouseholdWebApplicationFactory(
+            Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!,
+            enableTasks: true, enableTaskMutations: true);
+        using var client = Client(factory, account.Id);
+        var household = await BootstrapAsync(client, "Writable Tasks household");
+        using var response = await client.PostAsJsonAsync($"/api/households/{household.Id}/tasks/authorization",
+            new BeginTasksAuthorizationRequest($"/households/{household.Id}/tasks", "write"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<BeginTasksAuthorizationResponse>();
+        Assert.NotNull(body);
+        var decoded = Uri.UnescapeDataString(body.AuthorizationUrl);
+        Assert.Contains(GoogleTasksScopes.Tasks, decoded);
+        Assert.DoesNotContain(GoogleTasksScopes.TasksReadOnly, decoded);
+    }
+
     private static async Task<UserAccount> AddAccountAsync(PostgreSqlTestDatabase database, string name, string email)
     {
         var account = new UserAccount { DisplayName = name, PrimaryEmail = email };

@@ -81,6 +81,15 @@ public static class ApiProblemCodes
     public const string TasksDisconnectConfirmationRequired = "tasks_disconnect_confirmation_required";
     public const string TasksCursorInvalid = "tasks_cursor_invalid";
     public const string TasksAccountMismatch = "tasks_account_mismatch";
+    public const string TasksWriteUnavailable = "tasks_write_unavailable";
+    public const string TasksWriteAuthorizationRequired = "tasks_write_authorization_required";
+    public const string TasksWriteTargetRequired = "tasks_write_target_required";
+    public const string TasksWriteTargetConflict = "tasks_write_target_conflict";
+    public const string TasksTaskNotFound = "tasks_task_not_found";
+    public const string TasksTaskReadOnly = "tasks_task_read_only";
+    public const string TasksTaskConflict = "tasks_task_conflict";
+    public const string TasksIdempotencyConflict = "tasks_idempotency_conflict";
+    public const string TasksMutationOutcomeUnknown = "tasks_mutation_outcome_unknown";
     public const string HouseholdSelectionRequired = "household_selection_required";
     public const string ChoreDefinitionNotFound = "chore_definition_not_found";
     public const string ChoreDefinitionInactive = "chore_definition_inactive";

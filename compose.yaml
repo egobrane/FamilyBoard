@@ -56,6 +56,7 @@ services:
       GoogleCalendar__ClientSecret: ${GoogleCalendar__ClientSecret:-}
       GoogleCalendar__CallbackUrl: ${GoogleCalendar__CallbackUrl:-}
       GoogleTasks__Enabled: ${GoogleTasks__Enabled:-false}
+      GoogleTasks__MutationsEnabled: ${GoogleTasks__MutationsEnabled:-false}
       GoogleTasks__ClientId: ${GoogleTasks__ClientId:-}
       GoogleTasks__ClientSecret: ${GoogleTasks__ClientSecret:-}
       GoogleTasks__CallbackUrl: ${GoogleTasks__CallbackUrl:-}

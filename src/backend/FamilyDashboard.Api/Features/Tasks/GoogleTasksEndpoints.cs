@@ -18,8 +18,11 @@ public static class GoogleTasksEndpoints
         endpoints.MapGet("/api/households/{householdId:guid}/tasks/provider-task-lists", ListProviderTaskListsAsync).RequireAuthorization();
         endpoints.MapGet("/api/households/{householdId:guid}/tasks/sources", ListSourcesAsync).RequireAuthorization();
         endpoints.MapPut("/api/households/{householdId:guid}/tasks/sources", UpdateSourcesAsync).RequireAuthorization().RequireFamilyDashboardAntiforgery();
+        endpoints.MapPut("/api/households/{householdId:guid}/tasks/write-target", UpdateWriteTargetAsync).RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapPost("/api/households/{householdId:guid}/tasks/disconnect", DisconnectAsync).RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapGet("/api/households/{householdId:guid}/tasks", ListTasksAsync).RequireAuthorization();
+        endpoints.MapPost("/api/households/{householdId:guid}/tasks", CreateTaskAsync).RequireAuthorization().RequireFamilyDashboardAntiforgery();
+        endpoints.MapPut("/api/households/{householdId:guid}/tasks/status", UpdateTaskStatusAsync).RequireAuthorization().RequireFamilyDashboardAntiforgery();
         return endpoints;
     }
 
@@ -41,7 +44,10 @@ public static class GoogleTasksEndpoints
             if (!context.User.TryGetUserSessionId(out var sessionId)) return HouseholdEndpoints.AccountUnavailable(context);
             if (!ReturnUrlValidator.TryNormalize(request?.ReturnPath, out var returnPath))
                 return Problem(context, 400, ApiProblemCodes.InvalidReturnUrl, "The return path is invalid.");
-            var result = service.BeginAuthorization(householdId, access.UserAccountId!.Value, sessionId, returnPath);
+            var capability = string.Equals(request?.Capability, "write", StringComparison.OrdinalIgnoreCase)
+                ? "write" : "read";
+            var result = service.BeginAuthorization(householdId, access.UserAccountId!.Value, sessionId,
+                returnPath, capability);
             correlationCookie.Write(context.Response, result.State, result.Response.ExpiresAt);
             return Results.Ok(result.Response);
         });
@@ -111,12 +117,51 @@ public static class GoogleTasksEndpoints
             return Results.NoContent();
         });
 
+    private static async Task<IResult> UpdateWriteTargetAsync(Guid householdId,
+        UpdateTaskWriteTargetRequest? request, HttpContext context, IAuthorizationService authorization,
+        GoogleTasksService service, CancellationToken cancellationToken) => await RunAsync(context, async () =>
+        {
+            var access = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Administration, cancellationToken);
+            if (access.Result is not null) return access.Result;
+            return Results.Ok(await service.UpdateWriteTargetAsync(householdId,
+                access.UserAccountId!.Value, request ?? new(null), cancellationToken));
+        });
+
     private static async Task<IResult> ListTasksAsync(Guid householdId, bool? includeCompleted, string? cursor,
         HttpContext context, IAuthorizationService authorization, GoogleTasksService service,
         CancellationToken cancellationToken) => await RunAsync(context, async () =>
         {
             var access = await RequireAccessAsync(householdId, context, authorization, HouseholdAuthorizationPolicies.Member, cancellationToken);
             return access.Result ?? Results.Ok(await service.ListTasksAsync(householdId, includeCompleted ?? false, cursor, cancellationToken));
+        });
+
+    private static async Task<IResult> CreateTaskAsync(Guid householdId, CreateGoogleTaskRequest? request,
+        HttpContext context, IAuthorizationService authorization, GoogleTasksService service,
+        CancellationToken cancellationToken) => await RunAsync(context, async () =>
+        {
+            var access = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Member, cancellationToken);
+            if (access.Result is not null) return access.Result;
+            if (request is null || !context.User.TryGetUserSessionId(out var sessionId))
+                return HouseholdEndpoints.ValidationFailed(context, new Dictionary<string, string[]>
+                    { ["request"] = ["A task request and active session are required."] });
+            return Results.Ok(await service.CreateTaskAsync(householdId, access.UserAccountId!.Value,
+                sessionId, request, context.TraceIdentifier, cancellationToken));
+        });
+
+    private static async Task<IResult> UpdateTaskStatusAsync(Guid householdId,
+        UpdateGoogleTaskStatusRequest? request, HttpContext context, IAuthorizationService authorization,
+        GoogleTasksService service, CancellationToken cancellationToken) => await RunAsync(context, async () =>
+        {
+            var access = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Member, cancellationToken);
+            if (access.Result is not null) return access.Result;
+            if (request is null || !context.User.TryGetUserSessionId(out var sessionId))
+                return HouseholdEndpoints.ValidationFailed(context, new Dictionary<string, string[]>
+                    { ["request"] = ["A task request and active session are required."] });
+            return Results.Ok(await service.UpdateTaskStatusAsync(householdId,
+                access.UserAccountId!.Value, sessionId, request, context.TraceIdentifier, cancellationToken));
         });
 
     private static async Task<(Guid? UserAccountId, IResult? Result)> RequireAccessAsync(Guid householdId,

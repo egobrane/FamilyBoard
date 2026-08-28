@@ -21,6 +21,7 @@ param enableGoogleCalendarEventManagement bool
 param googleCalendarClientId string
 param googleCalendarClientSecretUri string
 param enableGoogleTasks bool
+param enableGoogleTaskMutations bool
 param googleTasksClientId string
 param googleTasksClientSecretUri string
 param enableParentAccess bool
@@ -244,6 +245,10 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'GoogleTasks__Enabled'
               value: 'true'
+            }
+            {
+              name: 'GoogleTasks__MutationsEnabled'
+              value: string(enableGoogleTaskMutations)
             }
             {
               name: 'GoogleTasks__ClientId'

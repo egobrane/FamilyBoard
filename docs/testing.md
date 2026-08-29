@@ -27,7 +27,9 @@ npx playwright install chromium
 npm test
 ```
 
-Playwright runs Chromium at a 1920×1080 touch-enabled wall-display viewport and a Pixel phone viewport. It checks layout overflow, visible authenticated content, mouse/keyboard navigation, read-only Calendar navigation and source selection, controlled event creation, explicit chore-completion attribution, daily 8 AM schedule creation, PWA form-update protection, secure logout, invitation creation/acceptance, raw-fragment removal, shared-display locked administration and PIN unlock, and serious automated accessibility findings using deterministic API fixtures. Emulation supplements but does not replace physical wall-touchscreen, iOS Safari, and Android Chrome testing.
+Playwright runs Chromium at a 1920×1080 touch-enabled wall-display viewport and a Pixel phone viewport. It checks layout overflow, a single-row five-item dock, usable dashboard card widths, pointer-click and mouse-drag workspace navigation, visible authenticated content, mouse/keyboard navigation, read-only Calendar navigation and source selection, controlled event creation, explicit chore-completion attribution, daily 8 AM schedule creation, PWA form-update protection, secure logout, invitation creation/acceptance, raw-fragment removal, shared-display locked administration and PIN unlock, and serious automated accessibility findings using deterministic API fixtures. Emulation supplements but does not replace physical wall-touchscreen, iOS Safari, and Android Chrome testing.
+
+The local UI Cohesion and Workspace Navigation increment passed 39 frontend component tests and all 34 wall-display/phone Playwright scenarios. The browser suite verifies the repaired Tasks-card width, five-tab single-row dock, adjacent-route mouse dragging, pointer tab selection, horizontal-overflow boundary, and serious automated accessibility findings. Physical touch-drag behavior and subjective transition feel remain owner staging checks.
 
 ## Backend
 

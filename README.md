@@ -34,6 +34,7 @@ The migration service runs once before the development API starts. See [developm
 - [Authentication boundary](docs/authentication.md)
 - [Google Calendar integration](docs/google-calendar.md)
 - [Google Tasks integration](docs/google-tasks.md)
+- [Workspace navigation and gesture behavior](docs/workspace-navigation.md)
 - [Chore management](docs/chore-management.md)
 - [Reward management](docs/reward-management.md)
 - [Identity and household milestone](docs/identity-household-milestone.md)

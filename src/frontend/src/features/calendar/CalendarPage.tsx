@@ -75,7 +75,7 @@ export function CalendarPage() {
   const result = loading ? null : response.result
   const failure = loading ? null : response.failure
   return (
-    <main className="calendar-page" id="main-content">
+    <main className="calendar-page" id="main-content" tabIndex={-1}>
       <header className="calendar-page__header">
         <div>
           <p className="eyebrow">The next seven days</p>

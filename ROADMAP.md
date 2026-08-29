@@ -34,6 +34,8 @@
 
 ## Next
 
+- Deploy and physically verify the cohesive five-tab workspace: balanced dashboard cards, single-row navigation, directional tab transitions, horizontal touch swipe and mouse drag, vertical-scroll protection, focus movement, and reduced-motion behavior.
+- Follow the stable workspace foundation with household dashboard personalization, beginning with configurable household imagery and display preferences after storage, resizing, deletion, privacy, and access-control behavior are approved.
 - Complete the Daily-Use Readiness and Reliability increment: unify dashboard recovery and freshness states, strengthen long-running wall-display/session behavior, measure cold starts, add narrowly scoped operational signals, and run a short household pilot before expanding product scope.
 - Complete only the still-unconfirmed live Google Tasks checks: reopening, date-only due dates, shared-display attribution, provider conflicts and ambiguous outcomes, revocation/reconnection, multi-household isolation, responsive devices, and sensitive-data inspection.
 - Complete the remaining owner staging checks for locked shared-display attribution, private-session attribution, all-day creation, invalid ranges/time zones, idempotent recovery, read-only target rejection, external revocation, multi-household isolation, parent-PIN configuration gates, responsive devices, and write-path leakage inspection. Automated coverage exists for the core authorization, attribution, idempotency, and accessibility boundaries but does not replace these live checks.

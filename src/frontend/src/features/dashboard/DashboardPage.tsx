@@ -8,7 +8,7 @@ import { demoHouseholdPhotoUrl } from './mockDashboardData'
 
 export function DashboardPage({ householdPhotoUrl = demoHouseholdPhotoUrl }: { householdPhotoUrl?: string }) {
   return (
-    <main className="dashboard" id="main-content">
+    <main className="dashboard" id="main-content" tabIndex={-1}>
       <DashboardCalendarCard />
 
       <DashboardCard

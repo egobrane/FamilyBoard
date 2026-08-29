@@ -69,7 +69,12 @@
 
 .status-badge { text-transform: capitalize; }
 
-.feature-page { padding: 2rem clamp(1rem, 4vw, 4rem) 8rem; }
+.feature-page {
+  width: 100%;
+  max-width: 100rem;
+  margin: 0 auto;
+  padding: 2rem var(--page-gutter) 8rem;
+}
 .feature-header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 1.5rem; }
 .feature-header h2 { font-size: clamp(2rem, 4vw, 3.5rem); margin: 0; }
 .segmented-control { background: #e9ebe5; border-radius: 1rem; display: inline-flex; gap: .25rem; margin-bottom: 1.5rem; padding: .3rem; }
@@ -604,6 +609,39 @@ a:focus-visible {
   padding: 0 var(--page-gutter) 2rem;
 }
 
+.workspace-viewport {
+  min-width: 0;
+  overflow-x: clip;
+  touch-action: pan-y;
+}
+
+.workspace-page {
+  min-width: 0;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
+}
+
+.workspace-page--forward {
+  animation: workspace-enter-forward 280ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.workspace-page--backward {
+  animation: workspace-enter-backward 280ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.workspace-viewport[data-dragging="true"] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+@keyframes workspace-enter-forward {
+  from { opacity: 0.65; transform: translate3d(min(12vw, 10rem), 0, 0); }
+}
+
+@keyframes workspace-enter-backward {
+  from { opacity: 0.65; transform: translate3d(max(-12vw, -10rem), 0, 0); }
+}
+
 .dashboard-card {
   min-width: 0;
   padding: clamp(1.25rem, 2vw, 2rem);
@@ -666,8 +704,12 @@ a:focus-visible {
 }
 
 .welcome-card,
-.family-card {
+.tasks-card {
   grid-column: span 5;
+}
+
+.family-card {
+  grid-column: 1 / -1;
 }
 
 .schedule-list,
@@ -882,9 +924,9 @@ a:focus-visible {
   right: 50%;
   bottom: max(1rem, env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: repeat(4, minmax(5.2rem, 1fr));
+  grid-template-columns: repeat(5, minmax(5.2rem, 1fr));
   gap: 0.35rem;
-  width: min(40rem, calc(100% - 2rem));
+  width: min(52rem, calc(100% - 2rem));
   padding: 0.45rem;
   background: rgb(38 49 47 / 94%);
   border: 1px solid rgb(255 255 255 / 12%);
@@ -1568,7 +1610,10 @@ a:focus-visible {
 }
 
 @media (min-width: 100rem) {
-  .dashboard-card {
+  .schedule-card,
+  .welcome-card,
+  .chores-card,
+  .tasks-card {
     min-height: 19rem;
   }
 
@@ -1681,7 +1726,7 @@ a:focus-visible {
 
   .navigation {
     bottom: max(0.5rem, env(safe-area-inset-bottom));
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     width: calc(100% - 1rem);
   }
 
@@ -1753,6 +1798,11 @@ a:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .workspace-page--forward,
+  .workspace-page--backward {
+    animation: none;
+  }
+
   *,
   *::before,
   *::after {

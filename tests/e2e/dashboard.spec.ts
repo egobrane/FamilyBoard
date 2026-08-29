@@ -452,8 +452,17 @@ test('dashboard shell is readable and fits the viewport', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible()
   await expect(page.getByText('School drop-off')).toBeVisible()
   await expect(page.getByText('Feed Milo')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Tasks' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Ready for a good day?' }))
     .toHaveCSS('background-image', /demo-family-photo\.jpg/)
+
+  const navigationRows = await page.getByRole('navigation', { name: 'Primary navigation' })
+    .getByRole('link').evaluateAll((links) => links.map((link) => Math.round(link.getBoundingClientRect().top)))
+  expect(new Set(navigationRows).size).toBe(1)
+
+  const tasksWidth = await page.getByRole('region', { name: 'Tasks' })
+    .evaluate((element) => element.getBoundingClientRect().width)
+  expect(tasksWidth).toBeGreaterThan(280)
 
   const horizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -477,8 +486,23 @@ test('primary navigation opens the reward catalog with a pointer click', async (
   await rewardsLink.click()
 
   await expect(page).toHaveURL(/\/rewards$/)
-  await expect(rewardsLink).toHaveAttribute('aria-current', 'location')
+  await expect(rewardsLink).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('heading', { name: 'Reward catalog' })).toBeVisible()
+})
+
+test('workspace supports mouse dragging between adjacent primary views', async ({ page }) => {
+  await page.goto('/')
+  const viewport = page.locator('.workspace-viewport')
+  const bounds = await viewport.boundingBox()
+  expect(bounds).not.toBeNull()
+
+  await page.mouse.move(bounds!.x + bounds!.width * 0.75, bounds!.y + 120)
+  await page.mouse.down()
+  await page.mouse.move(bounds!.x + bounds!.width * 0.5, bounds!.y + 124, { steps: 6 })
+  await page.mouse.up()
+
+  await expect(page).toHaveURL(/\/calendar$/)
+  await expect(page.getByRole('heading', { name: 'Family calendar' })).toBeVisible()
 })
 
 test('reward redemption requires explicit member attribution and confirms the request', async ({ page }) => {

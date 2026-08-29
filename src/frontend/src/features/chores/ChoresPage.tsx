@@ -34,7 +34,7 @@ export function ChoresPage() {
   if (!household) return null
 
   return (
-    <main className="feature-page" id="main-content">
+    <main className="feature-page" id="main-content" tabIndex={-1}>
       <header className="feature-header">
         <div><p className="eyebrow">Today’s teamwork</p><h2>Chores</h2></div>
         {household.role === 'adult' && <Link className="secondary-action" to={`/households/${household.id}/chores`}>Manage chores</Link>}

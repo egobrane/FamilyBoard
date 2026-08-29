@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { AccountMenu } from '../components/AccountMenu'
 import { NavigationBar } from '../components/NavigationBar'
+import { WorkspaceLayout } from '../components/WorkspaceLayout'
 import {
   useAuthentication,
   type AuthenticationState,
@@ -126,15 +127,6 @@ function HouseholdShell() {
   )
 }
 
-function DashboardHome() {
-  return (
-    <>
-      <DashboardPage />
-      <NavigationBar />
-    </>
-  )
-}
-
 function AuthenticatedRoutes() {
   const { state } = useAuthentication()
   if (state.status !== 'authenticated') {
@@ -163,12 +155,14 @@ function AuthenticatedRoutes() {
     <Routes>
       <Route element={<AuthenticationErrorPage />} path="/auth/error" />
       <Route element={<HouseholdShell />}>
-        <Route element={<DashboardHome />} path="/" />
-        <Route element={<><CalendarPage /><NavigationBar /></>} path="/calendar" />
-        <Route element={<><ChoresPage /><NavigationBar /></>} path="/chores" />
+        <Route element={<WorkspaceLayout />}>
+          <Route element={<DashboardPage />} path="/" />
+          <Route element={<CalendarPage />} path="/calendar" />
+          <Route element={<ChoresPage />} path="/chores" />
+          <Route element={<RewardsPage />} path="/rewards" />
+          <Route element={<TasksPage />} path="/tasks" />
+        </Route>
         <Route element={<><PointsPage /><NavigationBar /></>} path="/points" />
-        <Route element={<><RewardsPage /><NavigationBar /></>} path="/rewards" />
-        <Route element={<><TasksPage /><NavigationBar /></>} path="/tasks" />
         <Route element={<CreateGoogleTaskPage />} path="/tasks/new" />
         <Route element={<CreateCalendarEventPage />} path="/calendar/new" />
         <Route element={<EditCalendarEventPage />} path="/calendar/events/:managementId/edit" />

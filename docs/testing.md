@@ -4,6 +4,8 @@ Google Tasks Increment 1 adds backend protection tests for connection- and token
 
 Google Tasks Increment 2 local validation passed all 116 backend tests against the dedicated disposable PostgreSQL 18 database with no skips, 35 frontend component tests, and 32 wall-display/phone Playwright tests. Frontend lint, the production PWA build, production backend/frontend container builds, dependency security checks, Bicep compilation, Docker Compose validation, and both Kubernetes overlays also passed.
 
+The owner completed the core Increment 2 staging path on 2026-08-29: incremental broad-scope consent, writable-list selection, task creation, task completion, and provider reflection on another device succeeded. Reopening, date-only due dates, shared-display attribution, duplicate and ambiguous submission recovery, provider conflicts, revocation, multi-household isolation, responsive devices, and live leakage inspection remain automated or unconfirmed checks rather than owner-observed staging evidence.
+
 ## Frontend
 
 ```sh

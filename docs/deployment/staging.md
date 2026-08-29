@@ -1,12 +1,17 @@
 # Staging Deployment Proof
 
-## Google Tasks Increment 2 implementation handoff: 2026-08-28
+## Google Tasks Increment 2 deployment and verification: 2026-08-29
 
-- Controlled top-level creation, completion, and reopening are implemented behind `GoogleTasks__MutationsEnabled=false`; no staging deployment or live Google write consent is claimed yet.
-- Additive migration `AddGoogleTaskMutations` adds one-household write-target constraints and append-only mutation receipts without storing task titles, notes, due dates, or task state.
-- Existing Tasks connections remain read-only until an adult explicitly grants `https://www.googleapis.com/auth/tasks`. Connection/list/disconnect administration and writable-target selection remain parent-elevated on shared displays.
-- Routine locked shared-display mutations require explicit active-member attribution. Private sessions use the linked adult member. ETags are carried only in short-lived protected mutation versions.
-- Deployment order is reviewed image with the gate false, successful migration/API health, Google consent-scope approval, same-digest flag activation, adult reauthorization, writable-list selection, then live private/shared, conflict, retry, isolation, and leakage checks.
+- Repository `main` and `origin/main` match activation commit `f35e25ca1a1464c61b7d2a72d844b8afd2d2c834`. Continuous Integration run `33259369471` and protected activation run `33259719447` succeeded. The parameter-only activation correctly did not publish another image.
+- Implementation commit `b8a9372e67713ce3e121615b575f3d21508efe00` passed CI run `33210827153`; publication run `33210827140` produced public `linux/amd64` and `linux/arm64` digest `sha256:858c26934aa0af30f254fd71ef8c5d26856f10a64f118f1b77d3aebd78cbf502` and handed it to Azure automatically.
+- Migration execution `family-dashboard-staging-mig-krltv0a` succeeded on that digest. Sanitized Log Analytics evidence contains the exact `AddGoogleTaskMutations` migration identifier. Same-digest activation execution `family-dashboard-staging-mig-jt9g1qq` also succeeded.
+- Azure revision `family-dashboard-staging-api--0000039` is latest-ready, Healthy, Provisioned, uses that digest, and receives 100% traffic. The reviewed non-secret runtime allowlist matches Bicep: exact frontend/CORS origin, Google sign-in, parent access, Calendar read/create/manage, Tasks read/write, and chore generation settings are enabled as expected.
+- `GoogleTasks__ClientSecret` is a reference to `google-tasks-client-secret`; that Container App secret uses the versionless private Key Vault URI and runtime managed identity, with no inline value. Migration and chore jobs receive no Tasks secret.
+- PostgreSQL server `family-dashboard-staging-pg-rwzkcdch6czlm` is Ready on version 18 with private networking, seven-day backup retention, `Standard_B1ms`, 32 GiB storage, and UTF-8 database `family_dashboard` present. Public liveness/readiness return HTTP 200 `Healthy`; unauthenticated `/api/auth/me` fails closed with HTTP 401 `authentication_required` and exact credentialed CORS for `https://family.egobrane.net`.
+- Scheduled job `family-dashboard-staging-chore` uses the same digest, schedule `7 * * * *`, argument `--generate-chore-assignments`, and backend-only `postgres-connection` secret reference. The five latest inspected hourly executions succeeded; the latest was `family-dashboard-staging-chore-29800267`.
+- The public Netlify application serves `/assets/index-fvohcgDK.js`, containing the approved API origin and Tasks mutation interface. `/sw.js` returns `no-cache,max-age=0,must-revalidate`; Cloudflare reports `DYNAMIC`, so its bypass remains active. The Netlify edge may retain and revalidate its origin object, as expected.
+- The owner confirmed incremental write consent, one writable household task list, task creation, task completion, and provider reflection on another device. Google Tasks remains the source of truth and local receipts contain no task content.
+- Reopening, date-only due dates, private/shared attribution, duplicate or ambiguous submission recovery, provider conflicts, revocation/reconnection, multi-household isolation, responsive devices, and live leakage inspection remain unconfirmed unless separately exercised; automated coverage does not turn those into owner-observed staging evidence.
 
 ## Google Tasks Increment 1 deployment and activation: 2026-08-28
 

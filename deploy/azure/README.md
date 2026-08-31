@@ -140,6 +140,8 @@ Then set `enableCustomDomain = true`, repeat `what-if`, and redeploy. The first 
 
 ## Database migration
 
+Dashboard personalization adds a dedicated private `household-photos` container to the existing locked-down storage account. The first application deployment applies `AddDashboardPersonalizationAndWeather` but deliberately leaves media disabled until that structural resource and its Container App settings exist. After the automatic deployment succeeds, use its reviewed immutable digest for `FAMILY_DASHBOARD_BACKEND_IMAGE`, load the existing PostgreSQL administrator password from the owner-controlled password manager, run `what-if`, and apply `staging.bicepparam` in incremental mode. No weather credential is required. Rerun the protected application deployment only if reconciliation is needed after the structural deployment.
+
 Run the one-shot job before exposing an API revision that depends on a new schema:
 
 ```sh

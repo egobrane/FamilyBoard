@@ -57,6 +57,19 @@ describe('App', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path.endsWith('/dashboard-appearance')) return jsonResponse({
+        householdId: '20000000-0000-0000-0000-000000000001',
+        timeZone: 'America/New_York',
+        greetingTitle: 'Hello family', greetingMessage: 'Make today count.',
+        photoFocalX: 0.5, photoFocalY: 0.4, version: 1, photo: null,
+      })
+      if (path.endsWith('/weather')) return jsonResponse({
+        status: 'fresh', locationLabel: 'Home', temperatureUnit: 'fahrenheit',
+        current: { temperature: 72, summary: 'Sunny', icon: 'clear' },
+        forecast: [{ name: 'Today', start: '2026-08-31T10:00:00Z', end: '2026-09-01T00:00:00Z', temperature: 76, temperatureUnit: 'fahrenheit', summary: 'Sunny', icon: 'clear', isDaytime: true }],
+        observedAt: '2026-08-31T10:00:00Z', retrievedAt: '2026-08-31T10:05:00Z', isStale: false,
+        attribution: 'Weather data from the National Weather Service',
+      })
       if (path.endsWith('/chores/dashboard')) return jsonResponse({
         overdue: [],
         dueToday: [{
@@ -122,6 +135,8 @@ describe('App', () => {
 
     const welcomeCard = screen.getByRole('region', { name: 'Ready for a good day?' })
     expect(welcomeCard.style.getPropertyValue('--household-photo')).toContain('/images/demo-family-photo.jpg')
+    expect(await screen.findByText('Make today count.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open weather forecast: 72 degrees, Sunny/i })).toBeInTheDocument()
   })
 
   it('shows the signed-out welcome state without flashing dashboard content', async () => {

@@ -12,7 +12,7 @@ flowchart LR
     GHCR --> API
     Job -->|private TLS| PostgreSQL[(PostgreSQL Flexible Server 18)]
     API -->|private TLS| PostgreSQL
-    API -->|managed identity, private link| Blob[(Data Protection Blob)]
+    API -->|managed identity, private link| Blob[(Data Protection keys and private household photos)]
     API -->|managed identity, private link| Vault[Key Vault key, sign-in secret, Calendar secret, and PIN pepper]
     GitHub[GitHub Actions OIDC] --> Job
     GitHub --> API
@@ -84,6 +84,8 @@ Google Calendar Increment 3 commit `3343013bae1cb232092b8488c49f8d70f46ede32` pu
 Google Tasks Increment 1 reuses the same private runtime and adds only its dedicated Key Vault secret reference and public OAuth configuration. Workflow correction commit `e6a25776891dab7a13ff147ace18c8479d59bf87` published reviewed digest `sha256:99c704484334a863addfce2f155ee7522e6d8591b7e3cae4e38c24edab168580`. Its first API attempt failed closed because healthy revision `0000033` received 0% while traffic remained explicitly pinned to `0000032`; the prior revision stayed healthy. The corrected workflow separates readiness from explicit promotion and applies the same explicit behavior during rollback. After the secret-only and structural Bicep deployments, protected run `33185643005` completed migration execution `family-dashboard-staging-mig-qynh433` and reconciled healthy revision `family-dashboard-staging-api--0000037` plus scheduled job `family-dashboard-staging-chore` to the reviewed digest. The API receives `GoogleTasks__ClientSecret` only through secret reference `google-tasks-client-secret`, backed by the versionless private Key Vault URI and runtime managed identity; migration and chore jobs receive no Tasks secret.
 
 Google Tasks Increment 2 adds `AddGoogleTaskMutations` and the reviewed `GoogleTasks__MutationsEnabled` allowlist setting. Implementation commit `b8a9372e67713ce3e121615b575f3d21508efe00` published multi-architecture digest `sha256:858c26934aa0af30f254fd71ef8c5d26856f10a64f118f1b77d3aebd78cbf502`; migration execution `family-dashboard-staging-mig-krltv0a` applied the migration while the gate remained false. Activation commit `f35e25ca1a1464c61b7d2a72d844b8afd2d2c834` passed CI without publishing a redundant image, and protected run `33259719447` reconciled healthy revision `family-dashboard-staging-api--0000039`, 100% traffic, the same digest, and both Tasks flags enabled. Disabling the flag rolls back application mutations; revoking the broad provider grant requires disconnecting the Tasks connection and reconnecting read-only.
+
+Dashboard Personalization adds the private `household-photos` container to the existing storage account. It retains disabled public access, shared-key denial, the existing private endpoint, and managed-identity authorization; no storage secret is created. Weather adds no Azure resource or secret. On the first deployment, the automatic image workflow migrates and safely leaves household media disabled until the structural Bicep deployment supplies the private container URI. Deploy `staging.bicepparam` with the same reviewed digest and owner-held PostgreSQL password, then rerun/reconcile that digest so the protected workflow verifies the approved media and weather flags. The migration and chore jobs receive no photo configuration.
 
 The workflow pins Azure Container Apps CLI extension `1.3.0b4` because the required job commands are currently delivered through that preview extension. Review and deliberately update the pin when Azure publishes a suitable stable version.
 

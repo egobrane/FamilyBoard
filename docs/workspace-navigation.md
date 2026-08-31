@@ -14,6 +14,8 @@ The canonical routes remain `/`, `/calendar`, `/tasks`, `/chores`, and `/rewards
 
 The gesture is an enhancement, not the only navigation mechanism. The bottom items remain links, the destination main region receives focus after navigation, and reduced-motion preferences disable route animation.
 
+Programmatic route focus is applied only to the non-interactive `#main-content` region so screen readers announce the destination. Its browser-default page-sized outline is suppressed deliberately; links and buttons continue to use the application's high-contrast `:focus-visible` indicator for keyboard operation.
+
 Creation, editing, administration, point-history, and other detail routes remain outside the swipe workspace. This prevents accidental loss of form state and keeps destructive or administrative workflows conventional.
 
 ## Layout contract
@@ -21,3 +23,7 @@ Creation, editing, administration, point-history, and other detail routes remain
 At wide wall-display sizes, Today and Chores occupy seven of twelve dashboard columns while the household image and Tasks occupy five. Rewards uses a compact full-width summary row. Tablet layouts use balanced columns, and phone layouts stack cards. The five-item navigation dock must remain on one row at every supported viewport.
 
 No external animation or gesture dependency is used. React Router remains the navigation source of truth, Pointer Events provide touch and mouse parity, and CSS supplies progressive animation.
+
+## Staging proof
+
+The owner confirmed the cohesive layout, matching white bordered Calendar, Tasks, Chores, and Rewards surfaces, and removal of the page-sized blue focus outline in production. Current-commit CI independently exercises pointer tab selection, mouse drag, browser routes, responsive overflow, vertical-gesture protection, reduced motion, focus movement, and serious automated accessibility checks. Physical touch swipe and subjective transition behavior remain owner-operated checks rather than something inferred from CI alone.

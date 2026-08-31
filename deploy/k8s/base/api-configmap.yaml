@@ -14,3 +14,8 @@ data:
   GoogleTasks__MutationsEnabled: "false"
   GoogleTasks__ClientId: ""
   GoogleTasks__CallbackUrl: ""
+  HouseholdMedia__Enabled: "true"
+  HouseholdMedia__Provider: FileSystem
+  HouseholdMedia__LocalPath: /app/data/household-photos
+  Weather__Enabled: "true"
+  Weather__Provider: Nws

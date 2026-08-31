@@ -35,6 +35,8 @@ The migration service runs once before the development API starts. See [developm
 - [Google Calendar integration](docs/google-calendar.md)
 - [Google Tasks integration](docs/google-tasks.md)
 - [Workspace navigation and gesture behavior](docs/workspace-navigation.md)
+- [Dashboard personalization](docs/dashboard-personalization.md)
+- [Household weather](docs/weather.md)
 - [Chore management](docs/chore-management.md)
 - [Reward management](docs/reward-management.md)
 - [Identity and household milestone](docs/identity-household-milestone.md)
@@ -50,3 +52,5 @@ The migration service runs once before the development API starts. See [developm
 ## Current scope
 
 Health, Google-login initiation, and invitation prepare/inspection endpoints are anonymously usable; invitation preparation additionally requires JSON from the exact configured frontend origin. Account identity, household setup, selected-household context, household heading, configured calendar events, chores, points, rewards, and selected Google task lists come from the authenticated API. Identity and Household Management Increments 1–6, Google Calendar Increments 1–3, Chore Management Increments 1–3, Reward Management Increment 1, and Google Tasks Increments 1–2 are deployed and staging verified with the matching Netlify frontend. General Tasks editing, deletion, movement, ordering, synchronization, reminders, and recurrence remain deferred. OAuth codes and tokens, PINs, PIN hashes, and peppers never reach the frontend.
+
+The primary Home, Calendar, Tasks, Chores, and Rewards experience now runs as one cohesive routed workspace with a persistent household shell, pointer and touch gestures, browser-history-safe URLs, reduced-motion support, matching feature surfaces, and keyboard-visible control focus. Dashboard Personalization and Weather Increment 1 adds household-specific greetings, authenticated private photo variants and focal positioning, approximate weather location, NWS current conditions, and an accessible forecast dialog. Staging activation remains to be owner-verified after this release is reviewed.

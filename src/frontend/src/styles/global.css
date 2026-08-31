@@ -776,7 +776,7 @@ a:focus-visible {
   background-image:
     linear-gradient(100deg, rgb(25 36 33 / 78%) 0%, rgb(25 36 33 / 64%) 52%, rgb(25 36 33 / 58%) 100%),
     var(--household-photo);
-  background-position: center, center 40%;
+  background-position: center, var(--household-photo-position, center 40%), center 40%;
   background-repeat: no-repeat;
   background-size: cover;
   text-shadow: 0 0.1rem 0.4rem rgb(0 0 0 / 55%);
@@ -813,6 +813,46 @@ a:focus-visible {
   margin-right: 0.45rem;
   font-size: 1.4rem;
 }
+
+.weather-preview--button,
+.weather-preview--status {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.weather-preview--button { cursor: pointer; }
+.weather-preview--status span,
+.weather-preview--button span { display: flex; align-items: baseline; gap: 0.45rem; }
+.weather-preview--status small,
+.weather-preview--button small { display: block; color: #dcece5; }
+
+.weather-dialog {
+  width: min(42rem, calc(100% - 2rem));
+  max-height: min(46rem, calc(100vh - 2rem));
+  padding: 0;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 0;
+  border-radius: var(--radius-large);
+  box-shadow: 0 2rem 6rem rgb(12 20 18 / 30%);
+  text-shadow: none;
+}
+
+.weather-dialog::backdrop { background: rgb(17 25 23 / 58%); }
+.welcome-card .weather-dialog .eyebrow { color: var(--color-muted); }
+.weather-dialog__content { padding: clamp(1.25rem, 4vw, 2rem); }
+.weather-dialog__heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.weather-dialog__heading h3 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.4rem); }
+.dialog-close { width: var(--touch-target); height: var(--touch-target); color: var(--color-ink); font-size: 2rem; background: #efeee7; border: 0; border-radius: 50%; cursor: pointer; }
+.weather-forecast-list { display: grid; gap: 0.55rem; padding: 0; margin: 1.25rem 0; list-style: none; }
+.weather-forecast-list li { display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: center; gap: 0.75rem; min-height: 4rem; padding: 0.7rem; background: #f2f0e9; border-radius: 0.9rem; }
+.weather-forecast-list span { display: grid; gap: 0.15rem; }
+.weather-forecast-list small { color: var(--color-muted); }
+.weather-forecast-list b { font-size: 1.25rem; }
+.weather-attribution { color: var(--color-muted); font-size: 0.8rem; }
 
 .chore {
   display: grid;
@@ -1303,6 +1343,40 @@ a:focus-visible {
 .admin-form {
   display: grid;
   gap: 1rem;
+}
+
+.settings-feature-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+}
+
+.settings-feature-links a {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 5.5rem;
+  align-content: center;
+  padding: 1rem;
+  color: var(--color-ink);
+  text-decoration: none;
+  background: #efeee7;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+}
+
+.settings-feature-links span { color: var(--color-muted); }
+.appearance-preview { display: grid; min-height: 15rem; align-content: end; gap: 0.4rem; padding: 1.5rem; margin-bottom: 1.25rem; color: white; background-color: #557e70; background-position: center; background-size: cover; border-radius: var(--radius-medium); text-shadow: 0 0.1rem 0.4rem rgb(0 0 0 / 55%); }
+.appearance-preview strong { font-size: clamp(1.5rem, 3vw, 2.3rem); }
+.appearance-photo-actions { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.appearance-photo-actions .form-field { flex: 1; }
+.form-actions--spread { justify-content: space-between; }
+.form-actions--spread > span { display: flex; gap: 0.6rem; }
+
+@media (max-width: 45rem) {
+  .settings-feature-links { grid-template-columns: 1fr; }
+  .appearance-photo-actions,
+  .form-actions--spread { align-items: stretch; flex-direction: column; }
 }
 
 .form-actions,

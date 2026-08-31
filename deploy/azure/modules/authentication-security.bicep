@@ -55,6 +55,14 @@ resource dataProtectionContainer 'Microsoft.Storage/storageAccounts/blobServices
   }
 }
 
+resource householdPhotosContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'household-photos'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 resource keyVault 'Microsoft.KeyVault/vaults@2024-11-01' = {
   name: keyVaultName
   location: location
@@ -195,6 +203,7 @@ resource secretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 output runtimeIdentityId string = runtimeIdentity.id
 output runtimeIdentityClientId string = runtimeIdentity.properties.clientId
 output dataProtectionBlobUri string = 'https://${storage.name}.blob.${environment().suffixes.storage}/data-protection/keys.xml'
+output householdPhotosContainerUri string = 'https://${storage.name}.blob.${environment().suffixes.storage}/${householdPhotosContainer.name}'
 output dataProtectionKeyIdentifier string = '${keyVault.properties.vaultUri}keys/${dataProtectionKey.name}'
 output googleClientSecretUri string = '${keyVault.properties.vaultUri}secrets/google-client-secret'
 output googleCalendarClientSecretUri string = '${keyVault.properties.vaultUri}secrets/google-calendar-client-secret'

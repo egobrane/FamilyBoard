@@ -1,5 +1,19 @@
 # Staging Deployment Proof
 
+## Dashboard Personalization and Weather Increment 1 pending proof
+
+The reviewed implementation adds migration `AddDashboardPersonalizationAndWeather`, a private `household-photos` Azure container, authenticated photo delivery, and credential-free NWS weather. Record the migration execution, immutable digest, API revision, Bicep provisioning, Netlify bundle, upload/replacement/removal, focal position, automatic/custom greeting, missing/fresh/stale weather states, parent-PIN boundary, household isolation, responsive devices, and leakage inspection here only after the owner actually verifies them. The first automatic backend release intentionally remains healthy with household media disabled until structural Bicep has supplied the private container URI.
+
+## UI Cohesion and Workspace Navigation deployment: 2026-08-31
+
+- Repository `main` and `origin/main` are clean and match `df87e61b6cf57b8ede053b2d07edd85314128b69`. [Continuous Integration run 33406032567](https://github.com/egobrane/FamilyBoard/actions/runs/33406032567) passed frontend lint, 39 component tests, the production PWA build, 34 wall-display/phone Playwright scenarios, backend build/tests, production container builds, Azure Bicep validation, Docker Compose validation, and K3s rendering.
+- The frontend-only commits correctly did not publish or deploy a redundant backend image. Azure remains on reviewed digest `sha256:858c26934aa0af30f254fd71ef8c5d26856f10a64f118f1b77d3aebd78cbf502`; revision `family-dashboard-staging-api--0000039` is Healthy, Provisioned, latest-ready, and receives 100% traffic.
+- The public Netlify shell returns HTTP 200 and currently references `/assets/index-B9_0IbyG.js` and `/assets/index-BVYEoThe.css`. The compiled JavaScript contains the approved `https://api.egobrane.net` origin and the persistent Home, Calendar, Tasks, Chores, and Rewards workspace. The CSS contains the common bordered Calendar/feature surface, five-column navigation dock, route transitions, reduced-motion override, and narrowly scoped non-interactive route-focus suppression.
+- `/sw.js` references those same current assets and returns `no-cache,max-age=0,must-revalidate`; Cloudflare reports `DYNAMIC`, so the focused bypass remains effective.
+- The owner confirmed the cohesive five-tab layout, matching white bordered surfaces on Calendar, Tasks, Chores, and Rewards, and removal of the page-sized blue focus outline. Links and buttons retain the explicit high-contrast `:focus-visible` indicator. CI covers pointer selection, mouse drag, browser routes, vertical-gesture protection, responsive overflow, reduced motion, focus movement, and automated accessibility; physical touch swipe and subjective transition feel are retained as owner-operated evidence.
+- PostgreSQL Flexible Server `family-dashboard-staging-pg-rwzkcdch6czlm` is Ready on version 18 with public networking disabled and `family_dashboard` present. Public liveness and database-backed readiness return HTTP 200 `Healthy`; unauthenticated `/api/auth/me` fails closed with HTTP 401 `authentication_required` ProblemDetails.
+- Scheduled job `family-dashboard-staging-chore` remains provisioned on the reviewed API digest with schedule `7 * * * *`, argument `--generate-chore-assignments`, and only the backend `postgres-connection` secret reference. Its five latest inspected hourly executions succeeded; the latest was `family-dashboard-staging-chore-29803147`.
+
 ## Google Tasks Increment 2 deployment and verification: 2026-08-29
 
 - Repository `main` and `origin/main` match activation commit `f35e25ca1a1464c61b7d2a72d844b8afd2d2c834`. Continuous Integration run `33259369471` and protected activation run `33259719447` succeeded. The parameter-only activation correctly did not publish another image.

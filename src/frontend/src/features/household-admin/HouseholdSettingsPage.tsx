@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import {
   ApiError,
   getHousehold,
@@ -177,6 +177,10 @@ function HouseholdSettingsForm({
           <button className="primary-action" disabled={isSaving} type="submit">{isSaving ? 'Saving…' : 'Save settings'}</button>
         </div>
       </form>
+      <div className="settings-feature-links" aria-label="Dashboard personalization settings">
+        <Link to={`/households/${household.id}/settings/appearance`}><strong>Dashboard appearance</strong><span>Choose the greeting, family photo, and photo focus.</span></Link>
+        <Link to={`/households/${household.id}/settings/weather`}><strong>Weather location</strong><span>Choose the approximate location and temperature unit.</span></Link>
+      </div>
     </section>
   )
 }

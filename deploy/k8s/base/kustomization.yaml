@@ -6,6 +6,7 @@ resources:
   - api-configmap.yaml
   - postgres-service.yaml
   - postgres-statefulset.yaml
+  - household-photos-pvc.yaml
   - migration-job.yaml
   - chore-generator-cronjob.yaml
   - api-deployment.yaml

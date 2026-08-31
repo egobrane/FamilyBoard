@@ -51,6 +51,12 @@ param googleTasksClientId string = ''
 @description('Enable only after parent-access-pepper-v1 exists in Key Vault.')
 param enableParentAccess bool = false
 
+@description('Enable private household photo upload and delivery through the API.')
+param enableHouseholdMedia bool = false
+
+@description('Enable provider-neutral household weather backed by the US National Weather Service.')
+param enableWeather bool = false
+
 @minValue(1)
 @maxValue(168)
 param choreGenerationHorizonHours int = 36
@@ -146,6 +152,9 @@ module containerApps 'modules/container-apps.bicep' = {
     runtimeIdentityClientId: authenticationSecurity.outputs.runtimeIdentityClientId
     dataProtectionBlobUri: authenticationSecurity.outputs.dataProtectionBlobUri
     dataProtectionKeyIdentifier: authenticationSecurity.outputs.dataProtectionKeyIdentifier
+    enableHouseholdMedia: enableHouseholdMedia
+    householdPhotosContainerUri: authenticationSecurity.outputs.householdPhotosContainerUri
+    enableWeather: enableWeather
     choreGenerationHorizonHours: choreGenerationHorizonHours
     choreGenerationMaximumAssignmentsPerRun: choreGenerationMaximumAssignmentsPerRun
   }

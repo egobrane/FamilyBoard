@@ -10,6 +10,8 @@ import {
 import { AuthenticationErrorPage } from '../features/authentication/AuthenticationErrorPage'
 import { WelcomePage } from '../features/authentication/WelcomePage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { HouseholdAppearancePage } from '../features/dashboard/HouseholdAppearancePage'
+import { HouseholdWeatherSettingsPage } from '../features/dashboard/HouseholdWeatherSettingsPage'
 import { ChoresPage } from '../features/chores/ChoresPage'
 import { HouseholdChoresPage } from '../features/chores/HouseholdChoresPage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
@@ -168,6 +170,8 @@ function AuthenticatedRoutes() {
         <Route element={<EditCalendarEventPage />} path="/calendar/events/:managementId/edit" />
         <Route element={<HouseholdAdminLayout />} path="/households/:householdId">
           <Route element={<HouseholdSettingsPage />} path="settings" />
+          <Route element={<HouseholdAppearancePage />} path="settings/appearance" />
+          <Route element={<HouseholdWeatherSettingsPage />} path="settings/weather" />
           <Route element={<HouseholdMembersPage />} path="members" />
           <Route element={<HouseholdInvitationsPage />} path="invitations" />
           <Route element={<ParentAccessPage />} path="parent-access" />

@@ -53,6 +53,17 @@ let householdInvitations: Array<{
 }> = []
 let choreSchedules: Array<Record<string, unknown>> = []
 let rewardRedemptions: Array<Record<string, unknown>> = []
+let dashboardAppearance = {
+  householdId: authenticatedUser.households[0].id,
+  timeZone: 'America/New_York',
+  greetingTitle: null as string | null,
+  greetingMessage: null as string | null,
+  photoFocalX: 0.5,
+  photoFocalY: 0.4,
+  version: 1,
+  photo: null,
+}
+let weatherSettings: Record<string, unknown> | undefined
 
 test.beforeEach(async ({ page }) => {
   householdName = authenticatedUser.households[0].name
@@ -68,6 +79,8 @@ test.beforeEach(async ({ page }) => {
   householdInvitations = []
   choreSchedules = []
   rewardRedemptions = []
+  dashboardAppearance = { ...dashboardAppearance, greetingTitle: null, greetingMessage: null, version: 1 }
+  weatherSettings = undefined
   await page.route('http://localhost:8080/api/**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname === '/api/auth/me') {
@@ -88,6 +101,40 @@ test.beforeEach(async ({ page }) => {
     }
     if (url.pathname === '/api/auth/logout') {
       await route.fulfill({ status: 204 })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/dashboard-appearance`) {
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON() as { greetingTitle: string | null; greetingMessage: string | null; photoFocalX: number; photoFocalY: number }
+        dashboardAppearance = { ...dashboardAppearance, ...body, version: dashboardAppearance.version + 1 }
+      }
+      await route.fulfill({ json: dashboardAppearance })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/weather-settings`) {
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON() as Record<string, unknown>
+        weatherSettings = { householdId: authenticatedUser.households[0].id, ...body, version: 2 }
+        await route.fulfill({ json: weatherSettings })
+        return
+      }
+      if (route.request().method() === 'DELETE') {
+        weatherSettings = undefined
+        await route.fulfill({ status: 204 })
+        return
+      }
+      await route.fulfill(weatherSettings ? { json: weatherSettings } : { status: 204 })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/weather`) {
+      await route.fulfill({ json: weatherSettings ? {
+        status: 'fresh', locationLabel: weatherSettings.locationLabel, temperatureUnit: 'fahrenheit',
+        current: { temperature: 72, summary: 'Sunny', icon: 'clear' },
+        forecast: [{ name: 'Today', start: '2026-08-31T12:00:00Z', end: '2026-09-01T00:00:00Z',
+          temperature: 76, temperatureUnit: 'fahrenheit', summary: 'Sunny', icon: 'clear', isDaytime: true }],
+        observedAt: '2026-08-31T16:00:00Z', retrievedAt: '2026-08-31T16:05:00Z', isStale: false,
+        attribution: 'Weather data from the National Weather Service',
+      } : { status: 'locationRequired', attribution: 'Weather data from the National Weather Service' } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/events`) {
@@ -674,6 +721,33 @@ test('an adult can update settings and add a child with keyboard-accessible cont
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
+})
+
+test('an adult can personalize the dashboard and configure an accessible weather forecast', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/settings/appearance`)
+  await page.getByLabel('Custom greeting title (optional)').fill('Welcome home')
+  await page.getByLabel('Family message (optional)').fill('Dinner is at six.')
+  await page.getByRole('button', { name: 'Save appearance' }).click()
+  await expect(page.getByText('Dashboard appearance saved.')).toBeVisible()
+
+  await page.goto(`/households/${authenticatedUser.households[0].id}/settings/weather`)
+  await page.getByLabel('Location label').fill('Near home')
+  await page.getByLabel('Latitude').fill('40.7128')
+  await page.getByLabel('Longitude').fill('-74.0060')
+  await page.getByRole('button', { name: 'Save weather location' }).click()
+  await expect(page.getByText('Weather location saved.')).toBeVisible()
+
+  await page.goto('/')
+  await expect(page.getByText('Welcome home')).toBeVisible()
+  await expect(page.getByText('Dinner is at six.')).toBeVisible()
+  await page.getByRole('button', { name: 'Open weather forecast: 72 degrees, Sunny' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: 'Household forecast' })).toBeVisible()
+  await expect(dialog.getByText('Weather data from the National Weather Service')).toBeVisible()
+  const results = await new AxeBuilder({ page }).include('.weather-dialog').analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
 })
 
 test('an adult can create a copyable email-bound invitation', async ({ page }) => {

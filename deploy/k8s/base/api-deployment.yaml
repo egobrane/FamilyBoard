@@ -71,6 +71,11 @@ spec:
           volumeMounts:
             - name: temporary-files
               mountPath: /tmp
+            - name: household-photos
+              mountPath: /app/data/household-photos
       volumes:
         - name: temporary-files
           emptyDir: {}
+        - name: household-photos
+          persistentVolumeClaim:
+            claimName: family-dashboard-household-photos

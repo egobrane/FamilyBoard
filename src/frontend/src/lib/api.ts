@@ -264,6 +264,54 @@ export interface UpdateHouseholdRequest {
   weekStartsOn?: string
 }
 
+export interface DashboardAppearanceResponse {
+  householdId: string
+  timeZone: string
+  greetingTitle: string | null
+  greetingMessage: string | null
+  photoFocalX: number
+  photoFocalY: number
+  version: number
+  photo: null | {
+    assetId: string
+    smallUrl: string
+    mediumUrl: string
+    largeUrl: string
+    pixelWidth: number
+    pixelHeight: number
+  }
+}
+
+export interface WeatherSettingsResponse {
+  householdId: string
+  latitude: number
+  longitude: number
+  locationLabel: string
+  temperatureUnit: 'auto' | 'fahrenheit' | 'celsius'
+  version: number
+}
+
+export interface HouseholdWeatherResponse {
+  status: 'locationRequired' | 'fresh' | 'stale'
+  locationLabel?: string
+  temperatureUnit?: 'fahrenheit' | 'celsius'
+  current?: { temperature: number | null; summary: string; icon: string } | null
+  forecast?: Array<{
+    name: string
+    start: string
+    end: string
+    temperature: number | null
+    temperatureUnit: string
+    summary: string
+    icon: string
+    isDaytime: boolean
+  }>
+  observedAt?: string | null
+  retrievedAt?: string
+  isStale?: boolean
+  attribution: string
+}
+
 export interface HouseholdMemberResponse {
   id: string
   displayName: string
@@ -507,7 +555,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function unsafeRequest<T>(
   path: string,
-  method: 'POST' | 'PUT' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   body?: unknown,
 ): Promise<T> {
   const antiforgery = await request<AntiforgeryTokenResponse>('/api/auth/antiforgery')
@@ -519,6 +567,19 @@ async function unsafeRequest<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+}
+
+async function unsafeFormRequest<T>(path: string, method: 'POST' | 'PUT', body: FormData): Promise<T> {
+  const antiforgery = await request<AntiforgeryTokenResponse>('/api/auth/antiforgery')
+  return request<T>(path, {
+    method,
+    headers: { [antiforgery.headerName]: antiforgery.requestToken },
+    body,
+  })
+}
+
+export function resolveApiUrl(path: string) {
+  return `${configuration.apiBaseUrl}${path}`
 }
 
 function publicJsonRequest<T>(path: string, body: unknown) {
@@ -547,6 +608,62 @@ export function updateHousehold(householdId: string, body: UpdateHouseholdReques
     'PATCH',
     body,
   )
+}
+
+export function getDashboardAppearance(householdId: string) {
+  return request<DashboardAppearanceResponse>(`/api/households/${encodeURIComponent(householdId)}/dashboard-appearance`)
+}
+
+export function updateDashboardAppearance(householdId: string, body: {
+  greetingTitle: string | null
+  greetingMessage: string | null
+  photoFocalX: number
+  photoFocalY: number
+  expectedVersion: number
+}) {
+  return unsafeRequest<DashboardAppearanceResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/dashboard-appearance`, 'PUT', body,
+  )
+}
+
+export function uploadDashboardPhoto(householdId: string, photo: File) {
+  const body = new FormData()
+  body.append('photo', photo)
+  return unsafeFormRequest<DashboardAppearanceResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/dashboard-photo`, 'POST', body,
+  )
+}
+
+export function removeDashboardPhoto(householdId: string) {
+  return unsafeRequest<DashboardAppearanceResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/dashboard-photo`, 'DELETE',
+  )
+}
+
+export function getHouseholdWeather(householdId: string) {
+  return request<HouseholdWeatherResponse>(`/api/households/${encodeURIComponent(householdId)}/weather`)
+}
+
+export function getWeatherSettings(householdId: string) {
+  return request<WeatherSettingsResponse | undefined>(
+    `/api/households/${encodeURIComponent(householdId)}/weather-settings`,
+  )
+}
+
+export function updateWeatherSettings(householdId: string, body: {
+  latitude: number
+  longitude: number
+  locationLabel: string
+  temperatureUnit: 'auto' | 'fahrenheit' | 'celsius'
+  expectedVersion: number | null
+}) {
+  return unsafeRequest<WeatherSettingsResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/weather-settings`, 'PUT', body,
+  )
+}
+
+export function removeWeatherSettings(householdId: string) {
+  return unsafeRequest<void>(`/api/households/${encodeURIComponent(householdId)}/weather-settings`, 'DELETE')
 }
 
 export function listHouseholdMembers(householdId: string) {

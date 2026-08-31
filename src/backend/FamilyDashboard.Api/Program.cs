@@ -2,6 +2,7 @@ using FamilyDashboard.Api.Configuration;
 using FamilyDashboard.Api.Features.Authentication;
 using FamilyDashboard.Api.Features.Calendar;
 using FamilyDashboard.Api.Features.Chores;
+using FamilyDashboard.Api.Features.Dashboard;
 using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Features.Households;
 using FamilyDashboard.Api.Features.Invitations;
@@ -42,6 +43,23 @@ builder.Services.AddScoped<ChoreAssignmentGenerator>();
 builder.Services.AddScoped<PointService>();
 builder.Services.AddScoped<PointLedgerLock>();
 builder.Services.AddScoped<RewardService>();
+builder.Services.AddScoped<DashboardAppearanceService>();
+builder.Services.AddScoped<WeatherService>();
+builder.Services.AddSingleton<IHouseholdPhotoStore>(services =>
+{
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<HouseholdMediaConfiguration>>();
+    return string.Equals(options.Value.Provider, "AzureBlob", StringComparison.OrdinalIgnoreCase)
+        ? new AzureBlobHouseholdPhotoStore(options)
+        : new FileSystemHouseholdPhotoStore(options);
+});
+builder.Services.AddHttpClient(nameof(NwsWeatherProvider), (services, client) =>
+{
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<WeatherConfiguration>>().Value;
+    client.Timeout = options.Timeout;
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/geo+json, application/json");
+}).RemoveAllLoggers();
+builder.Services.AddScoped<IWeatherProvider, NwsWeatherProvider>();
 builder.Services.AddSingleton<ChoreRecurrenceCalculator>();
 builder.Services.AddSingleton<ChoreDueTimeService>();
 builder.Services.AddSingleton<CalendarTokenProtector>();
@@ -107,6 +125,25 @@ builder.Services.AddOptions<ChoreGenerationConfiguration>()
         && options.MaximumAssignmentsPerRun is >= 1 and <= 1000,
         "Chore generation values are invalid.")
     .ValidateOnStart();
+builder.Services.AddOptions<HouseholdMediaConfiguration>()
+    .Bind(builder.Configuration.GetSection(HouseholdMediaConfiguration.SectionName))
+    .Validate(options => !options.Enabled || ((options.Provider == "FileSystem" && !string.IsNullOrWhiteSpace(options.LocalPath))
+        || (options.Provider == "AzureBlob" && Uri.TryCreate(options.BlobContainerUri, UriKind.Absolute, out _))),
+        "Household media configuration is incomplete.")
+    .Validate(options => options.MaximumUploadBytes is > 0 and <= 20 * 1024 * 1024
+        && options.MaximumPixelCount is > 0 and <= 80_000_000
+        && options.MaximumDimension is > 0 and <= 20_000,
+        "Household media safety limits are invalid.")
+    .ValidateOnStart();
+builder.Services.AddOptions<WeatherConfiguration>()
+    .Bind(builder.Configuration.GetSection(WeatherConfiguration.SectionName))
+    .Validate(options => !options.Enabled || (options.Provider == "Nws"
+        && Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out _)
+        && !string.IsNullOrWhiteSpace(options.UserAgent)
+        && options.Timeout > TimeSpan.Zero
+        && options.FreshLifetime > TimeSpan.Zero
+        && options.StaleLifetime >= options.FreshLifetime), "Weather configuration is invalid.")
+    .ValidateOnStart();
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)
@@ -121,7 +158,7 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins(corsOptions.AllowedOrigins)
                 .WithHeaders("Content-Type", "X-CSRF-TOKEN")
-                .WithMethods("GET", "POST", "PUT", "PATCH")
+                .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
                 .AllowCredentials();
         }
     });
@@ -278,6 +315,7 @@ app.MapGoogleTasksEndpoints();
 app.MapChoreEndpoints();
 app.MapPointEndpoints();
 app.MapRewardEndpoints();
+app.MapDashboardEndpoints();
 
 await app.RunAsync();
 

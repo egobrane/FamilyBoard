@@ -60,6 +60,11 @@ services:
       GoogleTasks__ClientId: ${GoogleTasks__ClientId:-}
       GoogleTasks__ClientSecret: ${GoogleTasks__ClientSecret:-}
       GoogleTasks__CallbackUrl: ${GoogleTasks__CallbackUrl:-}
+      HouseholdMedia__Enabled: ${HouseholdMedia__Enabled:-true}
+      HouseholdMedia__Provider: FileSystem
+      HouseholdMedia__LocalPath: /workspace/data/household-photos
+      Weather__Enabled: ${Weather__Enabled:-true}
+      Weather__Provider: Nws
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:
@@ -67,6 +72,7 @@ services:
       - api-bin:/workspace/src/backend/FamilyDashboard.Api/bin
       - api-obj:/workspace/src/backend/FamilyDashboard.Api/obj
       - api-nuget:/root/.nuget/packages
+      - household-photos:/workspace/data/household-photos
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -114,3 +120,4 @@ volumes:
   api-nuget:
   frontend-node-modules:
   postgres-data:
+  household-photos:

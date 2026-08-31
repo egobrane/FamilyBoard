@@ -30,6 +30,9 @@ param runtimeIdentityId string
 param runtimeIdentityClientId string
 param dataProtectionBlobUri string
 param dataProtectionKeyIdentifier string
+param enableHouseholdMedia bool
+param householdPhotosContainerUri string
+param enableWeather bool
 param choreGenerationHorizonHours int
 param choreGenerationMaximumAssignmentsPerRun int
 
@@ -201,6 +204,30 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'ChoreGeneration__MaximumAssignmentsPerRun'
               value: string(choreGenerationMaximumAssignmentsPerRun)
+            }
+            {
+              name: 'HouseholdMedia__Enabled'
+              value: string(enableHouseholdMedia)
+            }
+            {
+              name: 'HouseholdMedia__Provider'
+              value: 'AzureBlob'
+            }
+            {
+              name: 'HouseholdMedia__BlobContainerUri'
+              value: householdPhotosContainerUri
+            }
+            {
+              name: 'HouseholdMedia__ManagedIdentityClientId'
+              value: runtimeIdentityClientId
+            }
+            {
+              name: 'Weather__Enabled'
+              value: string(enableWeather)
+            }
+            {
+              name: 'Weather__Provider'
+              value: 'Nws'
             }
           ], enableGoogleAuthentication ? [
             {

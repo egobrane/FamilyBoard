@@ -61,6 +61,18 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `GoogleTasks__StaleCacheLifetime` | Public policy | Maximum stale fallback lifetime; default fifteen minutes |
 | `GoogleTasks__MaximumTaskListsPerHousehold` | Public policy | Household source-selection limit; default 25 |
 | `GoogleTasks__MaximumTasksPerRequest` | Public policy | Normalized task cap; default 200 |
+| `HouseholdMedia__Enabled` | Public feature gate | Enables authenticated household photo management |
+| `HouseholdMedia__Provider` | Public configuration | `FileSystem` for portable local/K3s storage or `AzureBlob` for staging |
+| `HouseholdMedia__LocalPath` | Backend path | Writable private photo root for Compose/K3s; never frontend configuration |
+| `HouseholdMedia__BlobContainerUri` | Public resource identifier | Private Azure container URI; authorization still uses managed identity |
+| `HouseholdMedia__ManagedIdentityClientId` | Public identifier | Runtime identity used to access private blobs |
+| `Weather__Enabled` | Public feature gate | Enables household-local weather retrieval |
+| `Weather__Provider` | Public configuration | Provider selector; currently `Nws` |
+| `Weather__BaseUrl` | Public configuration | NWS API base URL |
+| `Weather__UserAgent` | Public configuration | Required identifying API User-Agent; contains no secret |
+| `Weather__Timeout` | Public policy | Provider request timeout; default eight seconds |
+| `Weather__FreshLifetime` | Public policy | Disposable combined current-condition and forecast cache lifetime; default 30 minutes |
+| `Weather__StaleLifetime` | Public policy | Last-known fallback limit; default six hours |
 
 Calendar OAuth access and refresh tokens are encrypted by the existing persisted Data Protection key ring before PostgreSQL storage. The separate Calendar client secret and all future signing keys belong only in backend runtime secret storage.
 

@@ -65,6 +65,8 @@ jobs:
           GOOGLE_TASKS_ENABLED="$(jq -r '.parameters.enableGoogleTasks.value' <<< "$parameters")"
           GOOGLE_TASK_MUTATIONS_ENABLED="$(jq -r '.parameters.enableGoogleTaskMutations.value' <<< "$parameters")"
           GOOGLE_TASKS_CLIENT_ID="$(jq -r '.parameters.googleTasksClientId.value' <<< "$parameters")"
+          HOUSEHOLD_MEDIA_ENABLED="$(jq -r '.parameters.enableHouseholdMedia.value' <<< "$parameters")"
+          WEATHER_ENABLED="$(jq -r '.parameters.enableWeather.value' <<< "$parameters")"
           CHORE_GENERATION_HORIZON_HOURS="$(jq -r '.parameters.choreGenerationHorizonHours.value' <<< "$parameters")"
           CHORE_GENERATION_MAXIMUM_ASSIGNMENTS="$(jq -r '.parameters.choreGenerationMaximumAssignmentsPerRun.value' <<< "$parameters")"
 
@@ -91,6 +93,8 @@ jobs:
             echo "GOOGLE_TASKS_ENABLED=$GOOGLE_TASKS_ENABLED"
             echo "GOOGLE_TASK_MUTATIONS_ENABLED=$GOOGLE_TASK_MUTATIONS_ENABLED"
             echo "GOOGLE_TASKS_CLIENT_ID=$GOOGLE_TASKS_CLIENT_ID"
+            echo "HOUSEHOLD_MEDIA_ENABLED=$HOUSEHOLD_MEDIA_ENABLED"
+            echo "WEATHER_ENABLED=$WEATHER_ENABLED"
             echo "CHORE_GENERATION_HORIZON_HOURS=$CHORE_GENERATION_HORIZON_HOURS"
             echo "CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
           } >> "$GITHUB_ENV"
@@ -153,6 +157,7 @@ jobs:
           previous_google_calendar_event_management_enabled="$(env_value 'GoogleCalendar__EventManagementEnabled')"
           previous_google_tasks_enabled="$(env_value 'GoogleTasks__Enabled')"
           previous_google_task_mutations_enabled="$(env_value 'GoogleTasks__MutationsEnabled')"
+          household_media_blob_uri="$(env_value 'HouseholdMedia__BlobContainerUri')"
 
           {
             echo "PREVIOUS_IMAGE=$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
@@ -172,6 +177,12 @@ jobs:
             echo "PREVIOUS_GOOGLE_TASKS_CALLBACK_URL=$(env_value 'GoogleTasks__CallbackUrl')"
             echo "PREVIOUS_CHORE_GENERATION_HORIZON_HOURS=$(env_value 'ChoreGeneration__HorizonHours')"
             echo "PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$(env_value 'ChoreGeneration__MaximumAssignmentsPerRun')"
+            echo "PREVIOUS_HOUSEHOLD_MEDIA_ENABLED=$(env_value 'HouseholdMedia__Enabled')"
+            echo "PREVIOUS_HOUSEHOLD_MEDIA_PROVIDER=$(env_value 'HouseholdMedia__Provider')"
+            echo "PREVIOUS_HOUSEHOLD_MEDIA_BLOB_URI=$household_media_blob_uri"
+            echo "PREVIOUS_HOUSEHOLD_MEDIA_IDENTITY=$(env_value 'HouseholdMedia__ManagedIdentityClientId')"
+            echo "PREVIOUS_WEATHER_ENABLED=$(env_value 'Weather__Enabled')"
+            echo "MEDIA_STRUCTURAL_READY=$([[ -n "$household_media_blob_uri" ]] && echo true || echo false)"
           } >> "$GITHUB_ENV"
 
           if az containerapp job show --resource-group "$RESOURCE_GROUP" --name "$CHORE_GENERATOR_JOB_NAME" >/dev/null 2>&1; then
@@ -228,27 +239,35 @@ jobs:
         id: deploy
         shell: bash
         run: |
+          runtime_settings=(
+            "Cors__AllowedOrigins__0=$FRONTEND_ORIGIN"
+            "Authentication__FrontendOrigin=$FRONTEND_ORIGIN"
+            "Authentication__Google__Enabled=$GOOGLE_AUTH_ENABLED"
+            "Authentication__Google__ClientId=$GOOGLE_CLIENT_ID"
+            "ParentAccess__Enabled=$PARENT_ACCESS_ENABLED"
+            "GoogleCalendar__Enabled=$GOOGLE_CALENDAR_ENABLED"
+            "GoogleCalendar__EventCreationEnabled=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED"
+            "GoogleCalendar__EventManagementEnabled=$GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED"
+            "GoogleCalendar__ClientId=$GOOGLE_CALENDAR_CLIENT_ID"
+            "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback"
+            "GoogleTasks__Enabled=$GOOGLE_TASKS_ENABLED"
+            "GoogleTasks__MutationsEnabled=$GOOGLE_TASK_MUTATIONS_ENABLED"
+            "GoogleTasks__ClientId=$GOOGLE_TASKS_CLIENT_ID"
+            "GoogleTasks__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-tasks/callback"
+            "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS"
+            "ChoreGeneration__MaximumAssignmentsPerRun=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+            "Weather__Enabled=$WEATHER_ENABLED"
+          )
+          if [[ "$MEDIA_STRUCTURAL_READY" == "true" ]]; then
+            runtime_settings+=("HouseholdMedia__Enabled=$HOUSEHOLD_MEDIA_ENABLED")
+          else
+            echo "Private household-photo storage is not structurally provisioned yet; media remains disabled for this release."
+          fi
           az containerapp update \
             --resource-group "$RESOURCE_GROUP" \
             --name "$API_NAME" \
             --image "$DEPLOY_IMAGE" \
-            --set-env-vars \
-              "Cors__AllowedOrigins__0=$FRONTEND_ORIGIN" \
-              "Authentication__FrontendOrigin=$FRONTEND_ORIGIN" \
-              "Authentication__Google__Enabled=$GOOGLE_AUTH_ENABLED" \
-              "Authentication__Google__ClientId=$GOOGLE_CLIENT_ID" \
-              "ParentAccess__Enabled=$PARENT_ACCESS_ENABLED" \
-              "GoogleCalendar__Enabled=$GOOGLE_CALENDAR_ENABLED" \
-              "GoogleCalendar__EventCreationEnabled=$GOOGLE_CALENDAR_EVENT_CREATION_ENABLED" \
-              "GoogleCalendar__EventManagementEnabled=$GOOGLE_CALENDAR_EVENT_MANAGEMENT_ENABLED" \
-              "GoogleCalendar__ClientId=$GOOGLE_CALENDAR_CLIENT_ID" \
-              "GoogleCalendar__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-calendar/callback" \
-              "GoogleTasks__Enabled=$GOOGLE_TASKS_ENABLED" \
-              "GoogleTasks__MutationsEnabled=$GOOGLE_TASK_MUTATIONS_ENABLED" \
-              "GoogleTasks__ClientId=$GOOGLE_TASKS_CLIENT_ID" \
-              "GoogleTasks__CallbackUrl=https://$API_HOSTNAME/api/integrations/google-tasks/callback" \
-              "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS" \
-              "ChoreGeneration__MaximumAssignmentsPerRun=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+            --set-env-vars "${runtime_settings[@]}"
 
           for attempt in {1..60}; do
             api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
@@ -362,6 +381,10 @@ jobs:
           assert_env 'GoogleTasks__CallbackUrl' "https://$API_HOSTNAME/api/integrations/google-tasks/callback"
           assert_env 'ChoreGeneration__HorizonHours' "$CHORE_GENERATION_HORIZON_HOURS"
           assert_env 'ChoreGeneration__MaximumAssignmentsPerRun' "$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+          assert_env 'Weather__Enabled' "$WEATHER_ENABLED"
+          if [[ "$MEDIA_STRUCTURAL_READY" == "true" ]]; then
+            assert_env 'HouseholdMedia__Enabled' "$HOUSEHOLD_MEDIA_ENABLED"
+          fi
 
           if [[ "$CHORE_GENERATOR_EXISTS" == "true" ]]; then
             az containerapp job update \
@@ -406,7 +429,9 @@ jobs:
               "GoogleTasks__ClientId=$PREVIOUS_GOOGLE_TASKS_CLIENT_ID" \
               "GoogleTasks__CallbackUrl=$PREVIOUS_GOOGLE_TASKS_CALLBACK_URL" \
               "ChoreGeneration__HorizonHours=$PREVIOUS_CHORE_GENERATION_HORIZON_HOURS" \
-              "ChoreGeneration__MaximumAssignmentsPerRun=$PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+              "ChoreGeneration__MaximumAssignmentsPerRun=$PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS" \
+              "HouseholdMedia__Enabled=${PREVIOUS_HOUSEHOLD_MEDIA_ENABLED:-false}" \
+              "Weather__Enabled=${PREVIOUS_WEATHER_ENABLED:-false}"
 
           rollback_revision=""
           for attempt in {1..60}; do

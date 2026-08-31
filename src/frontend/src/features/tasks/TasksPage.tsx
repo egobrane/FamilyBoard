@@ -52,7 +52,7 @@ export function TasksPage() {
     finally { setBusyTaskId(null) }
   }
 
-  return <main className="feature-page tasks-page" id="main-content" tabIndex={-1}>
+  return <main className="feature-page workspace-feature-page tasks-page" id="main-content" tabIndex={-1}>
     <header className="feature-header"><div><p className="eyebrow">Plans from Google</p><h2>Tasks</h2></div><div className="feature-header__actions">{result?.canCreateTasks && <Link className="primary-action" to="/tasks/new">Add task</Link>}{household.role === 'adult' && <Link className="secondary-action" to={`/households/${household.id}/tasks`}>Task settings</Link>}</div></header>
     {shared && <label className="task-attribution">Who is using the board?<select aria-label="Household member attribution" onChange={(event) => setAttributedMemberId(event.target.value)} value={attributedMemberId}><option value="">Choose a household member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></label>}
     {message && <p className="calendar-status calendar-status--success" role="status">{message}</p>}

@@ -33,7 +33,7 @@ export function RewardsPage() {
       requestId.current = crypto.randomUUID(); setSelected(null); setSuccess('Reward request sent for adult review.'); await load() }
     catch (cause) { setError(cause instanceof ApiError ? cause.problem.title : 'The reward could not be requested.') }
     finally { setBusy(false) } }
-  return <main className="feature-page rewards-page" id="main-content" tabIndex={-1}>
+  return <main className="feature-page workspace-feature-page rewards-page" id="main-content" tabIndex={-1}>
     <header className="feature-header"><div><p className="eyebrow">Enjoy what you earned</p><h2>Rewards</h2></div>
       <div className="form-actions"><Link className="secondary-action" to="/points">Point history</Link>
         {household.role === 'adult' && <Link className="secondary-action" to={`/households/${household.id}/rewards`}>Manage rewards</Link>}</div></header>

@@ -1021,12 +1021,14 @@ a:focus-visible {
   border-radius: 1rem;
 }
 
-.calendar-page {
+.calendar-page,
+.workspace-feature-page {
   width: min(88rem, calc(100% - (2 * var(--page-gutter))));
   min-height: calc(100vh - 13rem);
   margin: 0 auto;
   padding: clamp(1.25rem, 3vw, 2.5rem);
   background: var(--color-surface);
+  border: 1px solid rgb(38 49 47 / 8%);
   border-radius: 2rem;
   box-shadow: 0 1.5rem 4rem rgb(72 63 53 / 10%);
 }
@@ -1680,7 +1682,8 @@ a:focus-visible {
     border-radius: 1.5rem;
   }
 
-  .calendar-page {
+  .calendar-page,
+  .workspace-feature-page {
     width: calc(100% - 1rem);
     padding: 1rem;
     border-radius: 1.4rem;

@@ -505,6 +505,16 @@ test('workspace supports mouse dragging between adjacent primary views', async (
   await expect(page.getByRole('heading', { name: 'Family calendar' })).toBeVisible()
 })
 
+test('primary feature tabs share the same bordered surface treatment', async ({ page }) => {
+  for (const path of ['/calendar', '/tasks', '/chores', '/rewards']) {
+    await page.goto(path)
+    const surface = page.locator('#main-content')
+    await expect(surface).toHaveCSS('background-color', 'rgb(255, 253, 248)')
+    await expect(surface).toHaveCSS('border-top-width', '1px')
+    await expect(surface).toHaveCSS('border-top-left-radius', /^(22\.4|32)px$/)
+  }
+})
+
 test('reward redemption requires explicit member attribution and confirms the request', async ({ page }) => {
   await page.goto('/rewards')
   await page.getByLabel('Points belong to').selectOption(authenticatedUser.households[0].memberId)

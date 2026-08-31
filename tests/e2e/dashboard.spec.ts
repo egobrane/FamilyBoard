@@ -503,6 +503,8 @@ test('workspace supports mouse dragging between adjacent primary views', async (
 
   await expect(page).toHaveURL(/\/calendar$/)
   await expect(page.getByRole('heading', { name: 'Family calendar' })).toBeVisible()
+  await expect(page.locator('#main-content')).toBeFocused()
+  await expect(page.locator('#main-content')).toHaveCSS('outline-style', 'none')
 })
 
 test('primary feature tabs share the same bordered surface treatment', async ({ page }) => {

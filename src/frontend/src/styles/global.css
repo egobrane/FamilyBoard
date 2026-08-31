@@ -201,6 +201,12 @@ a:focus-visible {
   outline-offset: 0.2rem;
 }
 
+/* Route focus announces the new workspace to assistive technology without
+   drawing a page-sized browser outline around the non-interactive main region. */
+#main-content[tabindex="-1"]:focus {
+  outline: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

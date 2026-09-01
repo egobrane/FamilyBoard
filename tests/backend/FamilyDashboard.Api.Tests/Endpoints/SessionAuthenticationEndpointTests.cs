@@ -220,6 +220,37 @@ public sealed class SessionAuthenticationEndpointTests
     }
 
     [PostgreSqlFact]
+    public async Task DashboardPhotoUploadUsesTheApplicationAntiforgeryContract()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var (account, session) = await SeedSessionAsync(database);
+        var household = await AddHouseholdAsync(database, account, "Photo Household");
+        using var factory = new CookieSessionWebApplicationFactory(ConnectionString());
+        using var client = CreateClient(factory);
+        var sessionCookie = CreateSessionCookie(factory, session);
+        var path = $"/api/households/{household.Id}/dashboard-photo";
+
+        using var missingToken = MultipartPhotoRequest(path, sessionCookie);
+        using var missingTokenResponse = await client.SendAsync(missingToken);
+        Assert.Equal(HttpStatusCode.BadRequest, missingTokenResponse.StatusCode);
+        Assert.Equal(
+            ApiProblemCodes.AntiforgeryValidationFailed,
+            await ReadProblemCodeAsync(missingTokenResponse));
+
+        var antiforgery = await GetAntiforgeryAsync(client, sessionCookie);
+        using var upload = MultipartPhotoRequest(path, $"{sessionCookie}; {antiforgery.Cookie}");
+        upload.Headers.TryAddWithoutValidation(
+            antiforgery.Token.HeaderName,
+            antiforgery.Token.RequestToken);
+        using var uploadResponse = await client.SendAsync(upload);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, uploadResponse.StatusCode);
+        Assert.Equal(
+            ApiProblemCodes.HouseholdMediaUnavailable,
+            await ReadProblemCodeAsync(uploadResponse));
+    }
+
+    [PostgreSqlFact]
     public async Task RevokedExpiredAndDisabledSessionsFailClosed()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
@@ -364,6 +395,17 @@ public sealed class SessionAuthenticationEndpointTests
         request.Headers.TryAddWithoutValidation("Origin", origin);
         request.Headers.TryAddWithoutValidation("Access-Control-Request-Method", "POST");
         request.Headers.TryAddWithoutValidation("Access-Control-Request-Headers", "X-CSRF-TOKEN");
+        return request;
+    }
+
+    private static HttpRequestMessage MultipartPhotoRequest(string path, string cookie)
+    {
+        var photo = new ByteArrayContent([0xff, 0xd8, 0xff, 0xd9]);
+        photo.Headers.ContentType = new("image/jpeg");
+        var content = new MultipartFormDataContent();
+        content.Add(photo, "photo", "family.jpg");
+        var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+        request.Headers.TryAddWithoutValidation("Cookie", cookie);
         return request;
     }
 

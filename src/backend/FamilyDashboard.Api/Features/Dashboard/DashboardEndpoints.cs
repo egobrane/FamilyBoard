@@ -16,7 +16,9 @@ public static class DashboardEndpoints
         endpoints.MapPut("/api/households/{householdId:guid}/dashboard-appearance", UpdateAppearanceAsync)
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapPost("/api/households/{householdId:guid}/dashboard-photo", UploadPhotoAsync)
-            .RequireAuthorization().RequireFamilyDashboardAntiforgery();
+            .DisableAntiforgery()
+            .RequireAuthorization()
+            .RequireFamilyDashboardAntiforgery();
         endpoints.MapDelete("/api/households/{householdId:guid}/dashboard-photo", RemovePhotoAsync)
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapGet("/api/households/{householdId:guid}/dashboard-photo/{assetId:guid}/{variant}", GetPhotoAsync)

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -11,10 +12,14 @@ import {
   ApiError,
   createChildMember,
   listHouseholdMembers,
+  removeHouseholdMemberPhoto,
   updateHouseholdMember,
+  updateHouseholdMemberPhotoPosition,
+  uploadHouseholdMemberPhoto,
   type HouseholdMemberResponse,
 } from '../../lib/api'
 import { useAuthentication } from '../authentication/AuthenticationContext'
+import { MemberAvatar } from '../../components/MemberAvatar'
 
 const avatarColors = ['mint', 'sky', 'sun', 'coral'] as const
 
@@ -36,10 +41,6 @@ interface ConfirmationState {
 
 function safeAvatarColor(value: string | null) {
   return avatarColors.includes(value as (typeof avatarColors)[number]) ? value! : 'mint'
-}
-
-function initials(displayName: string) {
-  return displayName.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase()
 }
 
 function handleDialogKeyboard(
@@ -76,11 +77,13 @@ export function HouseholdMembersPage() {
   const [loadState, setLoadState] = useState<LoadState>({ status: 'loading' })
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null)
+  const [photoEditor, setPhotoEditor] = useState<HouseholdMemberResponse | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isMutating, setIsMutating] = useState(false)
   const confirmationDialogRef = useRef<HTMLElement>(null)
   const editorTriggerIdRef = useRef<string | null>(null)
+  const photoTriggerIdRef = useRef<string | null>(null)
 
   const currentMemberId = state.status === 'authenticated'
     ? state.currentUser.households.find((household) => household.id === householdId)?.memberId
@@ -122,6 +125,17 @@ export function HouseholdMembersPage() {
   const closeEditor = () => {
     const triggerId = editorTriggerIdRef.current
     setEditor(null)
+    if (triggerId) window.requestAnimationFrame(() => document.getElementById(triggerId)?.focus())
+  }
+
+  const openPhotoEditor = (member: HouseholdMemberResponse, triggerId: string) => {
+    photoTriggerIdRef.current = triggerId
+    setPhotoEditor(member)
+  }
+
+  const closePhotoEditor = () => {
+    const triggerId = photoTriggerIdRef.current
+    setPhotoEditor(null)
     if (triggerId) window.requestAnimationFrame(() => document.getElementById(triggerId)?.focus())
   }
 
@@ -203,6 +217,7 @@ export function HouseholdMembersPage() {
         currentMemberId={currentMemberId}
         members={activeMembers}
         onEdit={(member, triggerId) => openEditor({ mode: 'edit', member }, triggerId)}
+        onPhoto={openPhotoEditor}
         onToggle={(member, triggerId) => setConfirmation({ member, nextIsActive: false, triggerId })}
         title="Active members"
       />
@@ -211,6 +226,7 @@ export function HouseholdMembersPage() {
         emptyMessage="No inactive profiles."
         members={inactiveMembers}
         onEdit={(member, triggerId) => openEditor({ mode: 'edit', member }, triggerId)}
+        onPhoto={openPhotoEditor}
         onToggle={(member, triggerId) => setConfirmation({ member, nextIsActive: true, triggerId })}
         title="Inactive profiles"
       />
@@ -260,6 +276,21 @@ export function HouseholdMembersPage() {
           </section>
         </div>
       )}
+      {photoEditor && (
+        <MemberPhotoEditor
+          householdId={householdId}
+          member={photoEditor}
+          onClose={closePhotoEditor}
+          onSaved={(saved, message) => {
+            setPhotoEditor(saved)
+            setLoadState((current) => current.status === 'ready' ? {
+              status: 'ready', members: current.members.map((member) => member.id === saved.id ? saved : member),
+            } : current)
+            setSuccess(message)
+          }}
+          refreshAuthentication={refreshSilently}
+        />
+      )}
     </section>
   )
 }
@@ -270,10 +301,11 @@ interface MemberGroupProps {
   currentMemberId?: string
   emptyMessage?: string
   onEdit: (member: HouseholdMemberResponse, triggerId: string) => void
+  onPhoto: (member: HouseholdMemberResponse, triggerId: string) => void
   onToggle: (member: HouseholdMemberResponse, triggerId: string) => void
 }
 
-function MemberGroup({ title, members, currentMemberId, emptyMessage, onEdit, onToggle }: MemberGroupProps) {
+function MemberGroup({ title, members, currentMemberId, emptyMessage, onEdit, onPhoto, onToggle }: MemberGroupProps) {
   return (
     <section className="member-section" aria-labelledby={`member-group-${title.replace(/\s/g, '-').toLowerCase()}`}>
       <h4 id={`member-group-${title.replace(/\s/g, '-').toLowerCase()}`}>{title}</h4>
@@ -283,14 +315,16 @@ function MemberGroup({ title, members, currentMemberId, emptyMessage, onEdit, on
           const isCurrentMember = member.id === currentMemberId
           const toggleId = `member-status-${member.id}`
           const editId = `member-edit-${member.id}`
+          const photoId = `member-photo-${member.id}`
           return (
             <article className={`admin-member-card ${member.isActive ? '' : 'admin-member-card--inactive'}`} key={member.id}>
-              <span aria-hidden="true" className={`admin-member-avatar marker--${safeAvatarColor(member.avatarColor)}`}>{initials(member.displayName)}</span>
+              <MemberAvatar className="admin-member-avatar" member={member} size="medium" />
               <div className="admin-member-card__identity">
                 <h5>{member.displayName}</h5>
                 <p>{member.role === 'adult' ? 'Adult' : 'Child profile'}{isCurrentMember ? ' · You' : ''}</p>
               </div>
               <div className="member-actions">
+                <button className="secondary-action" id={photoId} onClick={() => onPhoto(member, photoId)} type="button">Photo</button>
                 <button className="secondary-action" id={editId} onClick={() => onEdit(member, editId)} type="button">Edit</button>
                 {!isCurrentMember && (
                   <button className={member.isActive ? 'danger-link' : 'secondary-action'} id={toggleId} onClick={() => onToggle(member, toggleId)} type="button">
@@ -304,6 +338,90 @@ function MemberGroup({ title, members, currentMemberId, emptyMessage, onEdit, on
       </div>
     </section>
   )
+}
+
+function MemberPhotoEditor({ householdId, member, onClose, onSaved, refreshAuthentication }: {
+  householdId: string
+  member: HouseholdMemberResponse
+  onClose: () => void
+  onSaved: (member: HouseholdMemberResponse, message: string) => void
+  refreshAuthentication: () => Promise<void>
+}) {
+  const [file, setFile] = useState<File | null>(null)
+  const [focalX, setFocalX] = useState(member.photo?.focalX ?? 0.5)
+  const [focalY, setFocalY] = useState(member.photo?.focalY ?? 0.5)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [confirmReplace, setConfirmReplace] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const dialogRef = useRef<HTMLElement>(null)
+
+  const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file])
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+
+  async function run(action: () => Promise<HouseholdMemberResponse>, message: string) {
+    setBusy(true); setError('')
+    try {
+      const saved = await action()
+      setFocalX(saved.photo?.focalX ?? 0.5); setFocalY(saved.photo?.focalY ?? 0.5)
+      setFile(null); setConfirmReplace(false); setConfirmRemove(false)
+      onSaved(saved, message)
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 401) await refreshAuthentication()
+      setError(reason instanceof ApiError
+        ? reason.problem.errors?.photo?.[0] ?? reason.problem.title
+        : 'The member photo could not be changed. Try again.')
+    } finally { setBusy(false) }
+  }
+
+  const displayStyle = previewUrl ? { objectPosition: `${focalX * 100}% ${focalY * 100}%` } : undefined
+  return <div className="dialog-backdrop">
+    <section
+      aria-labelledby="member-photo-title"
+      aria-modal="true"
+      className="member-editor member-photo-editor"
+      onKeyDown={(event) => handleDialogKeyboard(event, dialogRef.current, onClose, busy)}
+      ref={dialogRef}
+      role="dialog"
+    >
+      <p className="eyebrow">Private household photo</p>
+      <h3 id="member-photo-title">Photo for {member.displayName}</h3>
+      <div className="member-photo-preview">
+        {previewUrl
+          ? <img alt={`Preview for ${member.displayName}`} src={previewUrl} style={displayStyle} />
+          : <MemberAvatar labelled member={member} size="large" />}
+      </div>
+      {error && <p className="form-error-summary" role="alert">{error}</p>}
+      <label className="form-field"><span>Choose a JPEG, PNG, or WebP photo</span>
+        <input accept="image/jpeg,image/png,image/webp" autoFocus disabled={busy} onChange={(event) => {
+          setFile(event.target.files?.[0] ?? null); setConfirmReplace(false)
+        }} type="file" />
+      </label>
+      {(file || member.photo) && <div className="member-photo-focal-controls">
+        <label>Horizontal focus<input disabled={busy} max="1" min="0" onChange={(event) => setFocalX(Number(event.target.value))} step="0.01" type="range" value={focalX} /></label>
+        <label>Vertical focus<input disabled={busy} max="1" min="0" onChange={(event) => setFocalY(Number(event.target.value))} step="0.01" type="range" value={focalY} /></label>
+      </div>}
+      {confirmReplace && <p role="alert">Replace the current private photo with this selected image?</p>}
+      {confirmRemove && <p role="alert">Remove this private photo and return to initials?</p>}
+      <div className="dialog-actions">
+        <button className="secondary-action" disabled={busy} onClick={onClose} type="button">Close</button>
+        {member.photo && <button className="danger-action" disabled={busy} onClick={() => {
+          if (!confirmRemove) { setConfirmRemove(true); return }
+          void run(() => removeHouseholdMemberPhoto(householdId, member.id, member.photoVersion), `${member.displayName}'s photo was removed.`)
+        }} type="button">{confirmRemove ? 'Confirm removal' : 'Remove photo'}</button>}
+        {member.photo && !file && <button className="secondary-action" disabled={busy} onClick={() => void run(
+          () => updateHouseholdMemberPhotoPosition(householdId, member.id, {
+            expectedPhotoVersion: member.photoVersion, focalX, focalY,
+          }), `${member.displayName}'s photo position was updated.`,
+        )} type="button">Save position</button>}
+        {file && <button className="primary-action" disabled={busy} onClick={() => {
+          if (member.photo && !confirmReplace) { setConfirmReplace(true); return }
+          void run(() => uploadHouseholdMemberPhoto(householdId, member.id, file, member.photoVersion),
+            `${member.displayName}'s photo was ${member.photo ? 'replaced' : 'uploaded'}.`)
+        }} type="button">{busy ? 'Uploading…' : member.photo && !confirmReplace ? 'Replace photo' : 'Upload photo'}</button>}
+      </div>
+    </section>
+  </div>
 }
 
 interface MemberEditorProps {

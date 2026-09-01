@@ -10,6 +10,7 @@ import {
   type HouseholdMemberResponse,
 } from '../../lib/api'
 import { CalendarStatusBanner } from './CalendarStatusBanner'
+import { MemberPicker } from '../../components/MemberPicker'
 
 function localDateTime(date: Date) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -160,19 +161,8 @@ export function CreateCalendarEventPage() {
       </header>
       {error && <CalendarStatusBanner kind="error">{error}</CalendarStatusBanner>}
       <form className="calendar-event-form" onSubmit={(event) => void submit(event)}>
-        {isSharedDisplay && (
-          <label>
-            Who is adding this event?
-            <select
-              required
-              value={attributedMemberId}
-              onChange={(event) => setAttributedMemberId(event.target.value)}
-            >
-              <option value="">Choose a family member</option>
-              {members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}
-            </select>
-          </label>
-        )}
+        {isSharedDisplay && <MemberPicker legend="Who is adding this event?" members={members}
+          onChange={setAttributedMemberId} value={attributedMemberId} />}
         <label>
           Event title
           <input autoFocus maxLength={200} required value={title} onChange={(event) => setTitle(event.target.value)} />

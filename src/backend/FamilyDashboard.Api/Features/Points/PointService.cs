@@ -1,6 +1,7 @@
 using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Rewards;
 using FamilyDashboard.Api.Persistence;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyDashboard.Api.Features.Points;
@@ -12,6 +13,7 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
         Guid householdId, CancellationToken cancellationToken)
     {
         var members = await dbContext.HouseholdMembers.AsNoTracking()
+            .Include(member => member.CurrentPhotoAsset)
             .Where(member => member.HouseholdId == householdId)
             .OrderByDescending(member => member.IsActive)
             .ThenBy(member => member.DisplayName)
@@ -28,7 +30,7 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
             .ToListAsync(cancellationToken);
         var mappedMembers = members.Select(member => new PointMemberBalanceResponse(
             member.Id, member.DisplayName, Role(member), member.AvatarColor, member.IsActive,
-            balances.GetValueOrDefault(member.Id))).ToList();
+            balances.GetValueOrDefault(member.Id), HouseholdMemberPhotoContracts.Map(member))).ToList();
         return new(mappedMembers.Sum(member => member.Balance), mappedMembers,
             recent.Select(MapTransaction).ToList());
     }
@@ -141,8 +143,8 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
 
     private IQueryable<PointTransaction> TransactionQuery(Guid householdId) =>
         dbContext.PointTransactions.AsNoTracking()
-            .Include(item => item.HouseholdMember)
-            .Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
+            .Include(item => item.CreatedByMember).ThenInclude(item => item!.CurrentPhotoAsset)
             .Include(item => item.ReversalTransaction)
             .Where(item => item.HouseholdId == householdId);
 
@@ -156,7 +158,8 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
         member.Role.ToString().ToLowerInvariant();
 
     private static PointMemberResponse MapMember(HouseholdMember member) =>
-        new(member.Id, member.DisplayName, Role(member), member.AvatarColor, member.IsActive);
+        new(member.Id, member.DisplayName, Role(member), member.AvatarColor, member.IsActive,
+            HouseholdMemberPhotoContracts.Map(member));
 
     private static PointTransactionResponse MapTransaction(PointTransaction item) =>
         new(item.Id, MapMember(item.HouseholdMember), item.Amount,

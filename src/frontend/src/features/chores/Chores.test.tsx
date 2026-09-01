@@ -9,7 +9,7 @@ import { ChoreScheduleList } from './ChoreScheduleList'
 const assignment: ChoreAssignmentResponse = {
   id: 'assignment-1', choreDefinitionId: 'definition-1', title: 'Feed Milo',
   description: 'Before dinner', pointValue: 10,
-  assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint' },
+  assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', photo: null },
   dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00', dueAt: '2026-08-22T22:00:00Z',
   dueTimeZone: 'America/New_York', dueHasExplicitTime: true, status: 'pending', isOverdue: true,
   version: 1, pendingCompletion: null, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z',

@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { DashboardCard } from '../../components/DashboardCard'
 import { ApiError, getRewardCatalog, type RewardCatalogResponse } from '../../lib/api'
 import { useAuthentication } from '../authentication/AuthenticationContext'
+import { MemberAvatar } from '../../components/MemberAvatar'
 
 export function DashboardRewardsCard() {
   const { state } = useAuthentication(); const [catalog, setCatalog] = useState<RewardCatalogResponse | null>(null); const [error, setError] = useState('')
@@ -15,7 +16,7 @@ export function DashboardRewardsCard() {
     {!catalog && !error && <p role="status">Loading rewards…</p>}{error && <p role="alert">{error}</p>}
     {catalog && <><p><strong>{catalog.rewards.length}</strong> rewards available</p>
       <div className="member-grid">{catalog.members.slice(0, 4).map((member) => <div className="member" key={member.memberId}>
-        <span className="member__avatar" style={{ background: member.avatarColor ?? '#d9eee5' }}>{member.displayName.charAt(0)}</span>
+        <MemberAvatar className="member__avatar" member={member} />
         <span><strong>{member.displayName}</strong><small>{member.balance} points</small></span></div>)}</div>
       <Link className="dashboard-card__link" to="/rewards">Browse rewards →</Link></>}
   </DashboardCard>

@@ -16,6 +16,7 @@ public sealed class Household
     public HouseholdDashboardAppearance? DashboardAppearance { get; set; }
     public HouseholdWeatherConfiguration? WeatherConfiguration { get; set; }
     public ICollection<HouseholdPhotoAsset> PhotoAssets { get; set; } = [];
+    public ICollection<HouseholdMemberPhotoAsset> MemberPhotoAssets { get; set; } = [];
     public ICollection<HouseholdMember> Members { get; set; } = [];
     public ICollection<HouseholdMembership> Memberships { get; set; } = [];
     public ICollection<HouseholdInvitation> Invitations { get; set; } = [];

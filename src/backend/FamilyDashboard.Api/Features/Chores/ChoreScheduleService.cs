@@ -1,6 +1,7 @@
 using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Persistence;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyDashboard.Api.Features.Chores;
@@ -94,7 +95,7 @@ public sealed class ChoreScheduleService(
         CancellationToken cancellationToken)
     {
         var schedule = await dbContext.ChoreSchedules.Include(item => item.ChoreDefinition)
-            .Include(item => item.HouseholdMember).Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset).Include(item => item.CreatedByMember)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == scheduleId,
                 cancellationToken);
         if (schedule is null) return new(ChoreScheduleOperationStatus.NotFound);
@@ -140,7 +141,7 @@ public sealed class ChoreScheduleService(
         CancellationToken cancellationToken)
     {
         var schedule = await dbContext.ChoreSchedules.Include(item => item.ChoreDefinition)
-            .Include(item => item.HouseholdMember).Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset).Include(item => item.CreatedByMember)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == scheduleId,
                 cancellationToken);
         if (schedule is null) return new(ChoreScheduleOperationStatus.NotFound);
@@ -190,7 +191,7 @@ public sealed class ChoreScheduleService(
 
     private IQueryable<ChoreSchedule> ScheduleQuery(Guid householdId) =>
         dbContext.ChoreSchedules.AsNoTracking().Include(item => item.ChoreDefinition)
-            .Include(item => item.HouseholdMember).Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset).Include(item => item.CreatedByMember)
             .Where(item => item.HouseholdId == householdId);
 
     private async Task<string> GetTimeZoneAsync(Guid householdId, CancellationToken cancellationToken) =>
@@ -220,7 +221,8 @@ public sealed class ChoreScheduleService(
             item.ChoreDefinition.DefaultPointValue, item.ChoreDefinition.IsActive, item.ChoreDefinition.Version,
             item.ChoreDefinition.CreatedAt, item.ChoreDefinition.UpdatedAt),
         new(item.HouseholdMember.Id, item.HouseholdMember.DisplayName,
-            item.HouseholdMember.Role.ToString().ToLowerInvariant(), item.HouseholdMember.AvatarColor),
+            item.HouseholdMember.Role.ToString().ToLowerInvariant(), item.HouseholdMember.AvatarColor,
+            HouseholdMemberPhotoContracts.Map(item.HouseholdMember)),
         new(item.RecurrenceKind.ToString().ToLowerInvariant(), item.Interval, Days(item.DaysOfWeekMask)),
         item.StartLocalDate, item.EndLocalDate, item.DueLocalTime, zone,
         LowerCamel(item.Status.ToString()), item.BlockedReason, item.NextOccurrenceLocalDate,

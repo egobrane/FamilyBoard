@@ -1,6 +1,7 @@
 using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Rewards;
 using FamilyDashboard.Api.Features.Points;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,7 @@ public sealed class RewardService(FamilyDashboardDbContext db, TimeProvider cloc
         var rewards = await db.Rewards.AsNoTracking().Where(x => x.HouseholdId == householdId && x.IsActive)
             .OrderBy(x => x.PointCost).ThenBy(x => x.Title).ToListAsync(token);
         var members = await db.HouseholdMembers.AsNoTracking()
+            .Include(x => x.CurrentPhotoAsset)
             .Where(x => x.HouseholdId == householdId && x.IsActive)
             .OrderBy(x => x.DisplayName)
             .ToListAsync(token);
@@ -23,7 +25,7 @@ public sealed class RewardService(FamilyDashboardDbContext db, TimeProvider cloc
             .ToDictionaryAsync(x => x.MemberId, x => x.Balance, token);
         return new(rewards.Select(MapReward).ToList(), members.Select(x => new PointMemberBalanceResponse(
             x.Id, x.DisplayName, x.Role == HouseholdMemberRole.Adult ? "adult" : "child", x.AvatarColor,
-            x.IsActive, balances.GetValueOrDefault(x.Id))).ToList());
+            x.IsActive, balances.GetValueOrDefault(x.Id), HouseholdMemberPhotoContracts.Map(x))).ToList());
     }
 
     public async Task<IReadOnlyList<RewardResponse>> ListDefinitionsAsync(Guid householdId, CancellationToken token) =>
@@ -189,8 +191,12 @@ public sealed class RewardService(FamilyDashboardDbContext db, TimeProvider cloc
     private Task<RewardRedemption?> RedemptionTracked(Guid householdId, Guid id, CancellationToken token) =>
         db.RewardRedemptions.Include(x => x.PointTransaction).SingleOrDefaultAsync(x => x.HouseholdId == householdId && x.Id == id, token);
     private IQueryable<RewardRedemption> RedemptionQuery(Guid householdId) => db.RewardRedemptions.AsNoTracking()
-        .Include(x => x.HouseholdMember).Include(x => x.RequestedByMember).Include(x => x.ReviewedByMember)
-        .Include(x => x.FulfilledByMember).Include(x => x.CancelledByMember).Include(x => x.PointTransaction)
+        .Include(x => x.HouseholdMember).ThenInclude(x => x.CurrentPhotoAsset)
+        .Include(x => x.RequestedByMember).ThenInclude(x => x!.CurrentPhotoAsset)
+        .Include(x => x.ReviewedByMember).ThenInclude(x => x!.CurrentPhotoAsset)
+        .Include(x => x.FulfilledByMember).ThenInclude(x => x!.CurrentPhotoAsset)
+        .Include(x => x.CancelledByMember).ThenInclude(x => x!.CurrentPhotoAsset)
+        .Include(x => x.PointTransaction)
         .Where(x => x.HouseholdId == householdId);
     private Task<HouseholdMember?> AdultAsync(Guid householdId, Guid userId, CancellationToken token) => db.HouseholdMemberships
         .Where(x => x.HouseholdId == householdId && x.UserAccountId == userId && x.HouseholdMember.IsActive)
@@ -200,7 +206,7 @@ public sealed class RewardService(FamilyDashboardDbContext db, TimeProvider cloc
     private static RewardResponse MapReward(Reward x) => new(x.Id, x.Title, x.Description, x.PointCost,
         x.IsActive, x.Version, x.CreatedAt, x.UpdatedAt);
     private static PointMemberResponse Member(HouseholdMember x) => new(x.Id, x.DisplayName,
-        x.Role.ToString().ToLowerInvariant(), x.AvatarColor, x.IsActive);
+        x.Role.ToString().ToLowerInvariant(), x.AvatarColor, x.IsActive, HouseholdMemberPhotoContracts.Map(x));
     private static RewardRedemptionResponse MapRedemption(RewardRedemption x) => new(x.Id, x.RewardId,
         x.RewardTitleSnapshot, x.RewardDescriptionSnapshot, x.PointCostSnapshot, Member(x.HouseholdMember),
         x.Status.ToString()[..1].ToLowerInvariant() + x.Status.ToString()[1..],

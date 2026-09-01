@@ -105,8 +105,10 @@ function HouseholdShell() {
         <div className="topbar__right">
           <time className="current-time" dateTime={now.toISOString()}>{formattedTime(now)}</time>
           <AccountMenu
+            avatarColor={household.avatarColor}
             canSwitchHouseholds={state.currentUser.households.length > 1}
             displayName={state.currentUser.user.displayName}
+            photo={household.photo}
             householdSettingsPath={household.role === 'adult'
               ? `/households/${household.id}/settings`
               : undefined}

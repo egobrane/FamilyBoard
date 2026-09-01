@@ -1,6 +1,7 @@
 using FamilyDashboard.Api.Domain.Chores;
 using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Rewards;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,13 +13,15 @@ public sealed class ChoreService(
     TimeProvider timeProvider)
 {
     public async Task<IReadOnlyList<ChoreParticipantResponse>> ListParticipantsAsync(
-        Guid householdId, CancellationToken cancellationToken) =>
-        await dbContext.HouseholdMembers.AsNoTracking()
+        Guid householdId, CancellationToken cancellationToken)
+    {
+        var members = await dbContext.HouseholdMembers.AsNoTracking()
+            .Include(member => member.CurrentPhotoAsset)
             .Where(member => member.HouseholdId == householdId && member.IsActive)
             .OrderBy(member => member.DisplayName)
-            .Select(member => new ChoreParticipantResponse(member.Id, member.DisplayName,
-                member.Role.ToString().ToLowerInvariant(), member.AvatarColor))
             .ToListAsync(cancellationToken);
+        return members.Select(MapMember).ToArray();
+    }
 
     public async Task<IReadOnlyList<ChoreDefinitionResponse>> ListDefinitionsAsync(
         Guid householdId, bool includeInactive, CancellationToken cancellationToken) =>
@@ -224,7 +227,7 @@ public sealed class ChoreService(
                     || existing.CompletedByMemberId == request.CompletedByMemberId)
                 ? new(ChoreOperationStatus.Success, MapCompletion(existing))
                 : new(ChoreOperationStatus.IdempotencyConflict);
-        var assignment = await dbContext.ChoreAssignments.Include(item => item.HouseholdMember)
+        var assignment = await dbContext.ChoreAssignments.Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == assignmentId,
                 cancellationToken);
         if (assignment is null) return new(ChoreOperationStatus.NotFound);
@@ -336,7 +339,7 @@ public sealed class ChoreService(
         CancellationToken cancellationToken)
     {
         var assignment = await dbContext.ChoreAssignments
-            .Include(item => item.HouseholdMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
             .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember)
             .Include(item => item.Completions).ThenInclude(item => item.ReviewedByMember)
             .Include(item => item.Completions).ThenInclude(item => item.PointTransaction)
@@ -361,9 +364,9 @@ public sealed class ChoreService(
 
     private IQueryable<ChoreAssignment> AssignmentQuery(Guid householdId) =>
         dbContext.ChoreAssignments.AsNoTracking()
-            .Include(item => item.HouseholdMember)
-            .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember)
-            .Include(item => item.Completions).ThenInclude(item => item.ReviewedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
+            .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember).ThenInclude(item => item.CurrentPhotoAsset)
+            .Include(item => item.Completions).ThenInclude(item => item.ReviewedByMember).ThenInclude(item => item!.CurrentPhotoAsset)
             .Where(item => item.HouseholdId == householdId);
 
     private async Task<HouseholdMember?> ResolveAdultMemberAsync(
@@ -377,7 +380,8 @@ public sealed class ChoreService(
             item.Version, item.CreatedAt, item.UpdatedAt);
 
     private static ChoreParticipantResponse MapMember(HouseholdMember member) =>
-        new(member.Id, member.DisplayName, member.Role.ToString().ToLowerInvariant(), member.AvatarColor);
+        new(member.Id, member.DisplayName, member.Role.ToString().ToLowerInvariant(), member.AvatarColor,
+            HouseholdMemberPhotoContracts.Map(member));
 
     private static ChoreCompletionResponse MapCompletion(ChoreCompletion item) =>
         new(item.Id, item.ChoreAssignmentId, MapMember(item.CompletedByMember),

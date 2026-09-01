@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { DashboardCard } from '../../components/DashboardCard'
 import { useAuthentication } from '../authentication/AuthenticationContext'
 import { getChoreDashboard, type ChoreAssignmentResponse } from '../../lib/api'
+import { MemberAvatar } from '../../components/MemberAvatar'
 
 export function DashboardChoresCard() {
   const { state } = useAuthentication()
@@ -28,7 +29,7 @@ export function DashboardChoresCard() {
       {items.length === 0 ? <p className="preview-note">No chores are due right now.</p> : (
         <ul className="chore-list">
           {items.map((chore) => <li className="chore" key={chore.id}>
-            <span className="chore__check" aria-hidden="true">{chore.status === 'awaitingReview' ? '…' : ''}</span>
+            <MemberAvatar className="chore__member-avatar" member={chore.assignedMember} />
             <span className="chore__details"><strong>{chore.title}</strong><span>{chore.assignedMember.displayName}</span></span>
             {chore.isOverdue && <span className="status-pill status-pill--coral">Overdue</span>}
           </li>)}

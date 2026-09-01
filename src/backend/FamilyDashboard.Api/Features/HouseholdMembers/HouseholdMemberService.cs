@@ -27,14 +27,15 @@ internal sealed class HouseholdMemberService(FamilyDashboardDbContext dbContext)
         Guid householdId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.HouseholdMembers
+        var members = await dbContext.HouseholdMembers
             .AsNoTracking()
+            .Include(member => member.CurrentPhotoAsset)
             .Where(member => member.HouseholdId == householdId)
             .OrderByDescending(member => member.IsActive)
             .ThenBy(member => member.DisplayName)
             .ThenBy(member => member.Id)
-            .Select(member => Map(member))
             .ToListAsync(cancellationToken);
+        return members.Select(Map).ToArray();
     }
 
     public async Task<HouseholdMemberResponse?> CreateChildAsync(
@@ -77,6 +78,7 @@ internal sealed class HouseholdMemberService(FamilyDashboardDbContext dbContext)
                 cancellationToken);
 
             var member = await dbContext.HouseholdMembers
+                .Include(candidate => candidate.CurrentPhotoAsset)
                 .Include(candidate => candidate.Membership!)
                 .ThenInclude(membership => membership.UserAccount)
                 .SingleOrDefaultAsync(
@@ -157,13 +159,15 @@ internal sealed class HouseholdMemberService(FamilyDashboardDbContext dbContext)
         }
     }
 
-    private static HouseholdMemberResponse Map(HouseholdMember member)
+    internal static HouseholdMemberResponse Map(HouseholdMember member)
     {
         return new HouseholdMemberResponse(
             member.Id,
             member.DisplayName,
             HouseholdContractRoles.FromDomain(member.Role),
             member.AvatarColor,
-            member.IsActive);
+            member.IsActive,
+            member.PhotoVersion,
+            HouseholdMemberPhotoContracts.Map(member));
     }
 }

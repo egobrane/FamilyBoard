@@ -15,6 +15,7 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
     bool enableCalendarEventCreation = false,
     bool enableTasks = false,
     bool enableTaskMutations = false,
+    string? householdMediaPath = null,
     Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<Program>
 {
@@ -37,6 +38,12 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
         builder.UseSetting("GoogleTasks:ClientSecret", enableTasks ? "tasks-client-secret" : "");
         builder.UseSetting("GoogleTasks:CallbackUrl", enableTasks
             ? "https://api.example.test/api/integrations/google-tasks/callback" : "");
+        builder.UseSetting("HouseholdMedia:Enabled", (householdMediaPath is not null).ToString());
+        if (householdMediaPath is not null)
+        {
+            builder.UseSetting("HouseholdMedia:StorageProvider", "FileSystem");
+            builder.UseSetting("HouseholdMedia:LocalPath", householdMediaPath);
+        }
         builder.UseSetting(
             "ParentAccess:Pepper",
             "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
@@ -71,7 +78,7 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
     public FamilyDashboardDbContext DbContext { get; }
     public IdentityHouseholdWebApplicationFactory Factory { get; }
 
-    public static async Task<PostgreSqlTestDatabase> CreateAsync()
+    public static async Task<PostgreSqlTestDatabase> CreateAsync(string? householdMediaPath = null)
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!;
         var options = new DbContextOptionsBuilder<FamilyDashboardDbContext>()
@@ -82,7 +89,9 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
         await dbContext.Database.MigrateAsync();
         return new PostgreSqlTestDatabase(
             dbContext,
-            new IdentityHouseholdWebApplicationFactory(connectionString));
+            new IdentityHouseholdWebApplicationFactory(
+                connectionString,
+                householdMediaPath: householdMediaPath));
     }
 
     public async ValueTask DisposeAsync()

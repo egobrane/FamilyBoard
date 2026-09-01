@@ -1,4 +1,5 @@
 using FamilyDashboard.Api.Domain.Households;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 
 namespace FamilyDashboard.Api.Features.Households;
 
@@ -22,7 +23,9 @@ public sealed record HouseholdSummaryResponse(
     Guid Id,
     string Name,
     Guid MemberId,
-    string Role);
+    string Role,
+    string? AvatarColor,
+    HouseholdMemberPhotoResponse? Photo);
 
 public sealed record CreateHouseholdRequest(
     string Name,

@@ -14,6 +14,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<HouseholdConfiguration> HouseholdConfigurations => Set<HouseholdConfiguration>();
     public DbSet<HouseholdDashboardAppearance> HouseholdDashboardAppearances => Set<HouseholdDashboardAppearance>();
     public DbSet<HouseholdPhotoAsset> HouseholdPhotoAssets => Set<HouseholdPhotoAsset>();
+    public DbSet<HouseholdMemberPhotoAsset> HouseholdMemberPhotoAssets => Set<HouseholdMemberPhotoAsset>();
     public DbSet<HouseholdWeatherConfiguration> HouseholdWeatherConfigurations => Set<HouseholdWeatherConfiguration>();
     public DbSet<HouseholdMember> HouseholdMembers => Set<HouseholdMember>();
     public DbSet<HouseholdMembership> HouseholdMemberships => Set<HouseholdMembership>();

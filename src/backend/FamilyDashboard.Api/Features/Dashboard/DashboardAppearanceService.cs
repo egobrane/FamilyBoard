@@ -3,15 +3,13 @@ using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
 
 namespace FamilyDashboard.Api.Features.Dashboard;
 
 internal sealed class DashboardAppearanceService(
     FamilyDashboardDbContext dbContext,
     IHouseholdPhotoStore photoStore,
+    PrivateHouseholdImageProcessor imageProcessor,
     IOptions<HouseholdMediaConfiguration> mediaOptions,
     ILogger<DashboardAppearanceService> logger)
 {
@@ -66,48 +64,14 @@ internal sealed class DashboardAppearanceService(
     {
         var options = mediaOptions.Value;
         if (!options.Enabled) throw new HouseholdMediaUnavailableException();
-        if (uploadLength is <= 0 || uploadLength > options.MaximumUploadBytes) throw new InvalidHouseholdPhotoException("Photo must be between 1 byte and 10 MB.");
-
-        using var buffered = new MemoryStream((int)Math.Min(uploadLength, options.MaximumUploadBytes));
-        await upload.CopyToAsync(buffered, cancellationToken);
-        if (buffered.Length > options.MaximumUploadBytes) throw new InvalidHouseholdPhotoException("Photo cannot exceed 10 MB.");
-        buffered.Position = 0;
-        var info = await Image.IdentifyAsync(buffered, cancellationToken);
-        if (info is null || info.Width <= 0 || info.Height <= 0
-            || info.Width > options.MaximumDimension || info.Height > options.MaximumDimension
-            || (long)info.Width * info.Height > options.MaximumPixelCount)
-            throw new InvalidHouseholdPhotoException("Photo dimensions are invalid or exceed the safe processing limit.");
-        var format = info.Metadata.DecodedImageFormat?.Name?.ToUpperInvariant();
-        if (format is not ("JPEG" or "PNG" or "WEBP"))
-            throw new InvalidHouseholdPhotoException("Use a JPEG, PNG, or WebP photo.");
-
-        buffered.Position = 0;
-        using var image = await Image.LoadAsync(buffered, cancellationToken);
-        if (image.Frames.Count != 1)
-            throw new InvalidHouseholdPhotoException("Animated or multi-frame photos are not supported.");
-        image.Mutate(context => context.AutoOrient());
+        var processed = await imageProcessor.ProcessAsync(upload, uploadLength, VariantWidths, cancellationToken);
         var assetId = Guid.NewGuid();
         var prefix = $"{householdId:N}/{assetId:N}";
-        long totalBytes = 0;
         try
         {
-            foreach (var variant in VariantWidths)
+            foreach (var variant in processed.Variants)
             {
-                var targetWidth = Math.Min(image.Width, variant.Value);
-                var targetHeight = Math.Max(1, (int)Math.Round(image.Height * (targetWidth / (double)image.Width)));
-                using var clone = image.Clone(context =>
-                {
-                    if (image.Width > variant.Value)
-                        context.Resize(targetWidth, targetHeight);
-                });
-                clone.Metadata.ExifProfile = null;
-                clone.Metadata.IccProfile = null;
-                clone.Metadata.IptcProfile = null;
-                clone.Metadata.XmpProfile = null;
-                using var output = new MemoryStream();
-                await clone.SaveAsJpegAsync(output, new JpegEncoder { Quality = 84 }, cancellationToken);
-                totalBytes += output.Length;
-                output.Position = 0;
+                using var output = new MemoryStream(variant.Value, writable: false);
                 await photoStore.WriteAsync($"{prefix}/{variant.Key}.jpg", output, "image/jpeg", cancellationToken);
             }
         }
@@ -128,9 +92,9 @@ internal sealed class DashboardAppearanceService(
             Id = assetId,
             HouseholdId = householdId,
             StoragePrefix = prefix,
-            PixelWidth = image.Width,
-            PixelHeight = image.Height,
-            TotalByteLength = totalBytes,
+            PixelWidth = processed.PixelWidth,
+            PixelHeight = processed.PixelHeight,
+            TotalByteLength = processed.TotalByteLength,
             CreatedByHouseholdMemberId = createdByMemberId,
         };
         if (oldAsset is not null) oldAsset.RetiredAt = DateTimeOffset.UtcNow;

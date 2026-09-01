@@ -40,6 +40,17 @@ let householdMembers: Array<{
   role: 'adult' | 'child'
   avatarColor: string | null
   isActive: boolean
+  photoVersion: number
+  photo: null | {
+    assetId: string
+    smallUrl: string
+    mediumUrl: string
+    largeUrl: string
+    pixelWidth: number
+    pixelHeight: number
+    focalX: number
+    focalY: number
+  }
 }> = []
 let householdInvitations: Array<{
   id: string
@@ -75,6 +86,8 @@ test.beforeEach(async ({ page }) => {
     role: 'adult',
     avatarColor: 'mint',
     isActive: true,
+    photoVersion: 1,
+    photo: null,
   }]
   householdInvitations = []
   choreSchedules = []
@@ -358,12 +371,38 @@ test.beforeEach(async ({ page }) => {
           role: 'child' as const,
           avatarColor: body.avatarColor,
           isActive: true,
+          photoVersion: 1,
+          photo: null,
         }
         householdMembers.push(child)
         await route.fulfill({ json: child, status: 201 })
         return
       }
       await route.fulfill({ json: householdMembers })
+      return
+    }
+    const memberPhotoRoot = `/api/households/${authenticatedUser.households[0].id}/members/${authenticatedUser.households[0].memberId}/photo`
+    if (url.pathname === memberPhotoRoot) {
+      const member = householdMembers[0]
+      member.photoVersion += 1
+      member.photo = route.request().method() === 'DELETE' ? null : {
+        assetId: '70000000-0000-0000-0000-000000000001',
+        smallUrl: `${memberPhotoRoot}/70000000-0000-0000-0000-000000000001/small`,
+        mediumUrl: `${memberPhotoRoot}/70000000-0000-0000-0000-000000000001/medium`,
+        largeUrl: `${memberPhotoRoot}/70000000-0000-0000-0000-000000000001/large`,
+        pixelWidth: 800,
+        pixelHeight: 600,
+        focalX: 0.25,
+        focalY: 0.75,
+      }
+      await route.fulfill({ json: member })
+      return
+    }
+    if (url.pathname.startsWith(`${memberPhotoRoot}/70000000-0000-0000-0000-000000000001/`)) {
+      await route.fulfill({
+        body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+        contentType: 'image/png',
+      })
       return
     }
     const choreAssignment = {
@@ -422,7 +461,7 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/points/summary`) {
       await route.fulfill({ json: { householdBalance: 35, members: householdMembers.map((member, index) => ({
         memberId: member.id, displayName: member.displayName, role: member.role, avatarColor: member.avatarColor,
-        isActive: member.isActive, balance: index === 0 ? 25 : 10,
+        isActive: member.isActive, balance: index === 0 ? 25 : 10, photo: member.photo,
       })), recentTransactions: [] } })
       return
     }
@@ -430,7 +469,8 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({ json: { rewards: [{ id: 'reward-1', title: 'Movie night', description: 'Choose the movie',
         pointCost: 20, isActive: true, version: 1, createdAt: '2026-08-25T12:00:00Z', updatedAt: '2026-08-25T12:00:00Z' }],
         members: householdMembers.map((member, index) => ({ memberId: member.id, displayName: member.displayName,
-          role: member.role, avatarColor: member.avatarColor, isActive: member.isActive, balance: index === 0 ? 25 : 10 })) } })
+          role: member.role, avatarColor: member.avatarColor, isActive: member.isActive,
+          balance: index === 0 ? 25 : 10, photo: member.photo })) } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/reward-redemptions`) {
@@ -579,7 +619,8 @@ test('chore board supports explicit household-member completion', async ({ page 
   await expect(page.getByRole('heading', { name: 'Chores' })).toBeVisible()
   await page.getByRole('listitem').getByRole('button', { name: 'Mark done' }).click()
   await expect(page.getByRole('heading', { name: /Mark “Feed Milo” done/ })).toBeVisible()
-  await page.getByLabel('Who completed it?').selectOption(authenticatedUser.households[0].memberId)
+  await page.getByRole('group', { name: 'Who completed it?' })
+    .getByRole('radio', { name: /Ryan Bamford/ }).check()
   await page.getByRole('dialog').getByRole('button', { name: 'Mark done' }).click()
   await expect(page.getByRole('dialog')).toBeHidden()
   const results = await new AxeBuilder({ page }).analyze()
@@ -721,6 +762,34 @@ test('an adult can update settings and add a child with keyboard-accessible cont
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
+})
+
+test('an adult can upload and remove a private household-member photo', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/members`)
+  await page.getByRole('button', { name: 'Photo' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Photo for Ryan Bamford' })
+  await dialog.getByLabel('Choose a JPEG, PNG, or WebP photo').setInputFiles({
+    name: 'member.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  })
+  await dialog.getByLabel('Horizontal focus').fill('0.25')
+  await dialog.getByLabel('Vertical focus').fill('0.75')
+  await dialog.getByRole('button', { name: 'Upload photo' }).click()
+
+  await expect(page.getByText("Ryan Bamford's photo was uploaded.")).toBeVisible()
+  await expect(dialog.getByRole('img', { name: 'Ryan Bamford' }).locator('img')).toHaveCount(1)
+  const results = await new AxeBuilder({ page }).include('.member-photo-editor').analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+    .toEqual([])
+
+  await dialog.getByRole('button', { name: 'Remove photo' }).click()
+  await dialog.getByRole('button', { name: 'Confirm removal' }).click()
+  await expect(page.getByText("Ryan Bamford's photo was removed.")).toBeVisible()
+  await expect(dialog.getByRole('img', { name: 'Ryan Bamford' }).locator('img')).toHaveCount(0)
 })
 
 test('an adult can personalize the dashboard and configure an accessible weather forecast', async ({ page }) => {

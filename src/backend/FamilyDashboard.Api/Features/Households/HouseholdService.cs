@@ -2,6 +2,7 @@ using FamilyDashboard.Api.Domain.Households;
 using FamilyDashboard.Api.Domain.Identity;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
+using FamilyDashboard.Api.Features.HouseholdMembers;
 
 namespace FamilyDashboard.Api.Features.Households;
 
@@ -21,8 +22,10 @@ internal sealed class HouseholdService(FamilyDashboardDbContext dbContext)
         Guid userAccountId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.HouseholdMemberships
+        var memberships = await dbContext.HouseholdMemberships
             .AsNoTracking()
+            .Include(membership => membership.Household)
+            .Include(membership => membership.HouseholdMember).ThenInclude(member => member.CurrentPhotoAsset)
             .Where(membership =>
                 membership.UserAccountId == userAccountId
                 && membership.UserAccount.IsActive
@@ -30,12 +33,14 @@ internal sealed class HouseholdService(FamilyDashboardDbContext dbContext)
                 && membership.HouseholdMember.IsActive)
             .OrderBy(membership => membership.Household.Name)
             .ThenBy(membership => membership.HouseholdId)
-            .Select(membership => new HouseholdSummaryResponse(
+            .ToListAsync(cancellationToken);
+        return memberships.Select(membership => new HouseholdSummaryResponse(
                 membership.HouseholdId,
                 membership.Household.Name,
                 membership.HouseholdMemberId,
-                HouseholdContractRoles.FromDomain(membership.HouseholdMember.Role)))
-            .ToListAsync(cancellationToken);
+                HouseholdContractRoles.FromDomain(membership.HouseholdMember.Role),
+                membership.HouseholdMember.AvatarColor,
+                HouseholdMemberPhotoContracts.Map(membership.HouseholdMember))).ToArray();
     }
 
     public async Task<HouseholdResponse> CreateAsync(

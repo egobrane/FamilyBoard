@@ -1,4 +1,5 @@
 import type { PointTransactionResponse } from '../../lib/api'
+import { MemberAvatar } from '../../components/MemberAvatar'
 
 function transactionLabel(item: PointTransactionResponse) {
   if (item.type === 'choreCompletion') return 'Chore approved'
@@ -14,6 +15,7 @@ export function PointHistoryList({ transactions, onReverse }: {
   if (transactions.length === 0) return <p>No point activity yet.</p>
   return <ul className="point-history">{transactions.map((item) => (
     <li key={item.id}>
+      <MemberAvatar member={item.householdMember} />
       <div className="point-history__details">
         <strong>{item.householdMember.displayName}</strong>
         <span>{transactionLabel(item)} · {item.description}</span>

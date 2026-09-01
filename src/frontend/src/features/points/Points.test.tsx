@@ -6,14 +6,14 @@ import { PointHistoryList } from './PointHistoryList'
 
 const transaction: PointTransactionResponse = {
   id: 'transaction-1',
-  householdMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', isActive: true },
+  householdMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', isActive: true, photo: null },
   amount: 10,
   type: 'choreCompletion',
   description: 'Completed Feed Milo',
   choreCompletionId: 'completion-1',
   rewardRedemptionId: null,
   reversesPointTransactionId: null,
-  createdByMember: { id: 'adult-1', displayName: 'Ryan', role: 'adult', avatarColor: null, isActive: true },
+  createdByMember: { id: 'adult-1', displayName: 'Ryan', role: 'adult', avatarColor: null, isActive: true, photo: null },
   createdAt: '2026-08-25T12:00:00Z',
   isReversed: false,
 }

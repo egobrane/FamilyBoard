@@ -22,7 +22,9 @@ public sealed class IdentityHouseholdContractTests
                 selectedHouseholdId,
                 "Family",
                 Guid.NewGuid(),
-                HouseholdContractRoles.Adult)],
+                HouseholdContractRoles.Adult,
+                null,
+                null)],
             selectedHouseholdId);
 
         var json = JsonSerializer.Serialize(response, WebJson);
@@ -42,7 +44,9 @@ public sealed class IdentityHouseholdContractTests
             "Child",
             HouseholdContractRoles.Child,
             null,
-            true);
+            true,
+            1,
+            null);
 
         var json = JsonSerializer.Serialize(response, WebJson);
         using var document = JsonDocument.Parse(json);

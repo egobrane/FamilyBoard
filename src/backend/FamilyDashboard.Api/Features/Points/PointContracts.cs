@@ -1,10 +1,12 @@
+using FamilyDashboard.Api.Features.HouseholdMembers;
+
 namespace FamilyDashboard.Api.Features.Points;
 
 public sealed record PointMemberResponse(Guid Id, string DisplayName, string Role,
-    string? AvatarColor, bool IsActive);
+    string? AvatarColor, bool IsActive, HouseholdMemberPhotoResponse? Photo);
 
 public sealed record PointMemberBalanceResponse(Guid MemberId, string DisplayName, string Role,
-    string? AvatarColor, bool IsActive, long Balance);
+    string? AvatarColor, bool IsActive, long Balance, HouseholdMemberPhotoResponse? Photo);
 
 public sealed record PointTransactionResponse(
     Guid Id,

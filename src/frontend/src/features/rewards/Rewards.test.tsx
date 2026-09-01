@@ -17,10 +17,10 @@ describe('Rewards', () => {
   it('requires explicit member attribution in the confirmation dialog', async () => {
     const change = vi.fn(); const confirm = vi.fn()
     render(<RedeemRewardDialog busy={false} members={[{ memberId: 'child-1', displayName: 'Zoey', role: 'child',
-      avatarColor: null, isActive: true, balance: 80 }]} onCancel={vi.fn()} onConfirm={confirm}
+      avatarColor: null, isActive: true, balance: 80, photo: null }]} onCancel={vi.fn()} onConfirm={confirm}
       onMemberChange={change} reward={reward} selectedMemberId="" />)
     expect(screen.getByRole('button', { name: /Request for 50 points/ })).toBeDisabled()
-    await userEvent.selectOptions(screen.getByLabelText('Who is redeeming?'), 'child-1')
+    await userEvent.click(screen.getByRole('radio', { name: /Zoey/ }))
     expect(change).toHaveBeenCalledWith('child-1')
   })
 })

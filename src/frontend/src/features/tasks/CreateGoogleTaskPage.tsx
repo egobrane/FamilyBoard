@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ApiError, createGoogleTask, listHouseholdMembers, type HouseholdMemberResponse } from '../../lib/api'
 import { useAuthentication } from '../authentication/AuthenticationContext'
+import { MemberPicker } from '../../components/MemberPicker'
 
 export function CreateGoogleTaskPage() {
   const { state } = useAuthentication()
@@ -44,7 +45,9 @@ export function CreateGoogleTaskPage() {
       <label>Task title<input autoFocus maxLength={200} onChange={(event) => { setTitle(event.target.value); requestId.current = crypto.randomUUID() }} required value={title}/></label>
       <label>Notes<textarea maxLength={2000} onChange={(event) => { setNotes(event.target.value); requestId.current = crypto.randomUUID() }} rows={4} value={notes}/></label>
       <label>Due date <span className="optional-label">Optional, date only</span><input onChange={(event) => { setDueDate(event.target.value); requestId.current = crypto.randomUUID() }} type="date" value={dueDate}/></label>
-      {shared && <label>Who is adding this task?<select onChange={(event) => { setMemberId(event.target.value); requestId.current = crypto.randomUUID() }} required value={memberId}><option value="">Choose a household member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></label>}
+      {shared && <MemberPicker legend="Who is adding this task?" members={members} onChange={(value) => {
+        setMemberId(value); requestId.current = crypto.randomUUID()
+      }} value={memberId} />}
       {error && <p role="alert">{error}</p>}
       <button className="primary-action" disabled={busy} type="submit">{busy ? 'Adding…' : 'Add task'}</button>
     </form>

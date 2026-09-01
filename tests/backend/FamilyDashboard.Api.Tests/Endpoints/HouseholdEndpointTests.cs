@@ -82,6 +82,93 @@ public sealed class HouseholdEndpointTests
     }
 
     [PostgreSqlFact]
+    public async Task MemberPhotosRemainPrivateVersionedAndHouseholdIsolated()
+    {
+        var mediaPath = Path.Combine(Path.GetTempPath(), "family-dashboard-member-photo-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            await using var database = await PostgreSqlTestDatabase.CreateAsync(mediaPath);
+            var firstAccount = await AddAccountAsync(database, "Photo Adult", "photo-adult@example.test");
+            var secondAccount = await AddAccountAsync(database, "Other Adult", "other-photo@example.test");
+            using var firstClient = CreateAuthenticatedClient(database, firstAccount.Id);
+            using var secondClient = CreateAuthenticatedClient(database, secondAccount.Id);
+            var firstHousehold = await BootstrapAsync(firstClient, "Photo Household");
+            var secondHousehold = await BootstrapAsync(secondClient, "Other Household");
+            var members = await firstClient.GetFromJsonAsync<List<HouseholdMemberResponse>>(
+                $"/api/households/{firstHousehold.Id}/members");
+            var adult = Assert.Single(members!);
+
+            using var upload = MemberPhotoUploadRequest(
+                $"/api/households/{firstHousehold.Id}/members/{adult.Id}/photo",
+                adult.PhotoVersion);
+            using var uploadResponse = await firstClient.SendAsync(upload);
+            Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+            var uploaded = (await uploadResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+            Assert.NotNull(uploaded.Photo);
+            Assert.Equal(adult.PhotoVersion + 1, uploaded.PhotoVersion);
+
+            using var imageResponse = await firstClient.GetAsync(uploaded.Photo.MediumUrl);
+            Assert.Equal(HttpStatusCode.OK, imageResponse.StatusCode);
+            Assert.Equal("image/jpeg", imageResponse.Content.Headers.ContentType?.MediaType);
+            Assert.True(imageResponse.Headers.CacheControl?.NoCache);
+            Assert.True(imageResponse.Headers.CacheControl?.Private);
+            Assert.NotNull(imageResponse.Headers.ETag);
+
+            using var conditional = new HttpRequestMessage(HttpMethod.Get, uploaded.Photo.MediumUrl);
+            conditional.Headers.IfNoneMatch.Add(imageResponse.Headers.ETag!);
+            using var notModified = await firstClient.SendAsync(conditional);
+            Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+
+            using var isolated = await secondClient.GetAsync(
+                uploaded.Photo.MediumUrl.Replace(firstHousehold.Id.ToString(), secondHousehold.Id.ToString(), StringComparison.Ordinal));
+            Assert.Equal(HttpStatusCode.NotFound, isolated.StatusCode);
+
+            using var positionResponse = await firstClient.PutAsJsonAsync(
+                $"/api/households/{firstHousehold.Id}/members/{adult.Id}/photo-position",
+                new UpdateHouseholdMemberPhotoPositionRequest(uploaded.PhotoVersion, 0.2m, 0.8m));
+            Assert.Equal(HttpStatusCode.OK, positionResponse.StatusCode);
+            var positioned = (await positionResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+            Assert.Equal(0.2m, positioned.Photo!.FocalX);
+            Assert.Equal(0.8m, positioned.Photo.FocalY);
+
+            using var staleRemoval = await firstClient.SendAsync(new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/households/{firstHousehold.Id}/members/{adult.Id}/photo")
+            {
+                Content = JsonContent.Create(new RemoveHouseholdMemberPhotoRequest(uploaded.PhotoVersion)),
+            });
+            Assert.Equal(HttpStatusCode.Conflict, staleRemoval.StatusCode);
+
+            using var removal = await firstClient.SendAsync(new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/households/{firstHousehold.Id}/members/{adult.Id}/photo")
+            {
+                Content = JsonContent.Create(new RemoveHouseholdMemberPhotoRequest(positioned.PhotoVersion)),
+            });
+            Assert.Equal(HttpStatusCode.OK, removal.StatusCode);
+            Assert.Null((await removal.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!.Photo);
+
+            using var removedImage = await firstClient.GetAsync(uploaded.Photo.MediumUrl);
+            Assert.Equal(HttpStatusCode.NotFound, removedImage.StatusCode);
+            using var invalidUpload = InvalidMemberPhotoUploadRequest(
+                $"/api/households/{firstHousehold.Id}/members/{adult.Id}/photo",
+                positioned.PhotoVersion + 1);
+            using var invalidUploadResponse = await firstClient.SendAsync(invalidUpload);
+            Assert.Equal(HttpStatusCode.BadRequest, invalidUploadResponse.StatusCode);
+            Assert.Equal(ApiProblemCodes.ValidationFailed, await ReadProblemCodeAsync(invalidUploadResponse));
+            database.DbContext.ChangeTracker.Clear();
+            Assert.Equal(HouseholdMemberPhotoAssetState.Retired, await database.DbContext.HouseholdMemberPhotoAssets
+                .Where(value => value.Id == uploaded.Photo.AssetId)
+                .Select(value => value.State)
+                .SingleAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(mediaPath)) Directory.Delete(mediaPath, recursive: true);
+        }
+    }
+
+    [PostgreSqlFact]
     public async Task CrossHouseholdAccessReturnsNotFoundWithoutChangingData()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
@@ -270,5 +357,27 @@ public sealed class HouseholdEndpointTests
     {
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return document.RootElement.GetProperty("code").GetString();
+    }
+
+    private static HttpRequestMessage MemberPhotoUploadRequest(string path, long photoVersion)
+    {
+        var bytes = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        var image = new ByteArrayContent(bytes);
+        image.Headers.ContentType = new("image/png");
+        var content = new MultipartFormDataContent();
+        content.Add(image, "photo", "member.png");
+        content.Add(new StringContent(photoVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)), "expectedPhotoVersion");
+        return new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
+    }
+
+    private static HttpRequestMessage InvalidMemberPhotoUploadRequest(string path, long photoVersion)
+    {
+        var image = new ByteArrayContent("not an image"u8.ToArray());
+        image.Headers.ContentType = new("image/png");
+        var content = new MultipartFormDataContent();
+        content.Add(image, "photo", "member.png");
+        content.Add(new StringContent(photoVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)), "expectedPhotoVersion");
+        return new HttpRequestMessage(HttpMethod.Post, path) { Content = content };
     }
 }

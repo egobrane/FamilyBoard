@@ -25,6 +25,8 @@ function currentUser(overrides: Partial<CurrentUser> = {}): CurrentUser {
       name: 'Bamford-Fahie-Waltz Family',
       memberId: '30000000-0000-0000-0000-000000000001',
       role: 'adult',
+      avatarColor: null,
+      photo: null,
     }],
     selectedHouseholdId: '20000000-0000-0000-0000-000000000001',
     session: {
@@ -130,7 +132,7 @@ describe('App', () => {
     expect(await screen.findByText('Dentist appointment')).toBeInTheDocument()
     expect(screen.getAllByText('Oliver').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Zoey').length).toBeGreaterThan(0)
-    expect(screen.getByText('Feed Milo')).toBeInTheDocument()
+    expect(await screen.findByText('Feed Milo')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /account menu for Ryan Bamford/i })).toHaveTextContent('RB')
 
     const welcomeCard = screen.getByRole('region', { name: 'Ready for a good day?' })
@@ -225,6 +227,8 @@ describe('App', () => {
           name: 'Lake House Family',
           memberId: '30000000-0000-0000-0000-000000000002',
           role: 'adult',
+          avatarColor: null,
+          photo: null,
         },
       ],
     })

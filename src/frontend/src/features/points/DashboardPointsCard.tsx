@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { DashboardCard } from '../../components/DashboardCard'
 import { useAuthentication } from '../authentication/AuthenticationContext'
 import { ApiError, getPointSummary, type HouseholdPointSummaryResponse } from '../../lib/api'
+import { MemberAvatar } from '../../components/MemberAvatar'
 
 export function DashboardPointsCard() {
   const { state } = useAuthentication()
@@ -24,7 +25,7 @@ export function DashboardPointsCard() {
       <p className="household-point-total"><strong>{summary.householdBalance}</strong> household points</p>
       <div className="member-grid">{summary.members.filter((member) => member.isActive).slice(0, 4).map((member) => (
         <div className="member" key={member.memberId}>
-          <span className="member__avatar" style={{ background: member.avatarColor ?? '#d9eee5' }}>{member.displayName.charAt(0)}</span>
+          <MemberAvatar className="member__avatar" member={member} />
           <span><strong>{member.displayName}</strong><small>{member.balance} points</small></span>
         </div>
       ))}</div>

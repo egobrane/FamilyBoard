@@ -25,6 +25,7 @@ public sealed class DatabaseModelTests
         Assert.NotNull(model.FindEntityType(typeof(HouseholdInvitation)));
         Assert.NotNull(model.FindEntityType(typeof(HouseholdDashboardAppearance)));
         Assert.NotNull(model.FindEntityType(typeof(HouseholdPhotoAsset)));
+        Assert.NotNull(model.FindEntityType(typeof(HouseholdMemberPhotoAsset)));
         Assert.NotNull(model.FindEntityType(typeof(HouseholdWeatherConfiguration)));
         Assert.NotNull(model.FindEntityType(typeof(UserAccount)));
         Assert.NotNull(model.FindEntityType(typeof(ExternalIdentity)));

@@ -174,4 +174,57 @@ describe('household administration', () => {
     await user.click(within(reactivateDialog).getByRole('button', { name: 'Reactivate profile' }))
     expect(await screen.findByText('Zoey is now active.')).toBeInTheDocument()
   })
+
+  it('removes a private member photo with explicit confirmation', async () => {
+    const user = userEvent.setup()
+    const member = {
+      id: adultMemberId,
+      displayName: 'Ryan Bamford',
+      role: 'adult',
+      avatarColor: 'mint',
+      isActive: true,
+      photoVersion: 4,
+      photo: {
+        assetId: '40000000-0000-0000-0000-000000000001',
+        smallUrl: `/api/households/${householdId}/members/${adultMemberId}/photo/40000000-0000-0000-0000-000000000001/small`,
+        mediumUrl: `/api/households/${householdId}/members/${adultMemberId}/photo/40000000-0000-0000-0000-000000000001/medium`,
+        largeUrl: `/api/households/${householdId}/members/${adultMemberId}/photo/40000000-0000-0000-0000-000000000001/large`,
+        pixelWidth: 1200,
+        pixelHeight: 800,
+        focalX: 0.5,
+        focalY: 0.5,
+      },
+    }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return jsonResponse(authenticatedUser())
+      if (path === '/api/auth/antiforgery') {
+        return jsonResponse({ requestToken: 'request-token', headerName: 'X-CSRF-TOKEN' })
+      }
+      if (path === `/api/households/${householdId}/members/${adultMemberId}/photo` && init?.method === 'DELETE') {
+        return jsonResponse({ ...member, photoVersion: 5, photo: null })
+      }
+      if (path === `/api/households/${householdId}/members`) return jsonResponse([member])
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderPath(`/households/${householdId}/members`)
+
+    expect(await screen.findByRole('heading', { name: 'Household members' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Photo' }))
+    const dialog = screen.getByRole('dialog', { name: 'Photo for Ryan Bamford' })
+    await user.click(within(dialog).getByRole('button', { name: 'Remove photo' }))
+    expect(within(dialog).getByText('Remove this private photo and return to initials?')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm removal' }))
+
+    expect(await screen.findByText("Ryan Bamford's photo was removed.")).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://localhost:8080/api/households/${householdId}/members/${adultMemberId}/photo`,
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+        body: JSON.stringify({ expectedPhotoVersion: 4 }),
+      }),
+    )
+  })
 })

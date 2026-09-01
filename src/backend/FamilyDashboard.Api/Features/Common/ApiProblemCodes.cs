@@ -125,6 +125,7 @@ public static class ApiProblemCodes
     public const string RewardRedemptionInvalidTransition = "reward_redemption_invalid_transition";
     public const string RewardRedemptionLegacyRequiresResolution = "reward_redemption_legacy_requires_resolution";
     public const string HouseholdMediaUnavailable = "household_media_unavailable";
+    public const string HouseholdMemberPhotoConflict = "household_member_photo_conflict";
     public const string DashboardPreferencesConflict = "dashboard_preferences_conflict";
     public const string WeatherUnavailable = "weather_unavailable";
     public const string WeatherProviderRateLimited = "weather_provider_rate_limited";

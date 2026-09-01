@@ -25,6 +25,8 @@ export interface HouseholdSummary {
   name: string
   memberId: string
   role: 'adult' | 'child'
+  avatarColor: string | null
+  photo: HouseholdMemberPhotoResponse | null
 }
 
 export interface CurrentUser {
@@ -318,6 +320,19 @@ export interface HouseholdMemberResponse {
   role: 'adult' | 'child'
   avatarColor: string | null
   isActive: boolean
+  photoVersion: number
+  photo: HouseholdMemberPhotoResponse | null
+}
+
+export interface HouseholdMemberPhotoResponse {
+  assetId: string
+  smallUrl: string
+  mediumUrl: string
+  largeUrl: string
+  pixelWidth: number
+  pixelHeight: number
+  focalX: number
+  focalY: number
 }
 
 export interface CreateChildMemberRequest {
@@ -336,6 +351,7 @@ export interface ChoreParticipantResponse {
   displayName: string
   role: 'adult' | 'child'
   avatarColor: string | null
+  photo: HouseholdMemberPhotoResponse | null
 }
 
 export interface ChoreCompletionResponse {
@@ -397,6 +413,7 @@ export interface PointMemberResponse {
   role: 'adult' | 'child'
   avatarColor: string | null
   isActive: boolean
+  photo: HouseholdMemberPhotoResponse | null
 }
 
 export interface PointMemberBalanceResponse {
@@ -406,6 +423,7 @@ export interface PointMemberBalanceResponse {
   avatarColor: string | null
   isActive: boolean
   balance: number
+  photo: HouseholdMemberPhotoResponse | null
 }
 
 export interface PointTransactionResponse {
@@ -689,6 +707,32 @@ export function updateHouseholdMember(
     `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}`,
     'PATCH',
     body,
+  )
+}
+
+export function uploadHouseholdMemberPhoto(householdId: string, memberId: string, photo: File, expectedPhotoVersion: number) {
+  const body = new FormData()
+  body.append('photo', photo)
+  body.append('expectedPhotoVersion', String(expectedPhotoVersion))
+  return unsafeFormRequest<HouseholdMemberResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}/photo`, 'POST', body,
+  )
+}
+
+export function updateHouseholdMemberPhotoPosition(householdId: string, memberId: string, body: {
+  expectedPhotoVersion: number
+  focalX: number
+  focalY: number
+}) {
+  return unsafeRequest<HouseholdMemberResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}/photo-position`, 'PUT', body,
+  )
+}
+
+export function removeHouseholdMemberPhoto(householdId: string, memberId: string, expectedPhotoVersion: number) {
+  return unsafeRequest<HouseholdMemberResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/members/${encodeURIComponent(memberId)}/photo`, 'DELETE',
+    { expectedPhotoVersion },
   )
 }
 

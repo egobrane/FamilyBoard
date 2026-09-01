@@ -4,6 +4,7 @@ import { ApiError, listGoogleTasks, listHouseholdMembers, updateGoogleTaskStatus
   type GoogleTaskResponse, type GoogleTasksResponse, type HouseholdMemberResponse } from '../../lib/api'
 import { useAuthentication } from '../authentication/AuthenticationContext'
 import { GoogleTaskList } from './GoogleTaskList'
+import { MemberPicker } from '../../components/MemberPicker'
 
 export function TasksPage() {
   const { state } = useAuthentication()
@@ -54,7 +55,7 @@ export function TasksPage() {
 
   return <main className="feature-page workspace-feature-page tasks-page" id="main-content" tabIndex={-1}>
     <header className="feature-header"><div><p className="eyebrow">Plans from Google</p><h2>Tasks</h2></div><div className="feature-header__actions">{result?.canCreateTasks && <Link className="primary-action" to="/tasks/new">Add task</Link>}{household.role === 'adult' && <Link className="secondary-action" to={`/households/${household.id}/tasks`}>Task settings</Link>}</div></header>
-    {shared && <label className="task-attribution">Who is using the board?<select aria-label="Household member attribution" onChange={(event) => setAttributedMemberId(event.target.value)} value={attributedMemberId}><option value="">Choose a household member</option>{members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}</select></label>}
+    {shared && <div className="task-attribution"><MemberPicker legend="Who is using the board?" members={members} onChange={setAttributedMemberId} value={attributedMemberId} /></div>}
     {message && <p className="calendar-status calendar-status--success" role="status">{message}</p>}
     <div aria-label="Task list view" className="segmented-control" role="group"><button aria-pressed={!includeCompleted} onClick={() => setIncludeCompleted(false)} type="button">To do</button><button aria-pressed={includeCompleted} onClick={() => setIncludeCompleted(true)} type="button">Include completed</button></div>
     {loading && !result && <p role="status">Loading Google Tasks…</p>}

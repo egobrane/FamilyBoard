@@ -1,13 +1,12 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
-
-function initials(displayName: string) {
-  const parts = displayName.trim().split(/\s+/).filter(Boolean)
-  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') || '?'
-}
+import { MemberAvatar } from './MemberAvatar'
+import type { HouseholdMemberPhotoResponse } from '../lib/api'
 
 interface AccountMenuProps {
   displayName: string
+  avatarColor: string | null
+  photo: HouseholdMemberPhotoResponse | null
   canSwitchHouseholds: boolean
   householdSettingsPath?: string
   parentAccessPath?: string
@@ -20,6 +19,8 @@ interface AccountMenuProps {
 
 export function AccountMenu({
   displayName,
+  avatarColor,
+  photo,
   canSwitchHouseholds,
   householdSettingsPath,
   parentAccessPath,
@@ -61,7 +62,7 @@ export function AccountMenu({
         ref={buttonRef}
         type="button"
       >
-        {initials(displayName)}
+        <MemberAvatar member={{ displayName, avatarColor, photo }} />
       </button>
       {isOpen && (
         <div aria-label="Account actions" className="account-menu__panel" role="menu">

@@ -1,4 +1,5 @@
 import type { ChoreAssignmentResponse } from '../../lib/api'
+import { MemberAvatar } from '../../components/MemberAvatar'
 
 export function ChoreList({ assignments, onComplete }: {
   assignments: ChoreAssignmentResponse[]
@@ -8,7 +9,8 @@ export function ChoreList({ assignments, onComplete }: {
     <ul className="chore-board-list">
       {assignments.map((assignment) => (
         <li className={`chore-board-item ${assignment.isOverdue ? 'chore-board-item--overdue' : ''}`} key={assignment.id}>
-          <div>
+          <MemberAvatar className="chore__member-avatar" member={assignment.assignedMember} />
+          <div className="chore-board-item__details">
             <p className="eyebrow">{assignment.isOverdue ? 'Overdue' : assignment.dueLocalDate ?? 'No due date'}</p>
             <h3>{assignment.title}</h3>
             <p>{assignment.assignedMember.displayName}{assignment.dueLocalTime ? ` · ${assignment.dueLocalTime.slice(0, 5)}` : ''}</p>

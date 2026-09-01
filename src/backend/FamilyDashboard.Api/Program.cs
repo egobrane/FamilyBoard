@@ -44,6 +44,8 @@ builder.Services.AddScoped<PointService>();
 builder.Services.AddScoped<PointLedgerLock>();
 builder.Services.AddScoped<RewardService>();
 builder.Services.AddScoped<DashboardAppearanceService>();
+builder.Services.AddScoped<HouseholdMemberPhotoService>();
+builder.Services.AddSingleton<PrivateHouseholdImageProcessor>();
 builder.Services.AddScoped<WeatherService>();
 builder.Services.AddSingleton<IHouseholdPhotoStore>(services =>
 {

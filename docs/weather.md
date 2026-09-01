@@ -11,3 +11,5 @@ The API resolves the NWS grid, latest station observation, and daily forecast at
 Weather is US-only in this increment. A future global requirement should select a replacement provider after reviewing coverage, commercial terms, attribution, caching rights, and cost. There are no weather credentials or new paid Azure services in this increment.
 
 Set `Weather__Enabled=true`, `Weather__Provider=Nws`, and provide a descriptive `Weather__UserAgent`. Disabling the feature rolls back provider calls while retaining the household’s location configuration for a later forward fix.
+
+Increment 1 is active and owner verified in Azure staging. The API retains `Weather__Enabled=true` and `Weather__Provider=Nws`; location configuration, compact current conditions, and the forecast presentation remained operational after the household-photo upload correction. NWS still requires no application secret, and forecast content remains disposable rather than persisted in PostgreSQL.

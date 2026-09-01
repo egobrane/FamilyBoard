@@ -1,3 +1,5 @@
+using FamilyDashboard.Api.Features.HouseholdMembers;
+
 namespace FamilyDashboard.Api.Features.Chores;
 
 public sealed record CreateChoreDefinitionRequest(Guid ClientRequestId, string Title, string? Description,
@@ -54,7 +56,8 @@ public sealed record ChoreParticipantResponse(
     Guid Id,
     string DisplayName,
     string Role,
-    string? AvatarColor);
+    string? AvatarColor,
+    HouseholdMemberPhotoResponse? Photo);
 
 public sealed record ChoreCompletionResponse(
     Guid Id,

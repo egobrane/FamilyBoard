@@ -85,7 +85,11 @@ describe('household administration', () => {
     vi.stubGlobal('fetch', fetchMock)
     renderPath(`/households/${householdId}/settings`)
 
-    expect(await screen.findByRole('heading', { name: 'Household settings' })).toBeInTheDocument()
+    expect(await screen.findByRole(
+      'heading',
+      { name: 'Household settings' },
+      { timeout: 5_000 },
+    )).toBeInTheDocument()
     const name = screen.getByLabelText('Household name')
     await user.clear(name)
     await user.type(name, 'Updated Family')

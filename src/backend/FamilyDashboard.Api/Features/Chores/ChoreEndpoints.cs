@@ -16,6 +16,8 @@ public static class ChoreEndpoints
         group.MapGet("/chore-assignments", ListAssignmentsAsync);
         group.MapPost("/chore-assignments/{assignmentId:guid}/completions", CompleteAsync)
             .RequireFamilyDashboardAntiforgery().RequireRateLimiting("chore-completion");
+        group.MapPost("/chore-assignments/{assignmentId:guid}/claim", ClaimAsync)
+            .RequireFamilyDashboardAntiforgery().RequireRateLimiting("chore-completion");
 
         group.MapGet("/chore-definitions", ListDefinitionsAsync);
         group.MapPost("/chore-definitions", CreateDefinitionAsync).RequireFamilyDashboardAntiforgery();
@@ -77,12 +79,13 @@ public static class ChoreEndpoints
         var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
         if (failure is not null) return failure;
         if (!context.User.TryGetUserAccountId(out var actor) || request is null
-            || request.ClientRequestId == Guid.Empty || request.ChoreDefinitionId == Guid.Empty
-            || request.AssignedMemberId == Guid.Empty)
-            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Definition, member, recurrence, start date, and request ID are required."] });
+            || request.ClientRequestId == Guid.Empty || request.ChoreDefinitionId == Guid.Empty)
+            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Definition, recurrence, start date, and request ID are required."] });
+        if (!ChoreValidation.TryAssignmentTarget(request.AssignmentMode, request.AssignedMemberId,
+                out var assignmentMode, out var assignmentErrors)) return Validation(context, assignmentErrors);
         if (!ChoreValidation.TrySchedule(request.Recurrence, request.StartLocalDate,
                 request.EndLocalDate, out var recurrence, out var errors)) return Validation(context, errors);
-        return ScheduleResult(context, await schedules.CreateAsync(householdId, actor, request,
+        return ScheduleResult(context, await schedules.CreateAsync(householdId, actor, request, assignmentMode,
             recurrence, token), true);
     }
 
@@ -92,13 +95,14 @@ public static class ChoreEndpoints
     {
         var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
         if (failure is not null) return failure;
-        if (request is null || request.ExpectedVersion < 1 || request.ChoreDefinitionId == Guid.Empty
-            || request.AssignedMemberId == Guid.Empty)
-            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Definition, member, recurrence, start date, and version are required."] });
+        if (request is null || request.ExpectedVersion < 1 || request.ChoreDefinitionId == Guid.Empty)
+            return Validation(context, new Dictionary<string, string[]> { ["schedule"] = ["Definition, recurrence, start date, and version are required."] });
+        if (!ChoreValidation.TryAssignmentTarget(request.AssignmentMode, request.AssignedMemberId,
+                out var assignmentMode, out var assignmentErrors)) return Validation(context, assignmentErrors);
         if (!ChoreValidation.TrySchedule(request.Recurrence, request.StartLocalDate,
                 request.EndLocalDate, out var recurrence, out var errors)) return Validation(context, errors);
         return ScheduleResult(context, await schedules.UpdateAsync(householdId, scheduleId,
-            request, recurrence, token));
+            request, assignmentMode, recurrence, token));
     }
 
     private static async Task<IResult> ChangeScheduleStateAsync(Guid householdId, Guid scheduleId,
@@ -209,10 +213,27 @@ public static class ChoreEndpoints
         var failure = await AuthorizeAsync(householdId, true, context, auth, households, token);
         if (failure is not null) return failure;
         if (!context.User.TryGetUserAccountId(out var actor) || request is null
-            || request.ClientRequestId == Guid.Empty || request.ChoreDefinitionId == Guid.Empty
-            || request.AssignedMemberId == Guid.Empty)
-            return Validation(context, new Dictionary<string, string[]> { ["assignment"] = ["Definition, member, due date, and request ID are required."] });
-        return Result(context, await chores.CreateAssignmentAsync(householdId, actor, request, token), "assignment", true);
+            || request.ClientRequestId == Guid.Empty || request.ChoreDefinitionId == Guid.Empty)
+            return Validation(context, new Dictionary<string, string[]> { ["assignment"] = ["Definition, due date, and request ID are required."] });
+        if (!ChoreValidation.TryAssignmentTarget(request.AssignmentMode, request.AssignedMemberId,
+                out var assignmentMode, out var assignmentErrors)) return Validation(context, assignmentErrors);
+        return Result(context, await chores.CreateAssignmentAsync(householdId, actor, request,
+            assignmentMode, token), "assignment", true);
+    }
+
+    private static async Task<IResult> ClaimAsync(Guid householdId, Guid assignmentId,
+        ClaimChoreAssignmentRequest? request, HttpContext context, IAuthorizationService auth,
+        HouseholdService households, ChoreService chores, CancellationToken token)
+    {
+        var failure = await AuthorizeAsync(householdId, false, context, auth, households, token);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor) || !context.User.TryGetUserSessionId(out var session)
+            || request is null || request.ClientRequestId == Guid.Empty
+            || request.ExpectedAssignmentVersion < 1 || request.HouseholdMemberId == Guid.Empty)
+            return Validation(context, new Dictionary<string, string[]> {
+                ["claim"] = ["A request ID, assignment version, and active household member are required."] });
+        return Result(context, await chores.ClaimAsync(householdId, assignmentId, actor, session,
+            request, token), "assignment");
     }
 
     private static async Task<IResult> CompleteAsync(Guid householdId, Guid assignmentId, CompleteChoreRequest? request,
@@ -309,6 +330,8 @@ public static class ChoreEndpoints
             "The request ID was already used for different chore data."),
         ChoreOperationStatus.ConcurrencyConflict => Problem(context, 409, ApiProblemCodes.ChoreConcurrencyConflict,
             "The chore changed concurrently. Refresh and try again."),
+        ChoreOperationStatus.AlreadyClaimed => Problem(context, 409, ApiProblemCodes.ChoreAssignmentAlreadyClaimed,
+            "Someone else has already claimed this chore. Refresh to see the current assignment."),
         ChoreOperationStatus.InvalidDueDate => Validation(context,
             new Dictionary<string, string[]> { ["dueLocalDate"] = ["The due date or time is invalid for this household."] }),
         _ => throw new InvalidOperationException("Unsupported chore result."),

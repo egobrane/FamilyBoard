@@ -84,14 +84,14 @@ public sealed class ChoreEndpointTests
 
         var assignmentRequestId = Guid.NewGuid();
         var assignmentResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-assignments",
-            new CreateChoreAssignmentRequest(assignmentRequestId, definition.Id, child.Id,
+            new CreateChoreAssignmentRequest(assignmentRequestId, definition.Id, "assigned", child.Id,
                 new DateOnly(2026, 8, 23), new TimeOnly(18, 0)));
         Assert.Equal(HttpStatusCode.Created, assignmentResponse.StatusCode);
         var assignment = (await assignmentResponse.Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
 
         var assignmentKeyReuse = await client.PostAsJsonAsync(
             $"/api/households/{household.Id}/chore-assignments",
-            new CreateChoreAssignmentRequest(assignmentRequestId, definition.Id, child.Id,
+            new CreateChoreAssignmentRequest(assignmentRequestId, definition.Id, "assigned", child.Id,
                 new DateOnly(2026, 8, 24), new TimeOnly(18, 0)));
         Assert.Equal(HttpStatusCode.Conflict, assignmentKeyReuse.StatusCode);
 
@@ -170,7 +170,7 @@ public sealed class ChoreEndpointTests
             new CreateChoreDefinitionRequest(Guid.NewGuid(), "Put shoes away", null, 0));
         var definition = (await definitionResponse.Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
         var assignmentResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-assignments",
-            new CreateChoreAssignmentRequest(Guid.NewGuid(), definition.Id, child.Id,
+            new CreateChoreAssignmentRequest(Guid.NewGuid(), definition.Id, "assigned", child.Id,
                 new DateOnly(2026, 8, 25), new TimeOnly(18, 0)));
         var assignment = (await assignmentResponse.Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
         var completionResponse = await client.PostAsJsonAsync(
@@ -207,7 +207,7 @@ public sealed class ChoreEndpointTests
         var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
             TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).Date);
         var requestId = Guid.NewGuid();
-        var create = new CreateChoreScheduleRequest(requestId, definition.Id, child.Id,
+        var create = new CreateChoreScheduleRequest(requestId, definition.Id, "assigned", child.Id,
             new ChoreRecurrenceRequest("daily", 1, []), localToday, localToday, null);
         var response = await client.PostAsJsonAsync($"/api/households/{household.Id}/chore-schedules", create);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -233,6 +233,82 @@ public sealed class ChoreEndpointTests
         Assert.Equal(ChoreDueTimeResolution.Exact, assignment.DueTimeResolution);
         Assert.Equal(8, assignment.PointValueSnapshot);
         Assert.Empty(database.DbContext.PointTransactions);
+    }
+
+    [PostgreSqlFact]
+    public async Task OpenScheduleGeneratesAnUnassignedChoreAndOnlyOneMemberCanClaimIt()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount { DisplayName = "Open Chore Adult", PrimaryEmail = "open-chores@example.test" };
+        database.DbContext.UserAccounts.Add(account);
+        await database.DbContext.SaveChangesAsync();
+        using var setupClient = Client(database.Factory, account.Id);
+        var household = await BootstrapAsync(setupClient);
+        var firstChild = (await (await setupClient.PostAsJsonAsync($"/api/households/{household.Id}/members",
+            new CreateChildMemberRequest("Avery", "mint"))).Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+        var secondChild = (await (await setupClient.PostAsJsonAsync($"/api/households/{household.Id}/members",
+            new CreateChildMemberRequest("Jordan", "coral"))).Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+        var definition = (await (await setupClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-definitions",
+            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Unload dishwasher", null, 12)))
+            .Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
+        var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).Date);
+        var scheduleResponse = await setupClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-schedules",
+            new CreateChoreScheduleRequest(Guid.NewGuid(), definition.Id, "open", null,
+                new ChoreRecurrenceRequest("daily", 1, []), localToday, localToday, null));
+        Assert.Equal(HttpStatusCode.Created, scheduleResponse.StatusCode);
+        var schedule = (await scheduleResponse.Content.ReadFromJsonAsync<ChoreScheduleResponse>())!;
+        Assert.Equal("open", schedule.AssignmentMode);
+        Assert.Null(schedule.AssignedMember);
+
+        await using (var scope = database.Factory.Services.CreateAsyncScope())
+        {
+            var generated = await scope.ServiceProvider.GetRequiredService<ChoreAssignmentGenerator>()
+                .GenerateAsync(CancellationToken.None);
+            Assert.Equal(1, generated.AssignmentsGenerated);
+        }
+
+        database.DbContext.ChangeTracker.Clear();
+        var assignment = await database.DbContext.ChoreAssignments.AsNoTracking()
+            .SingleAsync(item => item.ChoreScheduleId == schedule.Id);
+        Assert.Equal(ChoreAssignmentMode.Open, assignment.AssignmentMode);
+        Assert.Null(assignment.HouseholdMemberId);
+
+        var now = DateTimeOffset.UtcNow;
+        var session = new UserSession
+        {
+            UserAccountId = account.Id,
+            SelectedHouseholdId = household.Id,
+            IsSharedDisplay = true,
+            CreatedAt = now,
+            LastSeenAt = now,
+            ExpiresAt = now.AddDays(1),
+            AbsoluteExpiresAt = now.AddDays(2),
+        };
+        database.DbContext.UserSessions.Add(session);
+        await database.DbContext.SaveChangesAsync();
+        using var firstClient = Client(database.Factory, account.Id, session.Id);
+        using var secondClient = Client(database.Factory, account.Id, session.Id);
+        var firstRequestId = Guid.NewGuid();
+        var claims = await Task.WhenAll(
+            firstClient.PostAsJsonAsync($"/api/households/{household.Id}/chore-assignments/{assignment.Id}/claim",
+                new ClaimChoreAssignmentRequest(firstRequestId, assignment.Version, firstChild.Id)),
+            secondClient.PostAsJsonAsync($"/api/households/{household.Id}/chore-assignments/{assignment.Id}/claim",
+                new ClaimChoreAssignmentRequest(Guid.NewGuid(), assignment.Version, secondChild.Id)));
+        Assert.Single(claims, response => response.StatusCode == HttpStatusCode.OK);
+        Assert.Single(claims, response => response.StatusCode == HttpStatusCode.Conflict);
+
+        var claimed = (await claims.Single(response => response.StatusCode == HttpStatusCode.OK)
+            .Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
+        Assert.NotNull(claimed.AssignedMember);
+        Assert.NotNull(claimed.ClaimedAt);
+        Assert.Equal("open", claimed.AssignmentMode);
+        database.DbContext.ChangeTracker.Clear();
+        var stored = await database.DbContext.ChoreAssignments.AsNoTracking().SingleAsync(item => item.Id == assignment.Id);
+        Assert.Equal(claimed.AssignedMember.Id, stored.HouseholdMemberId);
+        Assert.True(stored.ClaimedFromSharedDisplay);
     }
 
     private static async Task<HouseholdResponse> BootstrapAsync(HttpClient client)

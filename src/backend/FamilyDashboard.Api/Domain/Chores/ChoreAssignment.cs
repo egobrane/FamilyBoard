@@ -7,7 +7,8 @@ public sealed class ChoreAssignment
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid HouseholdId { get; set; }
     public Guid ChoreDefinitionId { get; set; }
-    public Guid HouseholdMemberId { get; set; }
+    public Guid? HouseholdMemberId { get; set; }
+    public ChoreAssignmentMode AssignmentMode { get; set; } = ChoreAssignmentMode.Assigned;
     public Guid? CreatedByMemberId { get; set; }
     public Guid? ChoreScheduleId { get; set; }
     public Guid ClientRequestId { get; set; } = Guid.NewGuid();
@@ -23,6 +24,10 @@ public sealed class ChoreAssignment
     public DateTimeOffset? GeneratedAt { get; set; }
     public ChoreDueTimeResolution DueTimeResolution { get; set; } = ChoreDueTimeResolution.Exact;
     public ChoreAssignmentStatus Status { get; set; } = ChoreAssignmentStatus.Pending;
+    public DateTimeOffset? ClaimedAt { get; set; }
+    public Guid? ClaimedByMemberId { get; set; }
+    public Guid? ClaimClientRequestId { get; set; }
+    public bool? ClaimedFromSharedDisplay { get; set; }
     public DateTimeOffset? SkippedAt { get; set; }
     public Guid? SkippedByMemberId { get; set; }
     public string? SkipReason { get; set; }
@@ -31,7 +36,8 @@ public sealed class ChoreAssignment
     public long Version { get; set; } = 1;
 
     public ChoreDefinition ChoreDefinition { get; set; } = null!;
-    public HouseholdMember HouseholdMember { get; set; } = null!;
+    public HouseholdMember? HouseholdMember { get; set; }
+    public HouseholdMember? ClaimedByMember { get; set; }
     public HouseholdMember? CreatedByMember { get; set; }
     public HouseholdMember? SkippedByMember { get; set; }
     public ChoreSchedule? ChoreSchedule { get; set; }

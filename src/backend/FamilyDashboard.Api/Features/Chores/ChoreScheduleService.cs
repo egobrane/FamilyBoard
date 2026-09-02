@@ -35,6 +35,7 @@ public sealed class ChoreScheduleService(
 
     public async Task<ChoreScheduleOperationResult<ChoreScheduleResponse>> CreateAsync(
         Guid householdId, Guid actorUserAccountId, CreateChoreScheduleRequest request,
+        ChoreAssignmentMode assignmentMode,
         (ChoreRecurrenceKind Kind, int Interval, int? DaysMask) recurrence,
         CancellationToken cancellationToken)
     {
@@ -50,10 +51,14 @@ public sealed class ChoreScheduleService(
             item.HouseholdId == householdId && item.Id == request.ChoreDefinitionId, cancellationToken);
         if (definition is null) return new(ChoreScheduleOperationStatus.NotFound);
         if (!definition.IsActive) return new(ChoreScheduleOperationStatus.DefinitionInactive);
-        var member = await dbContext.HouseholdMembers.SingleOrDefaultAsync(item =>
-            item.HouseholdId == householdId && item.Id == request.AssignedMemberId, cancellationToken);
-        if (member is null) return new(ChoreScheduleOperationStatus.NotFound);
-        if (!member.IsActive) return new(ChoreScheduleOperationStatus.MemberInactive);
+        HouseholdMember? member = null;
+        if (assignmentMode == ChoreAssignmentMode.Assigned)
+        {
+            member = await dbContext.HouseholdMembers.SingleOrDefaultAsync(item =>
+                item.HouseholdId == householdId && item.Id == request.AssignedMemberId, cancellationToken);
+            if (member is null) return new(ChoreScheduleOperationStatus.NotFound);
+            if (!member.IsActive) return new(ChoreScheduleOperationStatus.MemberInactive);
+        }
         var actor = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
         if (actor is null) return new(ChoreScheduleOperationStatus.NotFound);
         var today = LocalToday(zone);
@@ -67,7 +72,8 @@ public sealed class ChoreScheduleService(
         {
             HouseholdId = householdId,
             ChoreDefinitionId = definition.Id,
-            HouseholdMemberId = member.Id,
+            HouseholdMemberId = member?.Id,
+            AssignmentMode = assignmentMode,
             CreatedByMemberId = actor.Id,
             ClientRequestId = request.ClientRequestId,
             RecurrenceKind = recurrence.Kind,
@@ -91,11 +97,12 @@ public sealed class ChoreScheduleService(
 
     public async Task<ChoreScheduleOperationResult<ChoreScheduleResponse>> UpdateAsync(
         Guid householdId, Guid scheduleId, UpdateChoreScheduleRequest request,
+        ChoreAssignmentMode assignmentMode,
         (ChoreRecurrenceKind Kind, int Interval, int? DaysMask) recurrence,
         CancellationToken cancellationToken)
     {
         var schedule = await dbContext.ChoreSchedules.Include(item => item.ChoreDefinition)
-            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset).Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset).Include(item => item.CreatedByMember)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == scheduleId,
                 cancellationToken);
         if (schedule is null) return new(ChoreScheduleOperationStatus.NotFound);
@@ -104,10 +111,14 @@ public sealed class ChoreScheduleService(
             item.HouseholdId == householdId && item.Id == request.ChoreDefinitionId, cancellationToken);
         if (definition is null) return new(ChoreScheduleOperationStatus.NotFound);
         if (!definition.IsActive) return new(ChoreScheduleOperationStatus.DefinitionInactive);
-        var member = await dbContext.HouseholdMembers.SingleOrDefaultAsync(item =>
-            item.HouseholdId == householdId && item.Id == request.AssignedMemberId, cancellationToken);
-        if (member is null) return new(ChoreScheduleOperationStatus.NotFound);
-        if (!member.IsActive) return new(ChoreScheduleOperationStatus.MemberInactive);
+        HouseholdMember? member = null;
+        if (assignmentMode == ChoreAssignmentMode.Assigned)
+        {
+            member = await dbContext.HouseholdMembers.SingleOrDefaultAsync(item =>
+                item.HouseholdId == householdId && item.Id == request.AssignedMemberId, cancellationToken);
+            if (member is null) return new(ChoreScheduleOperationStatus.NotFound);
+            if (!member.IsActive) return new(ChoreScheduleOperationStatus.MemberInactive);
+        }
         var zone = await GetTimeZoneAsync(householdId, cancellationToken);
         var today = LocalToday(zone);
         if (request.StartLocalDate > today.AddYears(2)) return new(ChoreScheduleOperationStatus.InvalidSchedule);
@@ -116,7 +127,8 @@ public sealed class ChoreScheduleService(
         var next = recurrenceCalculator.FindNext(recurrence.Kind, recurrence.Interval,
             recurrence.DaysMask, request.StartLocalDate, request.EndLocalDate, searchFrom);
         schedule.ChoreDefinitionId = definition.Id;
-        schedule.HouseholdMemberId = member.Id;
+        schedule.HouseholdMemberId = member?.Id;
+        schedule.AssignmentMode = assignmentMode;
         schedule.RecurrenceKind = recurrence.Kind;
         schedule.Interval = recurrence.Interval;
         schedule.DaysOfWeekMask = recurrence.DaysMask;
@@ -141,7 +153,7 @@ public sealed class ChoreScheduleService(
         CancellationToken cancellationToken)
     {
         var schedule = await dbContext.ChoreSchedules.Include(item => item.ChoreDefinition)
-            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset).Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset).Include(item => item.CreatedByMember)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == scheduleId,
                 cancellationToken);
         if (schedule is null) return new(ChoreScheduleOperationStatus.NotFound);
@@ -156,7 +168,9 @@ public sealed class ChoreScheduleService(
         }
         else
         {
-            if (!schedule.ChoreDefinition.IsActive || !schedule.HouseholdMember.IsActive)
+            if (!schedule.ChoreDefinition.IsActive
+                || (schedule.AssignmentMode == ChoreAssignmentMode.Assigned
+                    && schedule.HouseholdMember?.IsActive != true))
                 return new(ChoreScheduleOperationStatus.DependencyInactive);
             var today = LocalToday(zone);
             var next = recurrenceCalculator.FindNext(schedule.RecurrenceKind, schedule.Interval,
@@ -191,7 +205,7 @@ public sealed class ChoreScheduleService(
 
     private IQueryable<ChoreSchedule> ScheduleQuery(Guid householdId) =>
         dbContext.ChoreSchedules.AsNoTracking().Include(item => item.ChoreDefinition)
-            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset).Include(item => item.CreatedByMember)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset).Include(item => item.CreatedByMember)
             .Where(item => item.HouseholdId == householdId);
 
     private async Task<string> GetTimeZoneAsync(Guid householdId, CancellationToken cancellationToken) =>
@@ -210,6 +224,7 @@ public sealed class ChoreScheduleService(
     private static bool Matches(ChoreSchedule item, CreateChoreScheduleRequest request,
         (ChoreRecurrenceKind Kind, int Interval, int? DaysMask) recurrence) =>
         item.ChoreDefinitionId == request.ChoreDefinitionId
+        && item.AssignmentMode.ToString().Equals(request.AssignmentMode, StringComparison.OrdinalIgnoreCase)
         && item.HouseholdMemberId == request.AssignedMemberId
         && item.RecurrenceKind == recurrence.Kind && item.Interval == recurrence.Interval
         && item.DaysOfWeekMask == recurrence.DaysMask && item.StartLocalDate == request.StartLocalDate
@@ -220,7 +235,8 @@ public sealed class ChoreScheduleService(
         new(item.ChoreDefinition.Id, item.ChoreDefinition.Title, item.ChoreDefinition.Description,
             item.ChoreDefinition.DefaultPointValue, item.ChoreDefinition.IsActive, item.ChoreDefinition.Version,
             item.ChoreDefinition.CreatedAt, item.ChoreDefinition.UpdatedAt),
-        new(item.HouseholdMember.Id, item.HouseholdMember.DisplayName,
+        LowerCamel(item.AssignmentMode.ToString()),
+        item.HouseholdMember is null ? null : new(item.HouseholdMember.Id, item.HouseholdMember.DisplayName,
             item.HouseholdMember.Role.ToString().ToLowerInvariant(), item.HouseholdMember.AvatarColor,
             HouseholdMemberPhotoContracts.Map(item.HouseholdMember)),
         new(item.RecurrenceKind.ToString().ToLowerInvariant(), item.Interval, Days(item.DaysOfWeekMask)),

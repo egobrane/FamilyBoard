@@ -19,6 +19,7 @@ afterEach(() => vi.unstubAllGlobals())
 const assignment: ChoreAssignmentResponse = {
   id: 'assignment-1', choreDefinitionId: 'definition-1', title: 'Feed Milo',
   description: 'Before dinner', pointValue: 10,
+  assignmentMode: 'assigned', claimedAt: null,
   assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', photo: null },
   dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00', dueAt: '2026-08-22T22:00:00Z',
   dueTimeZone: 'America/New_York', dueHasExplicitTime: true, status: 'pending', isOverdue: true,
@@ -55,7 +56,7 @@ describe('ChoreList', () => {
       if (path === '/api/auth/me') return response(currentUser)
       if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
       if (path.endsWith('/chores/dashboard')) return response({ overdue: [assignment], dueToday: [],
-        upcoming: [], awaitingReviewCount: 0 })
+        upcoming: [], open: [], awaitingReviewCount: 0 })
       if (path.endsWith('/chores/participants')) return response([assignment.assignedMember])
       if (path.endsWith(`/chore-assignments/${assignment.id}/completions`) && init?.method === 'POST')
         return response({ id: 'completion-1', assignmentId: assignment.id,
@@ -74,7 +75,44 @@ describe('ChoreList', () => {
       new URL(String(input)).pathname.endsWith(`/chore-assignments/${assignment.id}/completions`))
     expect(completionCall).toBeDefined()
     expect(JSON.parse(String(completionCall?.[1]?.body))).toEqual(expect.objectContaining({
-      expectedAssignmentVersion: assignment.version, completedByMemberId: assignment.assignedMember.id,
+      expectedAssignmentVersion: assignment.version, completedByMemberId: assignment.assignedMember!.id,
+    }))
+  })
+
+  it('separates open chores and lets a shared-display member claim one', async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true,
+      value(this: HTMLDialogElement) { this.setAttribute('open', '') } })
+    const member = assignment.assignedMember!
+    const openAssignment: ChoreAssignmentResponse = { ...assignment, id: 'open-assignment',
+      assignmentMode: 'open', assignedMember: null }
+    const currentUser = { user: { id: 'user-1', displayName: 'Ryan', primaryEmail: 'ryan@example.test' },
+      households: [{ id: householdId, name: 'Family', memberId: 'adult-1', role: 'adult' }],
+      selectedHouseholdId: householdId, session: { expiresAt: '2026-09-03T00:00:00Z',
+        isSharedDisplay: true, deviceLabel: 'Kitchen display', administrativeElevationHouseholdId: null,
+        administrativeElevationExpiresAt: null } }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return response(currentUser)
+      if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/chores/dashboard')) return response({ overdue: [assignment],
+        dueToday: [], upcoming: [], open: [openAssignment], awaitingReviewCount: 0 })
+      if (path.endsWith('/chores/participants')) return response([member])
+      if (path.endsWith(`/chore-assignments/${openAssignment.id}/claim`) && init?.method === 'POST')
+        return response({ ...openAssignment, assignedMember: member, claimedAt: '2026-09-02T19:00:00Z', version: 2 })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter><AuthenticationProvider><DashboardChoresCard /></AuthenticationProvider></MemoryRouter>)
+
+    expect(await screen.findByRole('heading', { name: 'Assigned' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Up for grabs' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'I’ll do it' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Zoey/ }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'I’ll do it' }).at(-1)!)
+    const claimCall = fetchMock.mock.calls.find(([input]) =>
+      new URL(String(input)).pathname.endsWith(`/chore-assignments/${openAssignment.id}/claim`))
+    expect(JSON.parse(String(claimCall?.[1]?.body))).toEqual(expect.objectContaining({
+      expectedAssignmentVersion: openAssignment.version, householdMemberId: member.id,
     }))
   })
 })
@@ -82,7 +120,8 @@ describe('ChoreList', () => {
 const schedule: ChoreScheduleResponse = {
   id: 'schedule-1', definition: { id: 'definition-1', title: 'Feed Milo', description: null,
     defaultPointValue: 10, isActive: true, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' },
-  assignedMember: assignment.assignedMember, recurrence: { kind: 'daily', interval: 1, daysOfWeek: [] },
+  assignmentMode: 'assigned', assignedMember: assignment.assignedMember,
+  recurrence: { kind: 'daily', interval: 1, daysOfWeek: [] },
   startLocalDate: '2026-08-23', endLocalDate: null, dueLocalTime: '08:00:00',
   timeZone: 'America/New_York', status: 'active', blockedReason: null,
   nextOccurrenceLocalDate: '2026-08-23', lastGeneratedOccurrenceLocalDate: null,

@@ -40,20 +40,31 @@ public sealed class ChoreService(
         var assignments = await AssignmentQuery(householdId)
             .Where(assignment => assignment.Status == ChoreAssignmentStatus.Pending
                 || assignment.Status == ChoreAssignmentStatus.AwaitingReview)
+            .Where(assignment => assignment.HouseholdMemberId != null)
             .OrderBy(assignment => assignment.DueAt)
             .ThenBy(assignment => assignment.Id)
             .Take(40)
             .ToListAsync(cancellationToken);
+        var openAssignments = await AssignmentQuery(householdId)
+            .Where(assignment => assignment.Status == ChoreAssignmentStatus.Pending
+                && assignment.AssignmentMode == ChoreAssignmentMode.Open
+                && assignment.HouseholdMemberId == null)
+            .OrderBy(assignment => assignment.DueAt)
+            .ThenBy(assignment => assignment.Id)
+            .Take(5)
+            .ToListAsync(cancellationToken);
         var mapped = assignments.Select(assignment => MapAssignment(assignment, now)).ToList();
+        var mappedOpen = openAssignments.Select(assignment => MapAssignment(assignment, now)).ToList();
         var zone = await dbContext.HouseholdConfigurations.AsNoTracking()
             .Where(item => item.HouseholdId == householdId).Select(item => item.TimeZone)
             .SingleAsync(cancellationToken);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now,
             TimeZoneInfo.FindSystemTimeZoneById(zone)).Date);
         return new ChoreDashboardResponse(
-            mapped.Where(item => item.IsOverdue).Take(5).ToList(),
-            mapped.Where(item => !item.IsOverdue && item.DueLocalDate == today).Take(5).ToList(),
-            mapped.Where(item => !item.IsOverdue && item.DueLocalDate > today).Take(3).ToList(),
+            mapped.Where(item => item.AssignedMember is not null && item.IsOverdue).Take(5).ToList(),
+            mapped.Where(item => item.AssignedMember is not null && !item.IsOverdue && item.DueLocalDate == today).Take(5).ToList(),
+            mapped.Where(item => item.AssignedMember is not null && !item.IsOverdue && item.DueLocalDate > today).Take(3).ToList(),
+            mappedOpen,
             mapped.Count(item => item.Status == "awaitingReview"));
     }
 
@@ -157,12 +168,14 @@ public sealed class ChoreService(
 
     public async Task<ChoreOperationResult<ChoreAssignmentResponse>> CreateAssignmentAsync(
         Guid householdId, Guid actorUserAccountId, CreateChoreAssignmentRequest request,
+        ChoreAssignmentMode assignmentMode,
         CancellationToken cancellationToken)
     {
         var existing = await AssignmentQuery(householdId).SingleOrDefaultAsync(
             item => item.ClientRequestId == request.ClientRequestId, cancellationToken);
         if (existing is not null)
             return existing.ChoreDefinitionId == request.ChoreDefinitionId
+                && existing.AssignmentMode == assignmentMode
                 && existing.HouseholdMemberId == request.AssignedMemberId
                 && existing.DueLocalDate == request.DueLocalDate
                 && existing.DueLocalTime == request.DueLocalTime
@@ -173,11 +186,15 @@ public sealed class ChoreService(
             cancellationToken);
         if (definition is null) return new(ChoreOperationStatus.NotFound);
         if (!definition.IsActive) return new(ChoreOperationStatus.DefinitionInactive);
-        var assigned = await dbContext.HouseholdMembers.SingleOrDefaultAsync(
-            item => item.HouseholdId == householdId && item.Id == request.AssignedMemberId,
-            cancellationToken);
-        if (assigned is null) return new(ChoreOperationStatus.NotFound);
-        if (!assigned.IsActive) return new(ChoreOperationStatus.MemberInactive);
+        HouseholdMember? assigned = null;
+        if (assignmentMode == ChoreAssignmentMode.Assigned)
+        {
+            assigned = await dbContext.HouseholdMembers.SingleOrDefaultAsync(
+                item => item.HouseholdId == householdId && item.Id == request.AssignedMemberId,
+                cancellationToken);
+            if (assigned is null) return new(ChoreOperationStatus.NotFound);
+            if (!assigned.IsActive) return new(ChoreOperationStatus.MemberInactive);
+        }
         var actor = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
         if (actor is null) return new(ChoreOperationStatus.NotFound);
         var zone = await dbContext.HouseholdConfigurations.AsNoTracking()
@@ -190,7 +207,8 @@ public sealed class ChoreService(
         {
             HouseholdId = householdId,
             ChoreDefinitionId = definition.Id,
-            HouseholdMemberId = assigned.Id,
+            HouseholdMemberId = assigned?.Id,
+            AssignmentMode = assignmentMode,
             CreatedByMemberId = actor.Id,
             ClientRequestId = request.ClientRequestId,
             TitleSnapshot = definition.Title,
@@ -213,6 +231,54 @@ public sealed class ChoreService(
         return new(ChoreOperationStatus.Success, MapAssignment(assignment, now));
     }
 
+    public async Task<ChoreOperationResult<ChoreAssignmentResponse>> ClaimAsync(
+        Guid householdId, Guid assignmentId, Guid actorUserAccountId, Guid sessionId,
+        ClaimChoreAssignmentRequest request, CancellationToken cancellationToken)
+    {
+        var replay = await AssignmentQuery(householdId).SingleOrDefaultAsync(
+            item => item.ClaimClientRequestId == request.ClientRequestId, cancellationToken);
+        if (replay is not null)
+            return replay.Id == assignmentId && replay.HouseholdMemberId == request.HouseholdMemberId
+                ? new(ChoreOperationStatus.Success, MapAssignment(replay, timeProvider.GetUtcNow()))
+                : new(ChoreOperationStatus.IdempotencyConflict);
+
+        var assignment = await dbContext.ChoreAssignments
+            .Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset)
+            .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember)
+            .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == assignmentId,
+                cancellationToken);
+        if (assignment is null) return new(ChoreOperationStatus.NotFound);
+        if (assignment.AssignmentMode != ChoreAssignmentMode.Open
+            || assignment.Status != ChoreAssignmentStatus.Pending)
+            return new(ChoreOperationStatus.NotActionable);
+        if (assignment.HouseholdMemberId is not null) return new(ChoreOperationStatus.AlreadyClaimed);
+        if (assignment.Version != request.ExpectedAssignmentVersion)
+            return new(ChoreOperationStatus.ConcurrencyConflict);
+        var session = await dbContext.UserSessions.AsNoTracking().SingleOrDefaultAsync(
+            item => item.Id == sessionId && item.UserAccountId == actorUserAccountId && item.RevokedAt == null,
+            cancellationToken);
+        if (session is null) return new(ChoreOperationStatus.NotActionable);
+        var member = await dbContext.HouseholdMembers.Include(item => item.CurrentPhotoAsset)
+            .SingleOrDefaultAsync(item => item.HouseholdId == householdId
+                && item.Id == request.HouseholdMemberId, cancellationToken);
+        if (member is null || !member.IsActive) return new(ChoreOperationStatus.MemberInactive);
+
+        var now = timeProvider.GetUtcNow();
+        assignment.HouseholdMemberId = member.Id;
+        assignment.HouseholdMember = member;
+        assignment.ClaimedByMemberId = member.Id;
+        assignment.ClaimedByMember = member;
+        assignment.ClaimedAt = now;
+        assignment.ClaimClientRequestId = request.ClientRequestId;
+        assignment.ClaimedFromSharedDisplay = session.IsSharedDisplay;
+        assignment.UpdatedAt = now;
+        assignment.Version++;
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { return new(ChoreOperationStatus.AlreadyClaimed); }
+        catch (DbUpdateException) { return new(ChoreOperationStatus.ConcurrencyConflict); }
+        return new(ChoreOperationStatus.Success, MapAssignment(assignment, now));
+    }
+
     public async Task<ChoreOperationResult<ChoreCompletionResponse>> CompleteAsync(
         Guid householdId, Guid assignmentId, Guid actorUserAccountId, Guid sessionId,
         CompleteChoreRequest request, CancellationToken cancellationToken)
@@ -227,13 +293,15 @@ public sealed class ChoreService(
                     || existing.CompletedByMemberId == request.CompletedByMemberId)
                 ? new(ChoreOperationStatus.Success, MapCompletion(existing))
                 : new(ChoreOperationStatus.IdempotencyConflict);
-        var assignment = await dbContext.ChoreAssignments.Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
+        var assignment = await dbContext.ChoreAssignments.Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset)
             .SingleOrDefaultAsync(item => item.HouseholdId == householdId && item.Id == assignmentId,
                 cancellationToken);
         if (assignment is null) return new(ChoreOperationStatus.NotFound);
         if (assignment.Version != request.ExpectedAssignmentVersion) return new(ChoreOperationStatus.ConcurrencyConflict);
         if (assignment.Status == ChoreAssignmentStatus.AwaitingReview) return new(ChoreOperationStatus.PendingReview);
         if (assignment.Status != ChoreAssignmentStatus.Pending) return new(ChoreOperationStatus.NotActionable);
+        if (assignment.AssignmentMode == ChoreAssignmentMode.Open && assignment.HouseholdMemberId is null)
+            return new(ChoreOperationStatus.NotActionable);
         var session = await dbContext.UserSessions.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == sessionId && item.UserAccountId == actorUserAccountId && item.RevokedAt == null,
             cancellationToken);
@@ -339,7 +407,7 @@ public sealed class ChoreService(
         CancellationToken cancellationToken)
     {
         var assignment = await dbContext.ChoreAssignments
-            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset)
             .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember)
             .Include(item => item.Completions).ThenInclude(item => item.ReviewedByMember)
             .Include(item => item.Completions).ThenInclude(item => item.PointTransaction)
@@ -364,7 +432,7 @@ public sealed class ChoreService(
 
     private IQueryable<ChoreAssignment> AssignmentQuery(Guid householdId) =>
         dbContext.ChoreAssignments.AsNoTracking()
-            .Include(item => item.HouseholdMember).ThenInclude(item => item.CurrentPhotoAsset)
+            .Include(item => item.HouseholdMember).ThenInclude(item => item!.CurrentPhotoAsset)
             .Include(item => item.Completions).ThenInclude(item => item.CompletedByMember).ThenInclude(item => item.CurrentPhotoAsset)
             .Include(item => item.Completions).ThenInclude(item => item.ReviewedByMember).ThenInclude(item => item!.CurrentPhotoAsset)
             .Where(item => item.HouseholdId == householdId);
@@ -396,7 +464,9 @@ public sealed class ChoreService(
         var pending = item.Completions.SingleOrDefault(c => c.Status == ChoreCompletionStatus.PendingReview);
         var status = item.Status.ToString();
         return new(item.Id, item.ChoreDefinitionId, item.TitleSnapshot, item.DescriptionSnapshot,
-            item.PointValueSnapshot, MapMember(item.HouseholdMember), item.DueLocalDate, item.DueLocalTime, item.DueAt,
+            item.PointValueSnapshot, item.AssignmentMode.ToString().ToLowerInvariant(),
+            item.HouseholdMember is null ? null : MapMember(item.HouseholdMember), item.ClaimedAt,
+            item.DueLocalDate, item.DueLocalTime, item.DueAt,
             item.DueTimeZone, item.DueHasExplicitTime,
             status[..1].ToLowerInvariant() + status[1..],
             item.Status == ChoreAssignmentStatus.Pending && item.DueAt < now, item.Version,

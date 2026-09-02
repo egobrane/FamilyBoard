@@ -57,7 +57,9 @@ public sealed class ChoreAssignmentGenerator(
         foreach (var schedule in schedules)
         {
             schedule.LastEvaluatedAt = now;
-            if (!schedule.ChoreDefinition.IsActive || !schedule.HouseholdMember.IsActive)
+            if (!schedule.ChoreDefinition.IsActive
+                || (schedule.AssignmentMode == ChoreAssignmentMode.Assigned
+                    && schedule.HouseholdMember?.IsActive != true))
             {
                 schedule.Status = ChoreScheduleStatus.Blocked;
                 schedule.BlockedReason = !schedule.ChoreDefinition.IsActive
@@ -98,6 +100,7 @@ public sealed class ChoreAssignmentGenerator(
                     HouseholdId = schedule.HouseholdId,
                     ChoreDefinitionId = schedule.ChoreDefinitionId,
                     HouseholdMemberId = schedule.HouseholdMemberId,
+                    AssignmentMode = schedule.AssignmentMode,
                     CreatedByMemberId = schedule.CreatedByMemberId,
                     ChoreScheduleId = schedule.Id,
                     ClientRequestId = OccurrenceRequestId(schedule.Id, occurrence),

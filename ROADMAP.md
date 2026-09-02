@@ -37,6 +37,7 @@
 
 ## Next
 
+- Deploy and owner-verify open chores: create one-time and recurring **Up for grabs** work, confirm the two-column Home widget, claim from the locked wall display with explicit member selection, verify one-winner conflict handling, and complete/review a claimed point-bearing chore.
 - Deploy and owner-verify the wall-display quick-action follow-up: shared Google Tasks complete/reopen from their circles without person attribution, while Home chores preselect the assigned member and remain subject to adult review.
 - Complete the Daily-Use Readiness and Reliability increment: unify dashboard recovery and freshness states, strengthen long-running wall-display/session behavior, measure cold starts, add narrowly scoped operational signals, and run a short household pilot before expanding product scope.
 - Complete only the still-unconfirmed live Google Tasks checks: reopening, date-only due dates, shared-display attribution, provider conflicts and ambiguous outcomes, revocation/reconnection, multi-household isolation, responsive devices, and sensitive-data inspection.

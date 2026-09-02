@@ -17,7 +17,7 @@ export function ChoreScheduleList({ schedules, onEdit, onStateChange }: Props) {
   return <section className="admin-section schedule-list-section"><h3>Recurring schedules</h3>
     {schedules.length === 0 ? <p>No recurring chores yet.</p> : <ul className="definition-list">
       {schedules.map((schedule) => <li key={schedule.id}>
-        <div><strong>{schedule.definition.title} for {schedule.assignedMember.displayName}</strong>
+        <div><strong>{schedule.definition.title} · {schedule.assignedMember?.displayName ?? 'Up for grabs'}</strong>
           <span>{summary(schedule)}</span><span className={`schedule-status schedule-status--${schedule.status}`}>{schedule.status}</span>
           {schedule.blockedReason && <span>Needs attention: {schedule.blockedReason}</span>}
           {schedule.nextOccurrenceLocalDate && <span>Next: {schedule.nextOccurrenceLocalDate}</span>}</div>

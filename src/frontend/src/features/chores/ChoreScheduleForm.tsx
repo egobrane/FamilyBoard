@@ -14,7 +14,8 @@ interface Props {
 
 export function ChoreScheduleForm({ householdId, definitions, participants, schedule, onSaved, onCancel }: Props) {
   const [definitionId, setDefinitionId] = useState(schedule?.definition.id ?? '')
-  const [memberId, setMemberId] = useState(schedule?.assignedMember.id ?? '')
+  const [assignmentMode, setAssignmentMode] = useState<'assigned' | 'open'>(schedule?.assignmentMode ?? 'assigned')
+  const [memberId, setMemberId] = useState(schedule?.assignedMember?.id ?? '')
   const [recurrence, setRecurrence] = useState<ChoreRecurrenceRequest>(schedule?.recurrence
     ?? { kind: 'daily', interval: 1, daysOfWeek: [] })
   const [startDate, setStartDate] = useState(schedule?.startLocalDate ?? new Date().toISOString().slice(0, 10))
@@ -26,7 +27,8 @@ export function ChoreScheduleForm({ householdId, definitions, participants, sche
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(''); setSaving(true)
     try {
-      const body = { choreDefinitionId: definitionId, assignedMemberId: memberId, recurrence,
+      const body = { choreDefinitionId: definitionId, assignmentMode,
+        assignedMemberId: assignmentMode === 'assigned' ? memberId : null, recurrence,
         startLocalDate: startDate, endLocalDate: endDate || null, dueLocalTime: dueTime || null }
       if (schedule) await updateChoreSchedule(householdId, schedule, body)
       else await createChoreSchedule(householdId, body)
@@ -48,9 +50,15 @@ export function ChoreScheduleForm({ householdId, definitions, participants, sche
       <label>Chore<select onChange={(event) => setDefinitionId(event.target.value)} required value={definitionId}>
         <option value="">Choose a chore</option>{definitions.filter((item) => item.isActive).map((item) =>
           <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label>Assigned to<select onChange={(event) => setMemberId(event.target.value)} required value={memberId}>
+      <fieldset className="assignment-mode"><legend>Who should do it?</legend>
+        <label><input checked={assignmentMode === 'assigned'} name="schedule-assignment-mode"
+          onChange={() => setAssignmentMode('assigned')} type="radio" />Specific person</label>
+        <label><input checked={assignmentMode === 'open'} name="schedule-assignment-mode"
+          onChange={() => setAssignmentMode('open')} type="radio" />Up for grabs</label>
+      </fieldset>
+      {assignmentMode === 'assigned' && <label>Assigned to<select onChange={(event) => setMemberId(event.target.value)} required value={memberId}>
         <option value="">Choose a person</option>{participants.map((item) =>
-          <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>
+          <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label>}
     </div>
     <ChoreRecurrenceFields onChange={setRecurrence} value={recurrence} />
     <div className="form-grid">
@@ -58,7 +66,7 @@ export function ChoreScheduleForm({ householdId, definitions, participants, sche
       <label>Ends (optional)<input min={startDate} onChange={(event) => setEndDate(event.target.value)} type="date" value={endDate} /></label>
       <label>Due time<input onChange={(event) => setDueTime(event.target.value)} type="time" value={dueTime} /></label>
     </div>
-    <p aria-live="polite" className="schedule-summary"><strong>{recurrenceSummary}</strong>{dueTime ? `, due at ${dueTime}` : ', due by end of day'}.</p>
+    <p aria-live="polite" className="schedule-summary"><strong>{assignmentMode === 'open' ? 'Up for grabs' : participants.find((person) => person.id === memberId)?.displayName ?? 'Specific person'} · {recurrenceSummary}</strong>{dueTime ? `, due at ${dueTime}` : ', due by end of day'}.</p>
     <div className="form-actions"><button disabled={saving} type="submit">{saving ? 'Saving…' : 'Save schedule'}</button>
       {onCancel && <button className="button-secondary" onClick={onCancel} type="button">Cancel</button>}</div>
   </form>

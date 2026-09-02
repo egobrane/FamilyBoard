@@ -7,7 +7,8 @@ public sealed class ChoreSchedule
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid HouseholdId { get; set; }
     public Guid ChoreDefinitionId { get; set; }
-    public Guid HouseholdMemberId { get; set; }
+    public Guid? HouseholdMemberId { get; set; }
+    public ChoreAssignmentMode AssignmentMode { get; set; } = ChoreAssignmentMode.Assigned;
     public Guid CreatedByMemberId { get; set; }
     public Guid ClientRequestId { get; set; } = Guid.NewGuid();
     public ChoreRecurrenceKind RecurrenceKind { get; set; }
@@ -28,7 +29,7 @@ public sealed class ChoreSchedule
 
     public Household Household { get; set; } = null!;
     public ChoreDefinition ChoreDefinition { get; set; } = null!;
-    public HouseholdMember HouseholdMember { get; set; } = null!;
+    public HouseholdMember? HouseholdMember { get; set; }
     public HouseholdMember CreatedByMember { get; set; } = null!;
     public ICollection<ChoreAssignment> Assignments { get; set; } = [];
 }

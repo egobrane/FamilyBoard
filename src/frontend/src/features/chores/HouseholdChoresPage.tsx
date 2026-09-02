@@ -81,7 +81,7 @@ export function HouseholdChoresPage() {
     <section className="admin-section"><h3>Active assignments</h3>
       {!assignments.some((assignment) => assignment.status === 'pending') ? <p>No assignments are waiting to be completed.</p> : <ul className="definition-list">
         {assignments.filter((assignment) => assignment.status === 'pending').map((assignment) => <li key={assignment.id}>
-          <div><strong>{assignment.title}</strong><span>{assignment.assignedMember.displayName}</span></div>
+          <div><strong>{assignment.title}</strong><span>{assignment.assignedMember?.displayName ?? 'Up for grabs'}</span></div>
           <button onClick={() => void skipAssignment(assignment)} type="button">Skip assignment</button>
         </li>)}
       </ul>}

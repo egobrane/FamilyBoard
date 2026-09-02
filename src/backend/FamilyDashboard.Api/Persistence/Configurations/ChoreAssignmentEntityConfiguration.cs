@@ -9,9 +9,15 @@ public sealed class ChoreAssignmentEntityConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<ChoreAssignment> builder)
     {
         builder.ToTable("ChoreAssignments", table =>
-            table.HasCheckConstraint("CK_ChoreAssignments_PointValueSnapshot", "\"PointValueSnapshot\" BETWEEN 0 AND 10000"));
+        {
+            table.HasCheckConstraint("CK_ChoreAssignments_PointValueSnapshot", "\"PointValueSnapshot\" BETWEEN 0 AND 10000");
+            table.HasCheckConstraint("CK_ChoreAssignments_AssignmentModeMember",
+                "(\"AssignmentMode\" = 'Assigned' AND \"HouseholdMemberId\" IS NOT NULL) OR \"AssignmentMode\" = 'Open'");
+        });
         builder.HasKey(assignment => assignment.Id);
         builder.Property(assignment => assignment.Status).HasConversion<string>().HasMaxLength(24);
+        builder.Property(assignment => assignment.AssignmentMode).HasConversion<string>().HasMaxLength(16)
+            .HasDefaultValue(ChoreAssignmentMode.Assigned);
         builder.Property(assignment => assignment.DueTimeResolution).HasConversion<string>().HasMaxLength(24)
             .HasDefaultValue(ChoreDueTimeResolution.Exact);
         builder.Property(assignment => assignment.TitleSnapshot).HasMaxLength(120).IsRequired();
@@ -23,6 +29,8 @@ public sealed class ChoreAssignmentEntityConfiguration : IEntityTypeConfiguratio
         builder.Property(assignment => assignment.Version).IsConcurrencyToken().HasDefaultValue(1L);
         builder.HasAlternateKey(assignment => new { assignment.HouseholdId, assignment.Id });
         builder.HasIndex(assignment => new { assignment.HouseholdId, assignment.ClientRequestId }).IsUnique();
+        builder.HasIndex(assignment => new { assignment.HouseholdId, assignment.ClaimClientRequestId }).IsUnique()
+            .HasFilter("\"ClaimClientRequestId\" IS NOT NULL");
         builder.HasIndex(assignment => new { assignment.HouseholdId, assignment.ChoreScheduleId,
             assignment.ScheduleOccurrenceLocalDate }).IsUnique()
             .HasFilter("\"ChoreScheduleId\" IS NOT NULL");
@@ -36,6 +44,11 @@ public sealed class ChoreAssignmentEntityConfiguration : IEntityTypeConfiguratio
         builder.HasOne(assignment => assignment.HouseholdMember)
             .WithMany(member => member.ChoreAssignments)
             .HasForeignKey(assignment => new { assignment.HouseholdId, assignment.HouseholdMemberId })
+            .HasPrincipalKey(member => new { member.HouseholdId, member.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(assignment => assignment.ClaimedByMember)
+            .WithMany()
+            .HasForeignKey(assignment => new { assignment.HouseholdId, assignment.ClaimedByMemberId })
             .HasPrincipalKey(member => new { member.HouseholdId, member.Id })
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(assignment => assignment.CreatedByMember)

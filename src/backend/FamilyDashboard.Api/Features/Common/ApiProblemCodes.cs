@@ -101,6 +101,8 @@ public static class ApiProblemCodes
     public const string ChoreMemberInactive = "chore_member_inactive";
     public const string ChoreIdempotencyConflict = "chore_idempotency_conflict";
     public const string ChoreConcurrencyConflict = "chore_concurrency_conflict";
+    public const string ChoreAssignmentAlreadyClaimed = "chore_assignment_already_claimed";
+    public const string ChoreClaimRateLimited = "chore_claim_rate_limited";
     public const string ChoreCompletionRateLimited = "chore_completion_rate_limited";
     public const string ChoreScheduleNotFound = "chore_schedule_not_found";
     public const string ChoreScheduleInvalid = "invalid_chore_schedule";

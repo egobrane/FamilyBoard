@@ -66,6 +66,8 @@ let choreSchedules: Array<Record<string, unknown>> = []
 let rewardRedemptions: Array<Record<string, unknown>> = []
 let taskStatusRequests: Array<Record<string, unknown>> = []
 let choreCompletionRequests: Array<Record<string, unknown>> = []
+let choreClaimRequests: Array<Record<string, unknown>> = []
+let claimedOpenChoreMemberId: string | null = null
 let dashboardAppearance = {
   householdId: authenticatedUser.households[0].id,
   timeZone: 'America/New_York',
@@ -96,6 +98,8 @@ test.beforeEach(async ({ page }) => {
   rewardRedemptions = []
   taskStatusRequests = []
   choreCompletionRequests = []
+  choreClaimRequests = []
+  claimedOpenChoreMemberId = null
   dashboardAppearance = { ...dashboardAppearance, greetingTitle: null, greetingMessage: null, version: 1 }
   weatherSettings = undefined
   await page.route('http://localhost:8080/api/**', async (route) => {
@@ -414,13 +418,25 @@ test.beforeEach(async ({ page }) => {
       id: '60000000-0000-0000-0000-000000000001',
       choreDefinitionId: '61000000-0000-0000-0000-000000000001',
       title: 'Feed Milo', description: 'Before dinner', pointValue: 10,
+      assignmentMode: 'assigned', claimedAt: null,
       assignedMember: householdMembers[0], dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00',
       dueAt: '2026-08-22T22:00:00Z', dueTimeZone: 'America/New_York', dueHasExplicitTime: true,
       status: 'pending', isOverdue: false, version: 1, pendingCompletion: null,
       createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z',
     }
+    const openChoreAssignment = {
+      ...choreAssignment,
+      id: '60000000-0000-0000-0000-000000000002',
+      title: 'Unload dishwasher',
+      assignmentMode: 'open',
+      assignedMember: claimedOpenChoreMemberId
+        ? householdMembers.find((member) => member.id === claimedOpenChoreMemberId) ?? null : null,
+      claimedAt: claimedOpenChoreMemberId ? '2026-09-02T19:00:00Z' : null,
+      version: claimedOpenChoreMemberId ? 2 : 1,
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chores/dashboard`) {
-      await route.fulfill({ json: { overdue: [], dueToday: [choreAssignment], upcoming: [], awaitingReviewCount: 0 } })
+      await route.fulfill({ json: { overdue: [], dueToday: [choreAssignment], upcoming: [],
+        open: claimedOpenChoreMemberId ? [] : [openChoreAssignment], awaitingReviewCount: 0 } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chores/participants`) {
@@ -428,7 +444,16 @@ test.beforeEach(async ({ page }) => {
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments`) {
-      await route.fulfill({ json: { items: [choreAssignment], nextCursor: null } })
+      await route.fulfill({ json: { items: [choreAssignment, openChoreAssignment], nextCursor: null } })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments/${openChoreAssignment.id}/claim`) {
+      const body = route.request().postDataJSON() as Record<string, unknown>
+      choreClaimRequests.push(body)
+      claimedOpenChoreMemberId = String(body.householdMemberId)
+      await route.fulfill({ json: { ...openChoreAssignment,
+        assignedMember: householdMembers.find((member) => member.id === claimedOpenChoreMemberId),
+        claimedAt: '2026-09-02T19:00:00Z', version: 2 } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments/${choreAssignment.id}/completions`) {
@@ -452,8 +477,10 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-schedules`) {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON() as { startLocalDate: string; dueLocalTime: string; recurrence: Record<string, unknown> }
-        const schedule = { id: '63000000-0000-0000-0000-000000000001', definition: choreDefinition,
-          assignedMember: householdMembers[0], recurrence: body.recurrence, startLocalDate: body.startLocalDate,
+        const assignmentMode = String((route.request().postDataJSON() as Record<string, unknown>).assignmentMode)
+        const schedule = { id: `63000000-0000-0000-0000-00000000000${choreSchedules.length + 1}`, definition: choreDefinition,
+          assignmentMode, assignedMember: assignmentMode === 'open' ? null : householdMembers[0],
+          recurrence: body.recurrence, startLocalDate: body.startLocalDate,
           endLocalDate: null, dueLocalTime: `${body.dueLocalTime}:00`, timeZone: 'America/New_York', status: 'active',
           blockedReason: null, nextOccurrenceLocalDate: body.startLocalDate, lastGeneratedOccurrenceLocalDate: null,
           lastEvaluatedAt: null, version: 1, createdAt: '2026-08-22T12:00:00Z', updatedAt: '2026-08-22T12:00:00Z' }
@@ -633,6 +660,22 @@ test('chore board supports explicit household-member completion', async ({ page 
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
 })
 
+test('an open dashboard chore can be claimed by an explicitly selected member', async ({ page }) => {
+  await page.goto('/')
+  const openLane = page.getByRole('region', { name: 'Up for grabs' })
+  await expect(openLane.getByText('Unload dishwasher')).toBeVisible()
+  await openLane.getByRole('button', { name: 'I’ll do it' }).click()
+  await page.getByRole('group', { name: 'Choose a family member' })
+    .getByRole('radio', { name: /Ryan Bamford/ }).check()
+  await page.getByRole('dialog').getByRole('button', { name: 'I’ll do it' }).click()
+  await expect.poll(() => choreClaimRequests.length).toBe(1)
+  expect(choreClaimRequests[0]).toMatchObject({
+    expectedAssignmentVersion: 1,
+    householdMemberId: authenticatedUser.households[0].memberId,
+  })
+  await expect(page.getByText('Unload dishwasher assigned to Ryan Bamford.')).toHaveClass(/visually-hidden/)
+})
+
 test('an adult can schedule a daily household-local chore with touch-sized controls', async ({ page }) => {
   await page.goto(`/households/${authenticatedUser.households[0].id}/chores`)
   await expect(page.getByRole('heading', { name: 'Schedule a chore' })).toBeVisible()
@@ -646,6 +689,18 @@ test('an adult can schedule a daily household-local chore with touch-sized contr
   await expect(page.getByText('Next: 2026-08-24')).toBeVisible()
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
+})
+
+test('an adult can schedule a daily chore as up for grabs', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/chores`)
+  const form = page.getByRole('heading', { name: 'Schedule a chore' }).locator('..')
+  await form.locator('select').nth(0).selectOption('61000000-0000-0000-0000-000000000001')
+  await form.getByRole('radio', { name: 'Up for grabs' }).check()
+  await form.getByLabel('Starts').fill('2026-08-24')
+  await form.getByLabel('Due time').fill('08:00')
+  await form.getByRole('button', { name: 'Save schedule' }).click()
+  await expect(page.getByText('Feed Milo · Up for grabs')).toBeVisible()
+  await expect(page.getByText('Every day · Due 08:00')).toBeVisible()
 })
 
 test('calendar navigation and household source selection work with touch-sized controls', async ({ page }) => {

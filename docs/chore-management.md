@@ -6,6 +6,7 @@ Chore Management Increment 1 implements product-owned chore definitions, one-tim
 
 - Adults create, edit, activate, and deactivate reusable household chore definitions.
 - Adults assign an active definition once to any active household member with a required household-local due date and optional time.
+- One-time and recurring work may instead be marked `open`. Open assignments appear under **Up for grabs** until an active household member claims them; claiming moves them into the assigned lane without changing their historical open origin.
 - Definition and due-date details are snapshotted onto the assignment so historical meaning does not change when settings or definitions change.
 - Routine completion is available to authenticated household members. A private adult session defaults attribution to that adult; the full Chores page requires an explicit active-member choice on a shared display. Home-dashboard completion preselects the chore's assigned member and keeps the choice visible and changeable before submission.
 - Completion moves the assignment to `awaitingReview`. An adult may approve it, making the assignment complete, or reject it, preserving the attempt and returning the assignment to pending.
@@ -20,6 +21,7 @@ Routine household-member routes:
 - `GET /api/households/{householdId}/chores/participants`
 - `GET /api/households/{householdId}/chore-assignments?view=active|history`
 - `POST /api/households/{householdId}/chore-assignments/{assignmentId}/completions`
+- `POST /api/households/{householdId}/chore-assignments/{assignmentId}/claim`
 
 Adult-administration routes:
 
@@ -36,6 +38,8 @@ All unsafe requests require the credentialed application session and antiforgery
 ## Concurrency and retries
 
 Definitions, assignments, and completions use explicit versions. Stale writes return a conflict rather than overwriting newer state. Client-generated UUID request IDs make definition creation, assignment creation, and completion retryable; reuse with a different payload is rejected. A database constraint permits only one pending completion per assignment.
+
+Open-chore claiming is also versioned and idempotent. PostgreSQL permits exactly one household-scoped claim request ID, and competing claims converge on one assigned member. A locked shared display may claim routine work only after an active member is explicitly selected; creating or changing open schedules remains parent-PIN-gated administration.
 
 ## Time zones
 
@@ -76,7 +80,7 @@ Administrative routes are:
 
 The portable generator command is `FamilyDashboard.Api --generate-chore-assignments`. Docker Compose exposes it through the opt-in `tools` profile, K3s uses an hourly CronJob with `concurrencyPolicy: Forbid`, and Azure uses an hourly Consumption scheduled job. A PostgreSQL advisory lock and a unique schedule-occurrence index make overlapping and retried runs safe without Hangfire, Quartz, or another scheduler database.
 
-Missed active occurrences are generated late in batches of at most 100 rather than silently discarded. Spring-forward gaps shift to the first valid local time; fall-back ambiguity chooses the earlier instant. Existing generated assignments remain unchanged after a household time-zone edit.
+Missed active occurrences are generated late in batches of at most 100 rather than silently discarded. Spring-forward gaps shift to the first valid local time; fall-back ambiguity chooses the earlier instant. Existing generated assignments remain unchanged after a household time-zone edit. Schedules may target a specific active member or remain open. Open daily, weekday, weekly, and interval schedules generate unassigned occurrences that are not blocked by a later member deactivation. Claiming records the member, time, request ID, and shared-display context; completion, adult review, and point awarding then use the existing retained workflow.
 
 ## Increment 2 staging result
 

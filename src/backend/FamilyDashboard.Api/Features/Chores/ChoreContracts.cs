@@ -10,9 +10,14 @@ public sealed record ChangeChoreDefinitionStateRequest(long ExpectedVersion);
 public sealed record CreateChoreAssignmentRequest(
     Guid ClientRequestId,
     Guid ChoreDefinitionId,
-    Guid AssignedMemberId,
+    string AssignmentMode,
+    Guid? AssignedMemberId,
     DateOnly DueLocalDate,
     TimeOnly? DueLocalTime);
+public sealed record ClaimChoreAssignmentRequest(
+    Guid ClientRequestId,
+    long ExpectedAssignmentVersion,
+    Guid HouseholdMemberId);
 public sealed record CompleteChoreRequest(
     Guid ClientRequestId,
     long ExpectedAssignmentVersion,
@@ -23,7 +28,8 @@ public sealed record ChoreRecurrenceRequest(string Kind, int Interval, IReadOnly
 public sealed record CreateChoreScheduleRequest(
     Guid ClientRequestId,
     Guid ChoreDefinitionId,
-    Guid AssignedMemberId,
+    string AssignmentMode,
+    Guid? AssignedMemberId,
     ChoreRecurrenceRequest Recurrence,
     DateOnly StartLocalDate,
     DateOnly? EndLocalDate,
@@ -31,7 +37,8 @@ public sealed record CreateChoreScheduleRequest(
 public sealed record UpdateChoreScheduleRequest(
     long ExpectedVersion,
     Guid ChoreDefinitionId,
-    Guid AssignedMemberId,
+    string AssignmentMode,
+    Guid? AssignedMemberId,
     ChoreRecurrenceRequest Recurrence,
     DateOnly StartLocalDate,
     DateOnly? EndLocalDate,
@@ -81,7 +88,9 @@ public sealed record ChoreAssignmentResponse(
     string Title,
     string? Description,
     int PointValue,
-    ChoreParticipantResponse AssignedMember,
+    string AssignmentMode,
+    ChoreParticipantResponse? AssignedMember,
+    DateTimeOffset? ClaimedAt,
     DateOnly? DueLocalDate,
     TimeOnly? DueLocalTime,
     DateTimeOffset? DueAt,
@@ -97,7 +106,8 @@ public sealed record ChoreAssignmentResponse(
 public sealed record ChoreScheduleResponse(
     Guid Id,
     ChoreDefinitionResponse Definition,
-    ChoreParticipantResponse AssignedMember,
+    string AssignmentMode,
+    ChoreParticipantResponse? AssignedMember,
     ChoreRecurrenceRequest Recurrence,
     DateOnly StartLocalDate,
     DateOnly? EndLocalDate,
@@ -118,6 +128,7 @@ public sealed record ChoreDashboardResponse(
     IReadOnlyList<ChoreAssignmentResponse> Overdue,
     IReadOnlyList<ChoreAssignmentResponse> DueToday,
     IReadOnlyList<ChoreAssignmentResponse> Upcoming,
+    IReadOnlyList<ChoreAssignmentResponse> Open,
     int AwaitingReviewCount);
 
 public sealed record ChoreListResponse(
@@ -140,6 +151,7 @@ public enum ChoreOperationStatus
     IdempotencyConflict,
     ConcurrencyConflict,
     InvalidDueDate,
+    AlreadyClaimed,
 }
 
 public enum ChoreScheduleOperationStatus

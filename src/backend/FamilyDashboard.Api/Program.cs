@@ -176,6 +176,8 @@ builder.Services.AddRateLimiter(options =>
             "/calendar/events", StringComparison.Ordinal) == true;
         var isChoreCompletion = context.HttpContext.Request.Path.Value?.EndsWith(
             "/completions", StringComparison.Ordinal) == true;
+        var isChoreClaim = context.HttpContext.Request.Path.Value?.EndsWith(
+            "/claim", StringComparison.Ordinal) == true;
         var problem = FamilyDashboard.Api.Features.Common.ApiProblems.Create(
             context.HttpContext,
             StatusCodes.Status429TooManyRequests,
@@ -183,11 +185,15 @@ builder.Services.AddRateLimiter(options =>
                 ? FamilyDashboard.Api.Features.Common.ApiProblemCodes.CalendarEventCreationRateLimited
                 : isChoreCompletion
                     ? FamilyDashboard.Api.Features.Common.ApiProblemCodes.ChoreCompletionRateLimited
+                : isChoreClaim
+                    ? FamilyDashboard.Api.Features.Common.ApiProblemCodes.ChoreClaimRateLimited
                 : FamilyDashboard.Api.Features.Common.ApiProblemCodes.ParentPinRateLimited,
             isCalendarCreation
                 ? "Too many calendar events were submitted. Try again shortly."
                 : isChoreCompletion
                     ? "Too many chore completions were submitted. Try again shortly."
+                : isChoreClaim
+                    ? "Too many chore claims were submitted. Try again shortly."
                 : "Too many parent PIN attempts. Try again shortly.");
         problem.Extensions["retryAfterSeconds"] = 60;
         await Results.Problem(problem).ExecuteAsync(context.HttpContext);

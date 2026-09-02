@@ -16,10 +16,15 @@ public sealed class ChoreScheduleEntityConfiguration : IEntityTypeConfiguration<
             table.HasCheckConstraint("CK_ChoreSchedules_WeekdayMask",
                 "(\"RecurrenceKind\" = 'Daily' AND \"DaysOfWeekMask\" IS NULL) OR " +
                 "(\"RecurrenceKind\" = 'Weekly' AND \"DaysOfWeekMask\" BETWEEN 1 AND 127)");
+            table.HasCheckConstraint("CK_ChoreSchedules_AssignmentModeMember",
+                "(\"AssignmentMode\" = 'Assigned' AND \"HouseholdMemberId\" IS NOT NULL) OR " +
+                "(\"AssignmentMode\" = 'Open' AND \"HouseholdMemberId\" IS NULL)");
         });
         builder.HasKey(schedule => schedule.Id);
         builder.Property(schedule => schedule.RecurrenceKind).HasConversion<string>().HasMaxLength(16);
         builder.Property(schedule => schedule.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(schedule => schedule.AssignmentMode).HasConversion<string>().HasMaxLength(16)
+            .HasDefaultValue(ChoreAssignmentMode.Assigned);
         builder.Property(schedule => schedule.BlockedReason).HasMaxLength(64);
         builder.Property(schedule => schedule.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         builder.Property(schedule => schedule.UpdatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");

@@ -4,12 +4,15 @@ import { useAuthentication } from '../authentication/AuthenticationContext'
 import { ApiError, listChoreAssignments, listChoreParticipants, type ChoreAssignmentResponse, type ChoreParticipantResponse } from '../../lib/api'
 import { ChoreList } from './ChoreList'
 import { CompleteChoreDialog } from './CompleteChoreDialog'
+import { ClaimChoreDialog } from './ClaimChoreDialog'
 
 export function ChoresPage() {
   const { state } = useAuthentication()
   const [assignments, setAssignments] = useState<ChoreAssignmentResponse[]>([])
   const [participants, setParticipants] = useState<ChoreParticipantResponse[]>([])
   const [selected, setSelected] = useState<ChoreAssignmentResponse | null>(null)
+  const [selectedClaim, setSelectedClaim] = useState<ChoreAssignmentResponse | null>(null)
+  const [announcement, setAnnouncement] = useState('')
   const [view, setView] = useState<'active' | 'history'>('active')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,11 +50,18 @@ export function ChoresPage() {
       {loading && <p role="status">Loading household chores…</p>}
       {error && <div className="admin-status" role="alert"><p>{error}</p><button onClick={() => void load()} type="button">Try again</button></div>}
       {!loading && !error && assignments.length === 0 && <section className="empty-state"><h3>{view === 'active' ? 'All clear!' : 'No chore history yet'}</h3><p>{view === 'active' ? 'There are no active chores right now.' : 'Completed and skipped chores will appear here.'}</p></section>}
-      {!loading && assignments.length > 0 && <ChoreList assignments={assignments} onComplete={view === 'active' ? setSelected : undefined} />}
+      <p aria-live="polite" className="visually-hidden">{announcement}</p>
+      {!loading && assignments.length > 0 && <ChoreList assignments={assignments}
+        onClaim={view === 'active' ? setSelectedClaim : undefined}
+        onComplete={view === 'active' ? setSelected : undefined} />}
       {selected && <CompleteChoreDialog assignment={selected} householdId={household.id}
         defaultMemberId={isSharedDisplay ? '' : household.memberId}
         participants={participants} onClose={() => setSelected(null)}
         onCompleted={() => { setSelected(null); void load() }} />}
+      {selectedClaim && <ClaimChoreDialog assignment={selectedClaim} householdId={household.id}
+        defaultMemberId={isSharedDisplay ? '' : household.memberId} participants={participants}
+        onClose={() => setSelectedClaim(null)}
+        onClaimed={(memberName) => { setAnnouncement(`${selectedClaim.title} assigned to ${memberName}.`); setSelectedClaim(null); void load() }} />}
     </main>
   )
 }

@@ -375,7 +375,9 @@ export interface ChoreAssignmentResponse {
   title: string
   description: string | null
   pointValue: number
-  assignedMember: ChoreParticipantResponse
+  assignmentMode: 'assigned' | 'open'
+  assignedMember: ChoreParticipantResponse | null
+  claimedAt: string | null
   dueLocalDate: string | null
   dueLocalTime: string | null
   dueAt: string | null
@@ -393,6 +395,7 @@ export interface ChoreDashboardResponse {
   overdue: ChoreAssignmentResponse[]
   dueToday: ChoreAssignmentResponse[]
   upcoming: ChoreAssignmentResponse[]
+  open: ChoreAssignmentResponse[]
   awaitingReviewCount: number
 }
 
@@ -477,7 +480,8 @@ export interface ChoreRecurrenceRequest {
 export interface ChoreScheduleResponse {
   id: string
   definition: ChoreDefinitionResponse
-  assignedMember: ChoreParticipantResponse
+  assignmentMode: 'assigned' | 'open'
+  assignedMember: ChoreParticipantResponse | null
   recurrence: ChoreRecurrenceRequest
   startLocalDate: string
   endLocalDate: string | null
@@ -495,7 +499,8 @@ export interface ChoreScheduleResponse {
 
 export interface ChoreScheduleWriteRequest {
   choreDefinitionId: string
-  assignedMemberId: string
+  assignmentMode: 'assigned' | 'open'
+  assignedMemberId: string | null
   recurrence: ChoreRecurrenceRequest
   startLocalDate: string
   endLocalDate: string | null
@@ -761,6 +766,17 @@ export function completeChore(householdId: string, assignmentId: string, body: {
   )
 }
 
+export function claimChore(householdId: string, assignmentId: string, body: {
+  clientRequestId: string
+  expectedAssignmentVersion: number
+  householdMemberId: string
+}) {
+  return unsafeRequest<ChoreAssignmentResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/chore-assignments/${encodeURIComponent(assignmentId)}/claim`,
+    'POST', body,
+  )
+}
+
 export function listChoreDefinitions(householdId: string, includeInactive = true) {
   return request<ChoreDefinitionResponse[]>(
     `/api/households/${encodeURIComponent(householdId)}/chore-definitions?includeInactive=${includeInactive}`,
@@ -794,7 +810,8 @@ export function setChoreDefinitionActive(householdId: string, definition: ChoreD
 export function createChoreAssignment(householdId: string, body: {
   clientRequestId: string
   choreDefinitionId: string
-  assignedMemberId: string
+  assignmentMode: 'assigned' | 'open'
+  assignedMemberId: string | null
   dueLocalDate: string
   dueLocalTime: string | null
 }) {

@@ -4,7 +4,9 @@ Google Tasks Increment 1 adds backend protection tests for connection- and token
 
 The wall-display usability follow-up adds PostgreSQL coverage proving that shared task status changes retain session/shared-display audit fields while leaving member attribution null. Component tests cover circle-based completion on the full Tasks page and Home dashboard, omission of client member attribution, and Home chore submission with the assigned child visibly preselected before adult review.
 
-Local validation for this follow-up passed all 124 backend tests against disposable PostgreSQL 18, 45 frontend component tests, and 42 wall-display/phone Playwright scenarios. Frontend lint and the production PWA build, backend and frontend production container builds, dependency vulnerability scans, Bicep compilation, Docker Compose validation, and both K3s overlays also passed.
+The open-chore follow-up adds PostgreSQL coverage for open daily generation, nullable-assignee constraints, competing atomic claims, shared-display claim audit, and existing assigned-work preservation. Component and Playwright coverage exercise the two dashboard lanes, explicit photo-based member selection, open schedule administration, claim success announcements, responsive stacking, and the unchanged completion/review boundary.
+
+Local validation for this follow-up passed all 125 backend tests against disposable PostgreSQL 18, 46 frontend component tests, and 46 wall-display/phone Playwright scenarios. Frontend lint and the production PWA build, backend and frontend production container builds, dependency vulnerability scans, Bicep compilation, Docker Compose validation, and both K3s overlays also passed.
 
 Google Tasks Increment 2 local validation passed all 116 backend tests against the dedicated disposable PostgreSQL 18 database with no skips, 35 frontend component tests, and 32 wall-display/phone Playwright tests. Frontend lint, the production PWA build, production backend/frontend container builds, dependency security checks, Bicep compilation, Docker Compose validation, and both Kubernetes overlays also passed.
 

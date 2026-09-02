@@ -4,6 +4,23 @@ using FamilyDashboard.Api.Domain.Chores;
 
 public static class ChoreValidation
 {
+    public static bool TryAssignmentTarget(string? assignmentMode, Guid? assignedMemberId,
+        out ChoreAssignmentMode mode, out Dictionary<string, string[]> errors)
+    {
+        errors = [];
+        if (!Enum.TryParse(assignmentMode, true, out mode)
+            || (mode != ChoreAssignmentMode.Assigned && mode != ChoreAssignmentMode.Open))
+        {
+            errors["assignmentMode"] = ["Choose assigned or open."];
+            return false;
+        }
+        if (mode == ChoreAssignmentMode.Assigned && (assignedMemberId is null || assignedMemberId == Guid.Empty))
+            errors["assignedMemberId"] = ["Choose a household member for an assigned chore."];
+        if (mode == ChoreAssignmentMode.Open && assignedMemberId is not null)
+            errors["assignedMemberId"] = ["An open chore cannot have an assigned member until it is claimed."];
+        return errors.Count == 0;
+    }
+
     public static bool TryDefinition(Guid clientRequestId, string? title, string? description,
         int defaultPointValue,
         out (Guid ClientRequestId, string Title, string? Description, int DefaultPointValue) values,

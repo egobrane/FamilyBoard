@@ -94,7 +94,7 @@ describe('App', () => {
           updatedAt: '2026-08-22T12:00:00Z',
         }],
         upcoming: [],
-        awaitingReviewCount: 0,
+        open: [], awaitingReviewCount: 0,
       })
       if (path.endsWith('/rewards')) return jsonResponse({
         rewards: [{ id: 'reward-1', title: 'Movie night', description: null, pointCost: 50, isActive: true, version: 1,

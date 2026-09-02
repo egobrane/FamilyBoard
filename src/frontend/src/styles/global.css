@@ -900,6 +900,12 @@ a:focus-visible {
   gap: 0.75rem;
 }
 
+.member-grid--standings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .member {
   display: flex;
   align-items: center;

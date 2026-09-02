@@ -23,17 +23,37 @@
 .google-task__check {
   display: grid;
   flex: 0 0 auto;
+  position: relative;
   width: 2.75rem;
   height: 2.75rem;
+  padding: 0;
   place-items: center;
   color: var(--color-accent, #43866f);
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   font-weight: 900;
   background: transparent;
-  border: 0.16rem solid currentColor;
+  border: 0;
   border-radius: 50%;
 }
+.google-task__check::before {
+  position: absolute;
+  width: 1.65rem;
+  height: 1.65rem;
+  background: var(--color-surface, #fffdf8);
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(34, 52, 47, 0.12), inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+  content: '';
+  transition: transform 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+.google-task__check > span { position: relative; z-index: 1; }
 .google-task__check--button { cursor: pointer; }
+.google-task__check--button:hover::before { transform: scale(1.08); box-shadow: 0 2px 5px rgba(34, 52, 47, 0.2); }
+.google-task__check--button:active::before { transform: scale(0.94); }
+.google-task__check--button[aria-pressed='true']::before,
+.google-task__check--complete::before { background: currentColor; box-shadow: none; }
+.google-task__check--button[aria-pressed='true'] > span,
+.google-task__check--complete > span { color: var(--color-surface, #fffdf8); }
 .google-task__check--button:disabled { cursor: wait; opacity: 0.65; }
 .google-task__content { display: grid; gap: 0.2rem; min-width: 0; }
 .google-task__content small { color: var(--color-text-muted, #65706c); }

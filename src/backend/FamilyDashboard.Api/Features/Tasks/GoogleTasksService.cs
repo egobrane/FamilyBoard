@@ -266,8 +266,8 @@ public sealed class GoogleTasksService(
         RequireMutationsAvailable();
         var normalized = NormalizeCreate(request);
         var source = await FindWriteTargetAsync(householdId, cancellationToken);
-        var actor = await RequireActorAsync(householdId, userAccountId, sessionId,
-            request.AttributedMemberId, allowAnonymousSharedDisplay: false, cancellationToken);
+        var actor = await RequireAttributedActorAsync(householdId, userAccountId, sessionId,
+            request.AttributedMemberId, cancellationToken);
         var fingerprint = Fingerprint(new { operation = "create", normalized.Title, normalized.Notes,
             normalized.DueDate, actor.MemberId, source.Id });
         var (receipt, recovered) = await GetOrCreateReceiptAsync(source, actor, request.IdempotencyKey,
@@ -316,8 +316,7 @@ public sealed class GoogleTasksService(
         var source = await FindWriteTargetAsync(householdId, cancellationToken);
         if (source.Id != request.SourceId)
             throw Error(404, Common.ApiProblemCodes.TasksSourceNotFound, "The writable task list was not found.");
-        var actor = await RequireActorAsync(householdId, userAccountId, sessionId,
-            requestedMemberId: null, allowAnonymousSharedDisplay: true, cancellationToken);
+        var actor = await RequireStatusActorAsync(householdId, userAccountId, sessionId, cancellationToken);
         var operation = request.TargetStatus == "completed"
             ? GoogleTaskMutationOperation.Complete : GoogleTaskMutationOperation.Reopen;
         var fingerprint = Fingerprint(new { operation, request.TaskId, request.TargetStatus,
@@ -551,9 +550,9 @@ public sealed class GoogleTasksService(
         return source;
     }
 
-    private async Task<(Guid UserId, Guid? MemberId, bool Shared)> RequireActorAsync(
+    private async Task<(Guid UserId, Guid? MemberId, bool Shared)> RequireAttributedActorAsync(
         Guid householdId, Guid userAccountId, Guid sessionId, Guid? requestedMemberId,
-        bool allowAnonymousSharedDisplay, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         var session = await dbContext.UserSessions.AsNoTracking().SingleOrDefaultAsync(item =>
             item.Id == sessionId && item.UserAccountId == userAccountId && item.RevokedAt == null
@@ -563,11 +562,10 @@ public sealed class GoogleTasksService(
         Guid? memberId;
         if (session.IsSharedDisplay)
         {
-            memberId = allowAnonymousSharedDisplay ? null : requestedMemberId;
-            if (!allowAnonymousSharedDisplay && (memberId is null
-                || !await dbContext.HouseholdMembers.AsNoTracking().AnyAsync(item =>
+            memberId = requestedMemberId;
+            if (memberId is null || !await dbContext.HouseholdMembers.AsNoTracking().AnyAsync(item =>
                     item.HouseholdId == householdId && item.Id == memberId && item.IsActive,
-                    cancellationToken)))
+                    cancellationToken))
                 throw Error(400, Common.ApiProblemCodes.ValidationFailed,
                     "Choose the active household member performing this task action.");
         }
@@ -582,6 +580,27 @@ public sealed class GoogleTasksService(
                     "An active adult household member is required.");
         }
         return (userAccountId, memberId, session.IsSharedDisplay);
+    }
+
+    private async Task<(Guid UserId, Guid? MemberId, bool Shared)> RequireStatusActorAsync(
+        Guid householdId, Guid userAccountId, Guid sessionId, CancellationToken cancellationToken)
+    {
+        var session = await dbContext.UserSessions.AsNoTracking().SingleOrDefaultAsync(item =>
+            item.Id == sessionId && item.UserAccountId == userAccountId && item.RevokedAt == null
+            && item.SelectedHouseholdId == householdId, cancellationToken)
+            ?? throw Error(409, Common.ApiProblemCodes.HouseholdSelectionRequired,
+                "Select this household before changing a task.");
+        if (session.IsSharedDisplay)
+            return (userAccountId, MemberId: null, Shared: true);
+
+        var memberId = await dbContext.HouseholdMemberships.AsNoTracking()
+            .Where(item => item.HouseholdId == householdId && item.UserAccountId == userAccountId
+                && item.HouseholdMember.IsActive)
+            .Select(item => (Guid?)item.HouseholdMemberId).SingleOrDefaultAsync(cancellationToken);
+        if (memberId is null)
+            throw Error(403, Common.ApiProblemCodes.AdultAccessRequired,
+                "An active adult household member is required.");
+        return (userAccountId, memberId, Shared: false);
     }
 
     private async Task<(GoogleTaskMutationReceipt Receipt, bool Recovered)> GetOrCreateReceiptAsync(

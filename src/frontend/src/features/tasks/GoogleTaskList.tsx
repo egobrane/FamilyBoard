@@ -23,7 +23,10 @@ export function GoogleTaskList({ tasks, compact = false, busyTaskId, onStatusCha
             disabled={busyTaskId === task.id}
             onClick={() => onStatusChange(task)} type="button">
             <span aria-hidden="true">{busyTaskId === task.id ? '…' : task.status === 'completed' ? '✓' : ''}</span>
-          </button> : <span aria-hidden="true" className="google-task__check">{task.status === 'completed' ? '✓' : ''}</span>}
+          </button> : <span aria-hidden="true"
+            className={`google-task__check ${task.status === 'completed' ? 'google-task__check--complete' : ''}`}>
+            <span>{task.status === 'completed' ? '✓' : ''}</span>
+          </span>}
           <span className="google-task__content">
             <strong>{task.title}</strong>
             <small>{task.taskListName}{dueLabel(task.dueDate) ? ` · Due ${dueLabel(task.dueDate)}` : ''}</small>

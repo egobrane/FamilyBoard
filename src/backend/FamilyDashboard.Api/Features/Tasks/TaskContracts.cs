@@ -62,7 +62,6 @@ public sealed record UpdateGoogleTaskStatusRequest(
     Guid SourceId,
     string? TaskId,
     Guid IdempotencyKey,
-    Guid? AttributedMemberId,
     string? TargetStatus,
     string? MutationVersion);
 
@@ -73,7 +72,7 @@ public sealed record GoogleTaskMutationResponse(
     string Status,
     string? DueDate,
     string MutationVersion,
-    Guid AttributedMemberId,
+    Guid? AttributedMemberId,
     bool RecoveredExistingMutation);
 
 public sealed record GoogleTasksWarningResponse(Guid SourceId, string Code, string Message);

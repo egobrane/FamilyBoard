@@ -8,7 +8,7 @@ Google Tasks remains the source of truth. Family Dashboard stores one `GoogleTas
 
 An adult connection may contribute selected lists to multiple households. Routine reads include a source only while its owner remains an active adult member of that household. Connecting, selecting lists, and disconnecting require household administration; locked shared displays therefore require current parent-PIN elevation. Routine task viewing remains available on a locked shared display.
 
-Each household may select at most one active, adult-owned writable list. The same provider list cannot be writable for multiple households. Locked shared displays may create, complete, and reopen tasks without elevation only after an active household member is explicitly selected for attribution. Private adult sessions use their linked adult profile. This records supervised intent; it is not independent child authentication.
+Each household may select at most one active, adult-owned writable list. The same provider list cannot be writable for multiple households. Creating a task from a locked shared display still requires an active household member for attribution. Completion and reopening are household-shared actions: a locked display records the authenticated session and shared-display origin without claiming that a specific person performed the action. Private adult status changes retain their linked adult attribution. This is audit context, not independent child authentication.
 
 ## API
 

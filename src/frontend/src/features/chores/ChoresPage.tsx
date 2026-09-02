@@ -32,6 +32,7 @@ export function ChoresPage() {
     return () => window.clearTimeout(handle)
   }, [load])
   if (!household) return null
+  const isSharedDisplay = state.status === 'authenticated' && state.currentUser.session?.isSharedDisplay === true
 
   return (
     <main className="feature-page workspace-feature-page" id="main-content" tabIndex={-1}>
@@ -48,8 +49,7 @@ export function ChoresPage() {
       {!loading && !error && assignments.length === 0 && <section className="empty-state"><h3>{view === 'active' ? 'All clear!' : 'No chore history yet'}</h3><p>{view === 'active' ? 'There are no active chores right now.' : 'Completed and skipped chores will appear here.'}</p></section>}
       {!loading && assignments.length > 0 && <ChoreList assignments={assignments} onComplete={view === 'active' ? setSelected : undefined} />}
       {selected && <CompleteChoreDialog assignment={selected} householdId={household.id}
-        isSharedDisplay={state.status === 'authenticated' && state.currentUser.session?.isSharedDisplay === true}
-        defaultMemberId={household.memberId}
+        defaultMemberId={isSharedDisplay ? '' : household.memberId}
         participants={participants} onClose={() => setSelected(null)}
         onCompleted={() => { setSelected(null); void load() }} />}
     </main>

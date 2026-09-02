@@ -15,7 +15,7 @@ public sealed class GoogleTaskMutationReceipt
     public string? ProviderTaskId { get; set; }
     public string? ResultProviderETag { get; set; }
     public Guid RequestedByUserAccountId { get; set; }
-    public Guid AttributedHouseholdMemberId { get; set; }
+    public Guid? AttributedHouseholdMemberId { get; set; }
     public bool RequestedFromSharedDisplay { get; set; }
     public string? FailureCode { get; set; }
     public required string TraceId { get; set; }
@@ -26,5 +26,5 @@ public sealed class GoogleTaskMutationReceipt
     public HouseholdTaskListSource HouseholdTaskListSource { get; set; } = null!;
     public GoogleTasksConnection GoogleTasksConnection { get; set; } = null!;
     public UserAccount RequestedByUserAccount { get; set; } = null!;
-    public HouseholdMember AttributedHouseholdMember { get; set; } = null!;
+    public HouseholdMember? AttributedHouseholdMember { get; set; }
 }

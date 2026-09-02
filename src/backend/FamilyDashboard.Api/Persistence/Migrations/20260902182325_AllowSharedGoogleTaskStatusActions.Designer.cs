@@ -3,6 +3,7 @@ using System;
 using FamilyDashboard.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FamilyDashboard.Api.Persistence.Migrations
 {
     [DbContext(typeof(FamilyDashboardDbContext))]
-    partial class FamilyDashboardDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902182325_AllowSharedGoogleTaskStatusActions")]
+    partial class AllowSharedGoogleTaskStatusActions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

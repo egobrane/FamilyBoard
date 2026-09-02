@@ -64,6 +64,8 @@ let householdInvitations: Array<{
 }> = []
 let choreSchedules: Array<Record<string, unknown>> = []
 let rewardRedemptions: Array<Record<string, unknown>> = []
+let taskStatusRequests: Array<Record<string, unknown>> = []
+let choreCompletionRequests: Array<Record<string, unknown>> = []
 let dashboardAppearance = {
   householdId: authenticatedUser.households[0].id,
   timeZone: 'America/New_York',
@@ -92,6 +94,8 @@ test.beforeEach(async ({ page }) => {
   householdInvitations = []
   choreSchedules = []
   rewardRedemptions = []
+  taskStatusRequests = []
+  choreCompletionRequests = []
   dashboardAppearance = { ...dashboardAppearance, greetingTitle: null, greetingMessage: null, version: 1 }
   weatherSettings = undefined
   await page.route('http://localhost:8080/api/**', async (route) => {
@@ -283,9 +287,10 @@ test.beforeEach(async ({ page }) => {
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/status`) {
+      taskStatusRequests.push(route.request().postDataJSON() as Record<string, unknown>)
       await route.fulfill({ json: { operation: 'complete', taskId: 'task-1', sourceId: 'task-source-1',
         status: 'completed', dueDate: '2026-08-27', mutationVersion: 'task-version-2',
-        attributedMemberId: authenticatedUser.households[0].memberId, recoveredExistingMutation: false } })
+        attributedMemberId: null, recoveredExistingMutation: false } })
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks/connection`) {
@@ -427,6 +432,7 @@ test.beforeEach(async ({ page }) => {
       return
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chore-assignments/${choreAssignment.id}/completions`) {
+      choreCompletionRequests.push(route.request().postDataJSON() as Record<string, unknown>)
       await route.fulfill({ json: { id: '62000000-0000-0000-0000-000000000001', assignmentId: choreAssignment.id,
         completedByMember: householdMembers[0], status: 'pendingReview', wasSharedDisplay: currentSession.isSharedDisplay,
         pointValue: 10, completedAt: '2026-08-22T18:00:00Z', reviewedByMember: null,
@@ -665,8 +671,10 @@ test('Google Tasks navigation and household list selection are accessible', asyn
   await page.getByRole('link', { name: 'Tasks', exact: true }).click()
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByText('Pack lunches')).toBeVisible()
-  await page.getByRole('button', { name: 'Complete', exact: true }).click()
+  await page.getByRole('button', { name: 'Complete Pack lunches' }).click()
   await expect(page.getByText('Task completed in Google Tasks.')).toBeVisible()
+  await expect.poll(() => taskStatusRequests.length).toBe(1)
+  expect(taskStatusRequests[0]).not.toHaveProperty('attributedMemberId')
   await page.getByRole('link', { name: 'Add task' }).click()
   await page.getByLabel('Task title').fill('Prepare backpacks')
   await page.getByRole('button', { name: 'Add task' }).click()
@@ -678,6 +686,25 @@ test('Google Tasks navigation and household list selection are accessible', asyn
   await expect(page.getByText('Visible Google task lists saved.')).toBeVisible()
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
+})
+
+test('home task and chore circles support quick wall-display actions', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Complete Pack lunches' }).click()
+  await expect(page.getByText('Task completed.')).toBeVisible()
+  await expect.poll(() => taskStatusRequests.length).toBe(1)
+  expect(taskStatusRequests[0]).not.toHaveProperty('attributedMemberId')
+
+  await page.getByRole('button', { name: 'Mark Feed Milo done' }).click()
+  await expect(page.getByRole('heading', { name: /Mark “Feed Milo” done/ })).toBeVisible()
+  await expect(page.getByRole('radio', { name: /Ryan Bamford/ })).toBeChecked()
+  await page.getByRole('dialog').getByRole('button', { name: 'Mark done' }).click()
+  await expect.poll(() => choreCompletionRequests.length).toBe(1)
+  expect(choreCompletionRequests[0]).toMatchObject({
+    completedByMemberId: authenticatedUser.households[0].memberId,
+    expectedAssignmentVersion: 1,
+  })
 })
 
 test('controlled event creation is keyboard accessible and returns to the calendar', async ({ page }) => {

@@ -7,7 +7,7 @@ Chore Management Increment 1 implements product-owned chore definitions, one-tim
 - Adults create, edit, activate, and deactivate reusable household chore definitions.
 - Adults assign an active definition once to any active household member with a required household-local due date and optional time.
 - Definition and due-date details are snapshotted onto the assignment so historical meaning does not change when settings or definitions change.
-- Routine completion is available to authenticated household members. A private adult session defaults attribution to that adult; a shared display requires an explicit active-member choice.
+- Routine completion is available to authenticated household members. A private adult session defaults attribution to that adult; the full Chores page requires an explicit active-member choice on a shared display. Home-dashboard completion preselects the chore's assigned member and keeps the choice visible and changeable before submission.
 - Completion moves the assignment to `awaitingReview`. An adult may approve it, making the assignment complete, or reject it, preserving the attempt and returning the assignment to pending.
 - Adults may skip a pending assignment. Definitions, assignments, completions, and skip/review records are retained rather than deleted.
 - No point transaction is created in this increment.
@@ -48,7 +48,7 @@ After the migration and matching frontend deploy:
 1. Create and edit a definition, then deactivate and reactivate it.
 2. Assign it to an active child and confirm it appears on the dashboard and full chore list.
 3. Complete it from a private adult session and confirm adult attribution.
-4. Complete another from a locked shared display after explicitly choosing a member.
+4. Complete another from the Home dashboard on a locked shared display; confirm the assigned member is preselected, may be changed, and remains explicit in adult review.
 5. Confirm shared-display administration and review remain PIN-gated.
 6. Reject a completion, retry it, then approve it; confirm both attempts remain in history and no points are awarded.
 7. Skip a pending assignment and confirm it moves to history.

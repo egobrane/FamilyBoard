@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { ApiError, completeChore, type ChoreAssignmentResponse, type ChoreParticipantResponse } from '../../lib/api'
 import { MemberPicker } from '../../components/MemberPicker'
 
-export function CompleteChoreDialog({ assignment, householdId, isSharedDisplay, defaultMemberId, participants, onClose, onCompleted }: {
+export function CompleteChoreDialog({ assignment, householdId, defaultMemberId, participants, onClose, onCompleted }: {
   assignment: ChoreAssignmentResponse
   householdId: string
-  isSharedDisplay: boolean
   defaultMemberId: string
   participants: ChoreParticipantResponse[]
   onClose: () => void
@@ -13,7 +12,7 @@ export function CompleteChoreDialog({ assignment, householdId, isSharedDisplay, 
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const requestId = useRef(crypto.randomUUID())
-  const [memberId, setMemberId] = useState(isSharedDisplay ? '' : defaultMemberId)
+  const [memberId, setMemberId] = useState(defaultMemberId)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => { dialog.current?.showModal() }, [])

@@ -1,10 +1,20 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChoreList } from './ChoreList'
 import type { ChoreAssignmentResponse, ChoreScheduleResponse } from '../../lib/api'
 import { ChoreRecurrenceFields } from './ChoreRecurrenceFields'
 import { ChoreScheduleList } from './ChoreScheduleList'
+import { DashboardChoresCard } from './DashboardChoresCard'
+import { AuthenticationProvider } from '../authentication/AuthenticationContext'
+
+const householdId = '20000000-0000-0000-0000-000000000001'
+const response = (body: unknown) => new Response(JSON.stringify(body), {
+  status: 200, headers: { 'Content-Type': 'application/json' },
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 const assignment: ChoreAssignmentResponse = {
   id: 'assignment-1', choreDefinitionId: 'definition-1', title: 'Feed Milo',
@@ -30,6 +40,42 @@ describe('ChoreList', () => {
     render(<ChoreList assignments={[{ ...assignment, status: 'awaitingReview', isOverdue: false }]} onComplete={vi.fn()} />)
     expect(screen.getByText('Waiting for review')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Mark done' })).not.toBeInTheDocument()
+  })
+
+  it('lets a child submit an assigned chore from the dashboard for adult review', async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true,
+      value(this: HTMLDialogElement) { this.setAttribute('open', '') } })
+    const currentUser = { user: { id: 'user-1', displayName: 'Ryan', primaryEmail: 'ryan@example.test' },
+      households: [{ id: householdId, name: 'Family', memberId: 'adult-1', role: 'adult' }],
+      selectedHouseholdId: householdId, session: { expiresAt: '2026-09-03T00:00:00Z',
+        isSharedDisplay: true, deviceLabel: 'Kitchen display', administrativeElevationHouseholdId: null,
+        administrativeElevationExpiresAt: null } }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return response(currentUser)
+      if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/chores/dashboard')) return response({ overdue: [assignment], dueToday: [],
+        upcoming: [], awaitingReviewCount: 0 })
+      if (path.endsWith('/chores/participants')) return response([assignment.assignedMember])
+      if (path.endsWith(`/chore-assignments/${assignment.id}/completions`) && init?.method === 'POST')
+        return response({ id: 'completion-1', assignmentId: assignment.id,
+          completedByMember: assignment.assignedMember, status: 'pendingReview', wasSharedDisplay: true,
+          pointValue: assignment.pointValue, completedAt: '2026-09-02T18:00:00Z', reviewedByMember: null,
+          reviewedAt: null, reviewNote: null, version: 1, award: null })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter><AuthenticationProvider><DashboardChoresCard /></AuthenticationProvider></MemoryRouter>)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Mark Feed Milo done' }))
+    expect(screen.getByRole('radio', { name: /Zoey/ })).toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    const completionCall = fetchMock.mock.calls.find(([input]) =>
+      new URL(String(input)).pathname.endsWith(`/chore-assignments/${assignment.id}/completions`))
+    expect(completionCall).toBeDefined()
+    expect(JSON.parse(String(completionCall?.[1]?.body))).toEqual(expect.objectContaining({
+      expectedAssignmentVersion: assignment.version, completedByMemberId: assignment.assignedMember.id,
+    }))
   })
 })
 

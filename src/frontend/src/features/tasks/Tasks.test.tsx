@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../app/App'
 import { AuthenticationProvider } from '../authentication/AuthenticationContext'
+import { DashboardTasksCard } from './DashboardTasksCard'
 
 const householdId = '20000000-0000-0000-0000-000000000001'
 const connectionId = '40000000-0000-0000-0000-000000000001'
@@ -72,5 +73,59 @@ describe('Google Tasks', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/tasks'), expect.objectContaining({
       method: 'POST', credentials: 'include', headers: expect.objectContaining({ 'X-CSRF-TOKEN': 'csrf' }),
     }))
+  })
+
+  it('lets a shared display complete a task from its circle without member attribution', async () => {
+    const sharedUser = { ...currentUser, session: { ...currentUser.session, isSharedDisplay: true } }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      void _init
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return response(sharedUser)
+      if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/tasks/status')) return response({ operation: 'complete', taskId: 'task-1',
+        sourceId: 'source-1', status: 'completed', dueDate: null, mutationVersion: 'version-2',
+        attributedMemberId: null, recoveredExistingMutation: false })
+      if (path.endsWith('/tasks')) return response({ tasks: [{ id: 'task-1', sourceId: 'source-1',
+        taskListName: 'Family', title: 'Pack lunch', notes: null, status: 'needsAction', dueDate: null,
+        completedAt: null, parentTaskId: null, position: '1', isSubtask: false, isAssigned: false,
+        canChangeStatus: true, mutationVersion: 'version-1' }], nextCursor: null, isStale: false,
+        warnings: [], canCreateTasks: true })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter initialEntries={['/tasks']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
+
+    expect(screen.queryByText('Who is using the board?')).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: 'Complete Pack lunch' }))
+    expect(await screen.findByText('Task completed in Google Tasks.')).toBeInTheDocument()
+    const statusCall = fetchMock.mock.calls.find(([input]) => new URL(String(input)).pathname.endsWith('/tasks/status'))
+    expect(statusCall).toBeDefined()
+    expect(JSON.parse(String(statusCall?.[1]?.body))).toEqual(expect.objectContaining({
+      sourceId: 'source-1', taskId: 'task-1', targetStatus: 'completed', mutationVersion: 'version-1',
+    }))
+    expect(JSON.parse(String(statusCall?.[1]?.body))).not.toHaveProperty('attributedMemberId')
+  })
+
+  it('completes a shared task directly from the Home dashboard', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return response(currentUser)
+      if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/tasks/status')) return response({ operation: 'complete', taskId: 'task-1',
+        sourceId: 'source-1', status: 'completed', dueDate: null, mutationVersion: 'version-2',
+        attributedMemberId: null, recoveredExistingMutation: false })
+      if (path.endsWith('/tasks')) return response({ tasks: [{ id: 'task-1', sourceId: 'source-1',
+        taskListName: 'Family', title: 'Take out recycling', notes: null, status: 'needsAction', dueDate: null,
+        completedAt: null, parentTaskId: null, position: '1', isSubtask: false, isAssigned: false,
+        canChangeStatus: true, mutationVersion: 'version-1' }], nextCursor: null, isStale: false,
+        warnings: [], canCreateTasks: true })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter><AuthenticationProvider><DashboardTasksCard /></AuthenticationProvider></MemoryRouter>)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Complete Take out recycling' }))
+    expect(await screen.findByText('Task completed.')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input]) => new URL(String(input)).pathname.endsWith('/tasks/status'))).toBe(true)
   })
 })

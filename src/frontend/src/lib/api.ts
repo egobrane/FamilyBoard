@@ -225,7 +225,7 @@ export interface GoogleTaskMutationResponse {
   status: string
   dueDate: string | null
   mutationVersion: string
-  attributedMemberId: string
+  attributedMemberId: string | null
   recoveredExistingMutation: boolean
 }
 
@@ -1214,7 +1214,7 @@ export function createGoogleTask(householdId: string, body: {
 }
 
 export function updateGoogleTaskStatus(householdId: string, body: {
-  sourceId: string; taskId: string; idempotencyKey: string; attributedMemberId: string | null
+  sourceId: string; taskId: string; idempotencyKey: string
   targetStatus: 'completed' | 'needsAction'; mutationVersion: string
 }) {
   return unsafeRequest<GoogleTaskMutationResponse>(

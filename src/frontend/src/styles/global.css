@@ -20,9 +20,22 @@
   padding: 0.85rem 1rem;
 }
 
-.google-task__check { color: var(--color-accent, #43866f); font-size: 1.4rem; }
+.google-task__check {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  color: var(--color-accent, #43866f);
+  font-size: 1.25rem;
+  font-weight: 900;
+  background: transparent;
+  border: 0.16rem solid currentColor;
+  border-radius: 50%;
+}
+.google-task__check--button { cursor: pointer; }
+.google-task__check--button:disabled { cursor: wait; opacity: 0.65; }
 .google-task__content { display: grid; gap: 0.2rem; min-width: 0; }
-.google-task__action { flex: 0 0 auto; margin-left: auto; min-width: 7rem; }
 .google-task__content small { color: var(--color-text-muted, #65706c); }
 .google-task--completed strong { text-decoration: line-through; }
 .task-list-dot { background: #73b49a; border-radius: 50%; height: 1rem; width: 1rem; }
@@ -32,7 +45,7 @@
 
 @media (max-width: 760px) {
   .google-task { min-height: 3.75rem; }
-  .google-task__action, .feature-header__actions { width: 100%; }
+  .feature-header__actions { width: 100%; }
 }
 
 .reward-grid {
@@ -856,7 +869,7 @@ a:focus-visible {
 
 .chore {
   display: grid;
-  grid-template-columns: 2.4rem 1fr auto;
+  grid-template-columns: 2.25rem 2.4rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.85rem;
   min-height: 4.25rem;
@@ -876,6 +889,17 @@ a:focus-visible {
   font-weight: 900;
   border: 2px solid var(--color-line);
   border-radius: 0.7rem;
+}
+
+.chore__check--button {
+  padding: 0;
+  color: var(--color-mint-strong);
+  background: transparent;
+  cursor: pointer;
+}
+
+.chore__check--pending {
+  color: var(--color-muted);
 }
 
 .chore--complete .chore__check {

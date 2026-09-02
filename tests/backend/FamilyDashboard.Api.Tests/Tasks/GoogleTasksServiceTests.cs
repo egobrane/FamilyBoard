@@ -106,7 +106,7 @@ public sealed class GoogleTasksServiceTests
             "trace", CancellationToken.None);
         Assert.True(replay.RecoveredExistingMutation);
         var completed = await service.UpdateTaskStatusAsync(household.Id, account.Id, session.Id,
-            new UpdateGoogleTaskStatusRequest(source.Id, created.TaskId, Guid.NewGuid(), null,
+            new UpdateGoogleTaskStatusRequest(source.Id, created.TaskId, Guid.NewGuid(),
                 "completed", created.MutationVersion), "trace", CancellationToken.None);
         var receipts = await database.DbContext.GoogleTaskMutationReceipts.OrderBy(item => item.CreatedAt).ToArrayAsync();
         Assert.Equal(2, receipts.Length);
@@ -117,6 +117,50 @@ public sealed class GoogleTasksServiceTests
             entity.GetProperties().Any(property => property.Name is "Title" or "Notes")
                 && entity.ClrType == typeof(GoogleTaskMutationReceipt));
         Assert.Equal(created.TaskId, replay.TaskId);
+    }
+
+    [PostgreSqlFact]
+    public async Task SharedDisplayStatusChangeRecordsSharedSessionWithoutMemberAttribution()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        using var dependencies = new Dependencies();
+        var now = DateTimeOffset.UtcNow;
+        var account = new UserAccount { DisplayName = "Wall display owner", PrimaryEmail = "owner@example.test" };
+        var household = new Household { Name = "Task family" };
+        var member = new HouseholdMember { Household = household, DisplayName = "Owner", Role = HouseholdMemberRole.Adult };
+        var membership = new HouseholdMembership { UserAccount = account, Household = household, HouseholdMember = member };
+        var session = new UserSession { UserAccount = account, SelectedHouseholdId = household.Id,
+            IsSharedDisplay = true, CreatedAt = now, LastSeenAt = now, ExpiresAt = now.AddHours(1),
+            AbsoluteExpiresAt = now.AddDays(1) };
+        var connection = new GoogleTasksConnection { UserAccount = account, UserAccountId = account.Id,
+            ProviderSubject = "subject", ProviderEmailNormalized = "owner@example.test",
+            GrantedScopes = GoogleTasksScopes.Tasks, ProtectedAccessToken = "pending",
+            ProtectedRefreshToken = "pending", AccessTokenExpiresAt = now.AddHours(1) };
+        connection.ProtectedAccessToken = dependencies.Tokens.Protect(connection.Id, "access-token", "access");
+        connection.ProtectedRefreshToken = dependencies.Tokens.Protect(connection.Id, "refresh-token", "refresh");
+        var source = new HouseholdTaskListSource { Household = household, GoogleTasksConnection = connection,
+            OwnerUserAccountId = account.Id, AddedByUserAccount = account, ExternalTaskListId = "list-1",
+            DisplayNameSnapshot = "Family tasks", IsWriteTarget = true,
+            WriteTargetConfiguredAt = now, WriteTargetConfiguredByUserAccountId = account.Id };
+        database.DbContext.AddRange(account, household, member, membership, session, connection, source);
+        await database.DbContext.SaveChangesAsync();
+        var provider = new FakeProvider { TaskPage = new GoogleProviderTaskPage([
+            new GoogleProviderTask("task-1", "Pack lunch", null, "needsAction", null, null, null,
+                "1", false, "etag-1")], null) };
+        var mutationVersion = new TasksMutationProtector(
+            dependencies.DataProtectionProvider, TimeProvider.System)
+            .Protect(household.Id, source.Id, "task-1", "etag-1");
+
+        var result = await dependencies.Service(database, provider).UpdateTaskStatusAsync(
+            household.Id, account.Id, session.Id,
+            new UpdateGoogleTaskStatusRequest(source.Id, "task-1", Guid.NewGuid(), "completed", mutationVersion),
+            "trace", CancellationToken.None);
+
+        var receipt = await database.DbContext.GoogleTaskMutationReceipts.SingleAsync();
+        Assert.True(receipt.RequestedFromSharedDisplay);
+        Assert.Equal(account.Id, receipt.RequestedByUserAccountId);
+        Assert.Null(receipt.AttributedHouseholdMemberId);
+        Assert.Null(result.AttributedMemberId);
     }
 
     private sealed class Dependencies : IDisposable
@@ -131,6 +175,7 @@ public sealed class GoogleTasksServiceTests
         }
         public TasksTokenProtector Tokens { get; }
         public TasksStateProtector State { get; }
+        public IDataProtectionProvider DataProtectionProvider => _services.GetRequiredService<IDataProtectionProvider>();
         public GoogleTasksService Service(PostgreSqlTestDatabase database, IGoogleTasksProviderClient provider) =>
             new(database.DbContext, provider, Tokens, State,
                 new TasksMutationProtector(_services.GetRequiredService<IDataProtectionProvider>(), TimeProvider.System),

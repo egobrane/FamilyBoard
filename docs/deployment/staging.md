@@ -1,5 +1,12 @@
 # Staging Deployment Proof
 
+## Wall-display on-screen keyboard implementation: pending staging
+
+- The frontend now supplies an app-native keyboard for editable text, email, URL, telephone, numeric, and multiline fields without adding a runtime dependency or changing the backend, database, Azure resources, or secrets.
+- Wide authenticated shared displays use the keyboard automatically when the browser reports a coarse pointer. The account menu exposes a device-local Auto/On/Off preference; it stores only that preference and never entered text.
+- Password/PIN, date, time, file, select, read-only, disabled, and explicitly excluded controls retain their existing secure or native interaction. Workspace swipes do not begin on the keyboard, the navigation dock yields while it is open, and reduced-motion preferences are respected.
+- Automated validation covers controlled React inputs, common editing controls, multiline entry, excluded fields, wall-display entry, inter-field movement, and phone Auto behavior. This section must not be marked deployed until the matching Netlify release and physical wall display are owner-verified.
+
 ## Dashboard Personalization and Weather Increment 1 deployment and verification: 2026-09-01
 
 - Repository `main` and `origin/main` match correction commit `94dc97796daccad6c9f1a08b2b9888c461d583ff`. Continuous Integration run [33525799758](https://github.com/egobrane/FamilyBoard/actions/runs/33525799758) and publication/deployment run [33525799969](https://github.com/egobrane/FamilyBoard/actions/runs/33525799969) completed successfully.

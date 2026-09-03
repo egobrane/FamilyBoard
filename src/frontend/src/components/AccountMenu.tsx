@@ -2,6 +2,19 @@ import { useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import { MemberAvatar } from './MemberAvatar'
 import type { HouseholdMemberPhotoResponse } from '../lib/api'
+import { useTouchKeyboard, type TouchKeyboardPreference } from '../features/touch-keyboard/TouchKeyboardProvider'
+
+const keyboardPreferenceLabels: Record<TouchKeyboardPreference, string> = {
+  auto: 'Auto',
+  on: 'On',
+  off: 'Off',
+}
+
+function nextKeyboardPreference(current: TouchKeyboardPreference): TouchKeyboardPreference {
+  if (current === 'auto') return 'on'
+  if (current === 'on') return 'off'
+  return 'auto'
+}
 
 interface AccountMenuProps {
   displayName: string
@@ -30,6 +43,7 @@ export function AccountMenu({
   onLogout,
   onLockParentAccess,
 }: AccountMenuProps) {
+  const { preference: keyboardPreference, setPreference: setKeyboardPreference } = useTouchKeyboard()
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -84,6 +98,14 @@ export function AccountMenu({
               Parent access
             </Link>
           )}
+          <button
+            aria-label={`On-screen keyboard setting: ${keyboardPreferenceLabels[keyboardPreference]}. Activate to change.`}
+            onClick={() => setKeyboardPreference(nextKeyboardPreference(keyboardPreference))}
+            role="menuitem"
+            type="button"
+          >
+            On-screen keyboard: {keyboardPreferenceLabels[keyboardPreference]}
+          </button>
           {isSharedDisplay && isParentElevated && (
             <button
               disabled={isBusy}

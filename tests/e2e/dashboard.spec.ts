@@ -590,6 +590,37 @@ test('dashboard shell is readable and fits the viewport', async ({ page }) => {
   expect(horizontalOverflow).toBeLessThanOrEqual(1)
 })
 
+test('the wall-display keyboard enters text while phone Auto mode keeps the native keyboard', async ({ page }, testInfo) => {
+  await page.goto('/calendar')
+  await page.getByRole('link', { name: 'Add event' }).click()
+  const title = page.getByRole('textbox', { name: 'Event title' })
+  await title.click()
+
+  if (testInfo.project.name === 'phone') {
+    await expect(page.getByRole('region', { name: /On-screen keyboard/ })).toHaveCount(0)
+    return
+  }
+
+  await page.getByRole('button', { name: /Account menu for Ryan Bamford/ }).click()
+  await page.getByRole('menuitem', { name: /On-screen keyboard setting: Auto/ }).click()
+  await page.getByRole('button', { name: /Account menu for Ryan Bamford/ }).click()
+  await title.click()
+
+  const keyboard = page.getByRole('region', { name: 'On-screen keyboard for Event title' })
+  await expect(keyboard).toBeVisible()
+  await expect.poll(() => page.locator('body').getAttribute('data-touch-keyboard-open')).toBe('true')
+  for (const letter of ['f', 'a', 'm', 'i', 'l', 'y']) {
+    await keyboard.getByRole('button', { name: letter, exact: true }).click()
+  }
+  await expect(title).toHaveValue('family')
+
+  await keyboard.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByRole('textbox', { name: 'Location' })).toBeFocused()
+  await page.getByRole('region', { name: 'On-screen keyboard for Location' })
+    .getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('region', { name: /On-screen keyboard/ })).toHaveCount(0)
+})
+
 test('dashboard shell has no automatically detectable serious accessibility issues', async ({ page }) => {
   await page.goto('/')
 

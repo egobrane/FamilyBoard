@@ -35,6 +35,7 @@ import { HouseholdSelectionPage } from '../features/households/HouseholdSelectio
 import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
 import { configuration } from '../lib/configuration'
 import { lockParentAccess } from '../lib/api'
+import { TouchKeyboardProvider } from '../features/touch-keyboard/TouchKeyboardProvider'
 
 function formattedTime(date: Date) {
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
@@ -191,7 +192,7 @@ function AuthenticatedRoutes() {
   )
 }
 
-export function App() {
+function AppContent() {
   const { state, refresh } = useAuthentication()
   const location = useLocation()
 
@@ -210,4 +211,8 @@ export function App() {
       {location.pathname !== '/invite' && state.status === 'authenticated' && <AuthenticatedRoutes />}
     </>
   )
+}
+
+export function App() {
+  return <TouchKeyboardProvider><AppContent /></TouchKeyboardProvider>
 }

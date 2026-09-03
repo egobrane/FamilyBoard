@@ -52,10 +52,12 @@ function renderApp(path = '/') {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  window.localStorage.clear()
 })
 
 describe('App', () => {
   it('renders the authenticated touch-first dashboard with household context', async () => {
+    const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
@@ -134,6 +136,10 @@ describe('App', () => {
     expect(screen.getAllByText('Zoey').length).toBeGreaterThan(0)
     expect(await screen.findByText('Feed Milo')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /account menu for Ryan Bamford/i })).toHaveTextContent('RB')
+
+    await user.click(screen.getByRole('button', { name: /account menu for Ryan Bamford/i }))
+    await user.click(screen.getByRole('menuitem', { name: /On-screen keyboard setting: Auto/i }))
+    expect(window.localStorage.getItem('family-dashboard:touch-keyboard')).toBe('on')
 
     const welcomeCard = screen.getByRole('region', { name: 'Ready for a good day?' })
     expect(welcomeCard.style.getPropertyValue('--household-photo')).toContain('/images/demo-family-photo.jpg')

@@ -420,6 +420,161 @@ a:focus-visible {
   font-size: 0.9rem;
 }
 
+.touch-keyboard {
+  position: fixed;
+  z-index: 80;
+  right: 50%;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  display: grid;
+  gap: 0.55rem;
+  width: min(64rem, calc(100% - 1.5rem));
+  padding: 0.75rem;
+  color: white;
+  background: rgb(38 49 47 / 97%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 1.5rem;
+  box-shadow: 0 1.25rem 4rem rgb(20 28 25 / 38%);
+  transform: translateX(50%);
+  backdrop-filter: blur(1.2rem);
+  animation: touch-keyboard-in 160ms ease-out;
+}
+
+.touch-keyboard--numeric {
+  width: min(28rem, calc(100% - 1.5rem));
+}
+
+.touch-keyboard__toolbar,
+.touch-keyboard__toolbar > div,
+.touch-keyboard__row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.touch-keyboard__toolbar {
+  justify-content: space-between;
+  min-height: var(--touch-target);
+  padding-left: 0.55rem;
+}
+
+.touch-keyboard__toolbar strong {
+  max-width: 50%;
+  overflow: hidden;
+  color: #dce5e1;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.touch-keyboard__toolbar button,
+.touch-keyboard__controls button,
+.touch-keyboard__key {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0.45rem 0.7rem;
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 800;
+  background: #f7f5ef;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.18rem 0 rgb(0 0 0 / 28%);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.touch-keyboard__toolbar button:active,
+.touch-keyboard__controls button:active,
+.touch-keyboard__key:active {
+  background: var(--color-mint);
+  box-shadow: none;
+  transform: translateY(0.12rem);
+}
+
+.touch-keyboard__toolbar .touch-keyboard__done {
+  color: var(--color-ink);
+  background: var(--color-mint);
+}
+
+.touch-keyboard__rows {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.touch-keyboard__row {
+  justify-content: center;
+}
+
+.touch-keyboard__key {
+  flex: 1 1 0;
+  max-width: 5.5rem;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+}
+
+.touch-keyboard__controls button[aria-pressed="true"] {
+  background: var(--color-sun);
+}
+
+.touch-keyboard__controls .touch-keyboard__space {
+  flex: 1 1 15rem;
+}
+
+body[data-touch-keyboard-open="true"] .app-shell {
+  padding-bottom: calc(24rem + env(safe-area-inset-bottom));
+}
+
+body[data-touch-keyboard-open="true"] .navigation {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes touch-keyboard-in {
+  from { opacity: 0; transform: translate(50%, 1rem); }
+}
+
+@media (max-width: 42rem) {
+  .touch-keyboard {
+    gap: 0.35rem;
+    width: calc(100% - 0.75rem);
+    padding: 0.45rem;
+    border-radius: 1rem;
+  }
+
+  .touch-keyboard__toolbar {
+    padding-left: 0.2rem;
+  }
+
+  .touch-keyboard__toolbar strong {
+    display: none;
+  }
+
+  .touch-keyboard__toolbar > div {
+    flex: 1;
+  }
+
+  .touch-keyboard__toolbar button {
+    flex: 1;
+  }
+
+  .touch-keyboard__rows,
+  .touch-keyboard__row {
+    gap: 0.25rem;
+  }
+
+  .touch-keyboard__key,
+  .touch-keyboard__controls button {
+    min-width: 0;
+    padding-right: 0.2rem;
+    padding-left: 0.2rem;
+  }
+
+  .touch-keyboard__controls .touch-keyboard__space {
+    flex-basis: 5rem;
+  }
+}
+
 .update-banner {
   position: sticky;
   z-index: 90;

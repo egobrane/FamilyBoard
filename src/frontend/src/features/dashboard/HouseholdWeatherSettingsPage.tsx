@@ -44,8 +44,8 @@ export function HouseholdWeatherSettingsPage() {
       <form className="admin-form" key={settings?.version ?? 'new'} onSubmit={save} ref={formRef}>
         <label className="form-field"><span>Location label</span><input defaultValue={settings?.locationLabel ?? ''} maxLength={100} name="locationLabel" placeholder="Home" required /></label>
         <div className="regional-fields">
-          <label className="form-field"><span>Latitude</span><input defaultValue={settings?.latitude ?? ''} max="90" min="-90" name="latitude" required step="0.00001" type="number" /></label>
-          <label className="form-field"><span>Longitude</span><input defaultValue={settings?.longitude ?? ''} max="180" min="-180" name="longitude" required step="0.00001" type="number" /></label>
+          <label className="form-field"><span>Latitude</span><input defaultValue={settings?.latitude ?? ''} inputMode="decimal" maxLength={12} name="latitude" pattern="-?[0-9]+([.][0-9]+)?" required /></label>
+          <label className="form-field"><span>Longitude</span><input defaultValue={settings?.longitude ?? ''} inputMode="decimal" maxLength={12} name="longitude" pattern="-?[0-9]+([.][0-9]+)?" required /></label>
           <label className="form-field"><span>Temperature</span><select defaultValue={settings?.temperatureUnit ?? 'auto'} name="temperatureUnit"><option value="auto">Household default (°F in US)</option><option value="fahrenheit">Fahrenheit</option><option value="celsius">Celsius</option></select></label>
         </div>
         <div className="form-actions form-actions--spread">

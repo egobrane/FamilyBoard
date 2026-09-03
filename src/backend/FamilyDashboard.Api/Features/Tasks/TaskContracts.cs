@@ -53,7 +53,6 @@ public sealed record GoogleTaskResponse(
 
 public sealed record CreateGoogleTaskRequest(
     Guid IdempotencyKey,
-    Guid? AttributedMemberId,
     string? Title,
     string? Notes,
     string? DueDate);

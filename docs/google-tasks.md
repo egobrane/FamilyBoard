@@ -8,7 +8,7 @@ Google Tasks remains the source of truth. Family Dashboard stores one `GoogleTas
 
 An adult connection may contribute selected lists to multiple households. Routine reads include a source only while its owner remains an active adult member of that household. Connecting, selecting lists, and disconnecting require household administration; locked shared displays therefore require current parent-PIN elevation. Routine task viewing remains available on a locked shared display.
 
-Each household may select at most one active, adult-owned writable list. The same provider list cannot be writable for multiple households. Creating a task from a locked shared display still requires an active household member for attribution. Completion and reopening are household-shared actions: a locked display records the authenticated session and shared-display origin without claiming that a specific person performed the action. Private adult status changes retain their linked adult attribution. This is audit context, not independent child authentication.
+Each household may select at most one active, adult-owned writable list. The same provider list cannot be writable for multiple households. Creation, completion, and reopening are household-shared actions: a locked display records the authenticated account, session, and shared-display origin without asking for or claiming a specific household member. Private adult actions retain their linked adult attribution. This is audit context, not independent child authentication.
 
 ## API
 
@@ -25,6 +25,8 @@ Each household may select at most one active, adult-owned writable list. The sam
 - `PUT /api/households/{householdId}/tasks/status`
 
 Unsafe endpoints require the credentialed application cookie and antiforgery header. OAuth state and pagination cursors are time-limited Data Protection payloads. The callback correlation cookie is Secure, HttpOnly, SameSite=Lax, and scoped to the exact Tasks callback.
+
+The creation request contains an idempotency key, title, optional notes, and optional date-only due date. It does not accept a client-selected member identity. The backend derives private-adult attribution from the selected household membership and records shared-display creation with nullable member attribution.
 
 ## Provider behavior
 

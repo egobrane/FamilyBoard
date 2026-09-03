@@ -75,6 +75,32 @@ describe('Google Tasks', () => {
     }))
   })
 
+  it('creates a shared-display task without loading or submitting member attribution', async () => {
+    const sharedUser = { ...currentUser, session: { ...currentUser.session, isSharedDisplay: true } }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input)).pathname
+      if (path === '/api/auth/me') return response(sharedUser)
+      if (path === '/api/auth/antiforgery') return response({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
+      if (path.endsWith('/tasks') && init?.method === 'POST') return response({ operation: 'create', taskId: 'created',
+        sourceId: 'source-1', status: 'needsAction', dueDate: null, mutationVersion: 'version',
+        attributedMemberId: null, recoveredExistingMutation: false })
+      throw new Error(`Unexpected request: ${path}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter initialEntries={['/tasks/new']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
+
+    await userEvent.type(await screen.findByLabelText('Task title'), 'Shared grocery reminder')
+    expect(screen.queryByText('Who is adding this task?')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Add task' }))
+
+    expect(await screen.findByText('Task added to Google Tasks.')).toBeInTheDocument()
+    const createCall = fetchMock.mock.calls.find(([input, init]) =>
+      new URL(String(input)).pathname.endsWith('/tasks') && init?.method === 'POST')
+    expect(createCall).toBeDefined()
+    expect(JSON.parse(String(createCall?.[1]?.body))).not.toHaveProperty('attributedMemberId')
+    expect(fetchMock.mock.calls.some(([input]) => new URL(String(input)).pathname.includes('/members'))).toBe(false)
+  })
+
   it('lets a shared display complete a task from its circle without member attribution', async () => {
     const sharedUser = { ...currentUser, session: { ...currentUser.session, isSharedDisplay: true } }
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {

@@ -1,38 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ApiError, createGoogleTask, listHouseholdMembers, type HouseholdMemberResponse } from '../../lib/api'
+import { ApiError, createGoogleTask } from '../../lib/api'
 import { useAuthentication } from '../authentication/AuthenticationContext'
-import { MemberPicker } from '../../components/MemberPicker'
 
 export function CreateGoogleTaskPage() {
   const { state } = useAuthentication()
   const navigate = useNavigate()
   const household = state.status === 'authenticated'
     ? state.currentUser.households.find((item) => item.id === state.currentUser.selectedHouseholdId) : undefined
-  const session = state.status === 'authenticated' ? state.currentUser.session : null
-  const shared = session?.isSharedDisplay ?? false
   const requestId = useRef(crypto.randomUUID())
-  const [members, setMembers] = useState<HouseholdMemberResponse[]>([])
-  const [memberId, setMemberId] = useState(shared ? '' : household?.memberId ?? '')
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => {
-    if (!household || !shared) return
-    void listHouseholdMembers(household.id).then((items) => setMembers(items.filter((item) => item.isActive)))
-      .catch(() => setError('Household members could not be loaded.'))
-  }, [household, shared])
   if (!household) return null
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (shared && !memberId) { setError('Choose who is adding this task.'); return }
     setBusy(true); setError('')
     try {
       await createGoogleTask(household!.id, { idempotencyKey: requestId.current,
-        attributedMemberId: shared ? memberId : null, title, notes: notes.trim() || null,
-        dueDate: dueDate || null })
+        title, notes: notes.trim() || null, dueDate: dueDate || null })
       requestId.current = crypto.randomUUID()
       navigate('/tasks', { replace: true, state: { message: 'Task added to Google Tasks.' } })
     } catch (reason) {
@@ -45,9 +33,6 @@ export function CreateGoogleTaskPage() {
       <label>Task title<input autoFocus maxLength={200} onChange={(event) => { setTitle(event.target.value); requestId.current = crypto.randomUUID() }} required value={title}/></label>
       <label>Notes<textarea maxLength={2000} onChange={(event) => { setNotes(event.target.value); requestId.current = crypto.randomUUID() }} rows={4} value={notes}/></label>
       <label>Due date <span className="optional-label">Optional, date only</span><input onChange={(event) => { setDueDate(event.target.value); requestId.current = crypto.randomUUID() }} type="date" value={dueDate}/></label>
-      {shared && <MemberPicker legend="Who is adding this task?" members={members} onChange={(value) => {
-        setMemberId(value); requestId.current = crypto.randomUUID()
-      }} value={memberId} />}
       {error && <p role="alert">{error}</p>}
       <button className="primary-action" disabled={busy} type="submit">{busy ? 'Adding…' : 'Add task'}</button>
     </form>

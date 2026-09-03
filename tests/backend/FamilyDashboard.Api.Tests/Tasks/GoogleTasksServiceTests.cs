@@ -99,10 +99,10 @@ public sealed class GoogleTasksServiceTests
         var service = dependencies.Service(database, provider);
         var id = Guid.NewGuid();
         var created = await service.CreateTaskAsync(household.Id, account.Id, session.Id,
-            new CreateGoogleTaskRequest(id, null, "Pack lunch", "Use blue bag", "2026-08-29"),
+            new CreateGoogleTaskRequest(id, "Pack lunch", "Use blue bag", "2026-08-29"),
             "trace", CancellationToken.None);
         var replay = await service.CreateTaskAsync(household.Id, account.Id, session.Id,
-            new CreateGoogleTaskRequest(id, null, "Pack lunch", "Use blue bag", "2026-08-29"),
+            new CreateGoogleTaskRequest(id, "Pack lunch", "Use blue bag", "2026-08-29"),
             "trace", CancellationToken.None);
         Assert.True(replay.RecoveredExistingMutation);
         var completed = await service.UpdateTaskStatusAsync(household.Id, account.Id, session.Id,
@@ -120,7 +120,7 @@ public sealed class GoogleTasksServiceTests
     }
 
     [PostgreSqlFact]
-    public async Task SharedDisplayStatusChangeRecordsSharedSessionWithoutMemberAttribution()
+    public async Task SharedDisplayTaskMutationsRecordSharedSessionWithoutMemberAttribution()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
         using var dependencies = new Dependencies();
@@ -151,15 +151,21 @@ public sealed class GoogleTasksServiceTests
             dependencies.DataProtectionProvider, TimeProvider.System)
             .Protect(household.Id, source.Id, "task-1", "etag-1");
 
-        var result = await dependencies.Service(database, provider).UpdateTaskStatusAsync(
+        var service = dependencies.Service(database, provider);
+        var created = await service.CreateTaskAsync(household.Id, account.Id, session.Id,
+            new CreateGoogleTaskRequest(Guid.NewGuid(), "Shared task", null, null),
+            "create-trace", CancellationToken.None);
+        var result = await service.UpdateTaskStatusAsync(
             household.Id, account.Id, session.Id,
             new UpdateGoogleTaskStatusRequest(source.Id, "task-1", Guid.NewGuid(), "completed", mutationVersion),
             "trace", CancellationToken.None);
 
-        var receipt = await database.DbContext.GoogleTaskMutationReceipts.SingleAsync();
-        Assert.True(receipt.RequestedFromSharedDisplay);
-        Assert.Equal(account.Id, receipt.RequestedByUserAccountId);
-        Assert.Null(receipt.AttributedHouseholdMemberId);
+        var receipts = await database.DbContext.GoogleTaskMutationReceipts.ToArrayAsync();
+        Assert.Equal(2, receipts.Length);
+        Assert.All(receipts, receipt => Assert.True(receipt.RequestedFromSharedDisplay));
+        Assert.All(receipts, receipt => Assert.Equal(account.Id, receipt.RequestedByUserAccountId));
+        Assert.All(receipts, receipt => Assert.Null(receipt.AttributedHouseholdMemberId));
+        Assert.Null(created.AttributedMemberId);
         Assert.Null(result.AttributedMemberId);
     }
 

@@ -278,9 +278,11 @@ test.beforeEach(async ({ page }) => {
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/tasks`) {
       if (route.request().method() === 'POST') {
+        taskStatusRequests.push(route.request().postDataJSON() as Record<string, unknown>)
         await route.fulfill({ json: { operation: 'create', taskId: 'task-created', sourceId: 'task-source-1',
           status: 'needsAction', dueDate: null, mutationVersion: 'task-created-version',
-          attributedMemberId: authenticatedUser.households[0].memberId, recoveredExistingMutation: false } })
+          attributedMemberId: currentSession.isSharedDisplay ? null : authenticatedUser.households[0].memberId,
+          recoveredExistingMutation: false } })
         return
       }
       await route.fulfill({ json: { tasks: [{ id: 'task-1', sourceId: 'task-source-1', taskListName: 'Family tasks',
@@ -772,6 +774,22 @@ test('Google Tasks navigation and household list selection are accessible', asyn
   await expect(page.getByText('Visible Google task lists saved.')).toBeVisible()
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
+})
+
+test('a shared display creates a household task without member attribution', async ({ page }) => {
+  currentSession = { ...currentSession, isSharedDisplay: true, deviceLabel: 'Kitchen display' }
+  await page.goto('/tasks/new')
+
+  await expect(page.getByText('Who is adding this task?')).toHaveCount(0)
+  await page.getByRole('textbox', { name: 'Task title' }).fill('Buy dishwasher tablets')
+  const keyboard = page.getByRole('region', { name: /On-screen keyboard/ })
+  if (await keyboard.count()) await keyboard.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: 'Add task' }).click()
+
+  await expect(page.getByText('Task added to Google Tasks.')).toBeVisible()
+  const request = taskStatusRequests.find((item) => item.title === 'Buy dishwasher tablets')
+  expect(request).toBeDefined()
+  expect(request).not.toHaveProperty('attributedMemberId')
 })
 
 test('home task and chore circles support quick wall-display actions', async ({ page }) => {

@@ -1,11 +1,12 @@
 # Staging Deployment Proof
 
-## Wall-display on-screen keyboard implementation: pending staging
+## Wall-display on-screen keyboard deployment and verification: 2026-09-03
 
 - The frontend now supplies an app-native keyboard for editable text, email, URL, telephone, numeric, and multiline fields without adding a runtime dependency or changing the backend, database, Azure resources, or secrets.
 - Wide authenticated shared displays use the keyboard automatically when the browser reports a coarse pointer. The account menu exposes a device-local Auto/On/Off preference; it stores only that preference and never entered text.
 - Password/PIN, date, time, file, select, read-only, disabled, and explicitly excluded controls retain their existing secure or native interaction. Workspace swipes do not begin on the keyboard, the navigation dock yields while it is open, and reduced-motion preferences are respected.
-- Automated validation covers controlled React inputs, common editing controls, multiline entry, excluded fields, wall-display entry, inter-field movement, and phone Auto behavior. This section must not be marked deployed until the matching Netlify release and physical wall display are owner-verified.
+- Automated validation covers controlled React inputs, common editing controls, multiline entry, excluded fields, wall-display entry, inter-field movement, and phone Auto behavior. The owner confirmed the matching deployment works correctly on the wall display.
+- A focused follow-up removes the obsolete member picker from shared Google Task creation. It retains account/session/shared-display audit context, submits no client member identity, and requires no migration. This correction remains pending CI and staging verification.
 
 ## Dashboard Personalization and Weather Increment 1 deployment and verification: 2026-09-01
 

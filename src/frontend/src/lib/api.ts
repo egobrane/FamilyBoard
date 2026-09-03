@@ -1223,7 +1223,7 @@ export function listGoogleTasks(householdId: string, includeCompleted = false, c
 }
 
 export function createGoogleTask(householdId: string, body: {
-  idempotencyKey: string; attributedMemberId: string | null; title: string; notes: string | null; dueDate: string | null
+  idempotencyKey: string; title: string; notes: string | null; dueDate: string | null
 }) {
   return unsafeRequest<GoogleTaskMutationResponse>(
     `/api/households/${encodeURIComponent(householdId)}/tasks`, 'POST', body,

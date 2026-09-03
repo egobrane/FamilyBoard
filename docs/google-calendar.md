@@ -26,6 +26,8 @@ Administrative routes require an active adult membership. Private adult sessions
 
 Routine `GET /api/households/{householdId}/calendar/events?from=...&to=...&cursor=...` requires only active household membership. It therefore remains available on a locked shared display. Ranges must be positive and no longer than 32 days; the extra day accommodates a 31-day household-local month containing a daylight-saving fallback hour. Event pagination uses a short-lived, Data-Protection-protected opaque cursor; raw Google page tokens never reach JavaScript.
 
+Routine `GET /api/households/{householdId}/calendar/display-settings` returns only the selected household's time zone, locale, and week-start preference. It uses the same active-member and household-isolation boundary as event reads, including on a locked shared display. The administrative household settings endpoint remains separately protected by the adult and parent-elevation policies.
+
 Unsafe requests use the existing credentialed cookie, exact-origin CORS, and `X-CSRF-TOKEN` antiforgery boundary. Calendar callback state is purpose-protected, expires after ten minutes, and is bound to the initiating application account, session, household, nonce, and validated local return path. A `Secure`, `HttpOnly`, callback-path-scoped, `SameSite=Lax` correlation cookie contains only a SHA-256 state digest and is deleted on callback. The callback redirects to a clean frontend URL and never places OAuth codes, tokens, provider errors, or personal calendar data in it.
 
 ## Token and event handling

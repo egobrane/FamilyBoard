@@ -158,6 +158,15 @@ test.beforeEach(async ({ page }) => {
       } : { status: 'locationRequired', attribution: 'Weather data from the National Weather Service' } })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/display-settings`) {
+      await route.fulfill({ json: {
+        householdId: authenticatedUser.households[0].id,
+        timeZone: 'America/New_York',
+        locale: 'en-US',
+        weekStartsOn: 'sunday',
+      } })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/events`) {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON() as {

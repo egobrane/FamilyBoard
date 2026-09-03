@@ -28,8 +28,7 @@ function currentUser() {
 
 function household() {
   return {
-    id: householdId, name: 'Bamford Family', timeZone: 'America/New_York', locale: 'en-US',
-    weekStartsOn: 'Sunday', access: { memberId: currentUser().households[0].memberId, role: 'adult', canAdminister: true },
+    householdId, timeZone: 'America/New_York', locale: 'en-US', weekStartsOn: 'Sunday',
   }
 }
 
@@ -41,7 +40,7 @@ describe('calendar integration', () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
-      if (path === `/api/households/${householdId}`) return jsonResponse(household())
+      if (path.endsWith('/calendar/display-settings')) return jsonResponse(household())
       if (path.endsWith('/calendar/event-creation-target')) return jsonResponse({
         isAvailable: false, isAuthorized: false, sourceId: null, name: null, timeZone: null, color: null,
       })
@@ -75,7 +74,7 @@ describe('calendar integration', () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
-      if (path === `/api/households/${householdId}`) return jsonResponse(household())
+      if (path.endsWith('/calendar/display-settings')) return jsonResponse(household())
       if (path === '/api/auth/antiforgery') return jsonResponse({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
       if (path.endsWith('/calendar/connection')) return jsonResponse({
         isAvailable: true, connectionId: '40000000-0000-0000-0000-000000000001',
@@ -123,7 +122,7 @@ describe('calendar integration', () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
-      if (path === `/api/households/${householdId}`) return jsonResponse(household())
+      if (path.endsWith('/calendar/display-settings')) return jsonResponse(household())
       if (path === '/api/auth/antiforgery') return jsonResponse({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
       if (path.endsWith('/calendar/event-creation-target')) return jsonResponse({
         isAvailable: true,

@@ -259,6 +259,13 @@ export interface HouseholdResponse {
   }
 }
 
+export interface CalendarDisplaySettingsResponse {
+  householdId: string
+  timeZone: string
+  locale: string
+  weekStartsOn: string
+}
+
 export interface UpdateHouseholdRequest {
   name?: string
   timeZone?: string
@@ -1084,6 +1091,12 @@ export function updateCalendarSources(
 export function getCalendarEventCreationTarget(householdId: string) {
   return request<CalendarEventCreationTargetResponse>(
     `/api/households/${encodeURIComponent(householdId)}/calendar/event-creation-target`,
+  )
+}
+
+export function getCalendarDisplaySettings(householdId: string) {
+  return request<CalendarDisplaySettingsResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/calendar/display-settings`,
   )
 }
 

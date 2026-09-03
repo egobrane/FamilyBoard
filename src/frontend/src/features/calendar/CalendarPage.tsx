@@ -4,10 +4,10 @@ import { useAuthentication } from '../authentication/AuthenticationContext'
 import {
   ApiError,
   getCalendarEventCreationTarget,
-  getHousehold,
+  getCalendarDisplaySettings,
   listCalendarEvents,
+  type CalendarDisplaySettingsResponse,
   type CalendarEventsResponse,
-  type HouseholdResponse,
 } from '../../lib/api'
 import { CalendarMonthView } from './CalendarMonthView'
 import { CalendarStatusBanner } from './CalendarStatusBanner'
@@ -53,7 +53,7 @@ export function CalendarPage() {
     ? state.currentUser.households.find((item) => item.id === state.currentUser.selectedHouseholdId)
     : undefined
   const [configuration, setConfiguration] = useState<{
-    key: string; value: HouseholdResponse | null; failed: boolean
+    key: string; value: CalendarDisplaySettingsResponse | null; failed: boolean
   }>({ key: '', value: null, failed: false })
   const [response, setResponse] = useState<{
     key: string
@@ -66,7 +66,7 @@ export function CalendarPage() {
   useEffect(() => {
     if (!household) return
     let active = true
-    void getHousehold(household.id)
+    void getCalendarDisplaySettings(household.id)
       .then((settings) => {
         if (!active) return
         setConfiguration({ key: household.id, value: settings, failed: false })

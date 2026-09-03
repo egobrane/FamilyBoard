@@ -32,6 +32,19 @@ public sealed class GoogleCalendarService(
 {
     private readonly GoogleCalendarConfiguration _configuration = options.Value;
 
+    public async Task<CalendarDisplaySettingsResponse> GetDisplaySettingsAsync(
+        Guid householdId, CancellationToken cancellationToken)
+    {
+        return await dbContext.HouseholdConfigurations.AsNoTracking()
+            .Where(configuration => configuration.HouseholdId == householdId)
+            .Select(configuration => new CalendarDisplaySettingsResponse(
+                configuration.HouseholdId,
+                configuration.TimeZone,
+                configuration.Locale,
+                configuration.WeekStartsOn.ToString().ToLowerInvariant()))
+            .SingleAsync(cancellationToken);
+    }
+
     public async Task<CalendarConnectionResponse> GetConnectionAsync(
         Guid householdId, Guid userAccountId, CancellationToken cancellationToken)
     {

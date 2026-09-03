@@ -133,6 +133,12 @@ public sealed record CalendarEventMutationResponse(
 
 public sealed record CalendarWarningResponse(Guid SourceId, string Code, string Message);
 
+public sealed record CalendarDisplaySettingsResponse(
+    Guid HouseholdId,
+    string TimeZone,
+    string Locale,
+    string WeekStartsOn);
+
 public sealed record CalendarEventsResponse(
     IReadOnlyList<CalendarEventResponse> Events,
     string? NextCursor,

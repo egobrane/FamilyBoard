@@ -102,6 +102,9 @@ public sealed class CalendarEndpointTests
             $"/api/households/{firstHousehold.Id}/calendar/connection");
         Assert.Equal(HttpStatusCode.NotFound, crossResponse.StatusCode);
         Assert.Equal(ApiProblemCodes.HouseholdNotFound, await ProblemCodeAsync(crossResponse));
+        using var crossDisplaySettingsResponse = await secondClient.GetAsync(
+            $"/api/households/{firstHousehold.Id}/calendar/display-settings");
+        Assert.Equal(HttpStatusCode.NotFound, crossDisplaySettingsResponse.StatusCode);
 
         var session = new UserSession
         {
@@ -130,6 +133,12 @@ public sealed class CalendarEndpointTests
         using var routineResponse = await sharedClient.GetAsync(
             $"/api/households/{firstHousehold.Id}/calendar/events?from={Uri.EscapeDataString(DateTimeOffset.UtcNow.ToString("O"))}&to={Uri.EscapeDataString(DateTimeOffset.UtcNow.AddDays(1).ToString("O"))}");
         Assert.Equal(HttpStatusCode.OK, routineResponse.StatusCode);
+        var displaySettings = await sharedClient.GetFromJsonAsync<CalendarDisplaySettingsResponse>(
+            $"/api/households/{firstHousehold.Id}/calendar/display-settings");
+        Assert.NotNull(displaySettings);
+        Assert.Equal("America/New_York", displaySettings.TimeZone);
+        Assert.Equal("en-US", displaySettings.Locale);
+        Assert.Equal("sunday", displaySettings.WeekStartsOn);
         Assert.NotEqual(firstHousehold.Id, secondHousehold.Id);
     }
 

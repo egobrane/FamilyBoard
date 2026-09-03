@@ -28,6 +28,8 @@ public static class GoogleCalendarEndpoints
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapGet("/api/households/{householdId:guid}/calendar/event-creation-target", GetEventCreationTargetAsync)
             .RequireAuthorization();
+        endpoints.MapGet("/api/households/{householdId:guid}/calendar/display-settings", GetDisplaySettingsAsync)
+            .RequireAuthorization();
         endpoints.MapPut("/api/households/{householdId:guid}/calendar/event-creation-target", UpdateEventCreationTargetAsync)
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
         endpoints.MapGet("/api/households/{householdId:guid}/calendar/events", ListEventsAsync)
@@ -184,6 +186,17 @@ public static class GoogleCalendarEndpoints
                     "Both from and to are required.");
             return Results.Ok(await service.ListEventsAsync(
                 householdId, from.Value, to.Value, cursor, cancellationToken));
+        });
+
+    private static async Task<IResult> GetDisplaySettingsAsync(
+        Guid householdId, HttpContext context, IAuthorizationService authorization,
+        GoogleCalendarService service, CancellationToken cancellationToken) =>
+        await RunAsync(context, async () =>
+        {
+            var userId = await RequireAccessAsync(householdId, context, authorization,
+                HouseholdAuthorizationPolicies.Member, cancellationToken);
+            return userId.Result ?? Results.Ok(await service.GetDisplaySettingsAsync(
+                householdId, cancellationToken));
         });
 
     private static async Task<IResult> GetEventCreationTargetAsync(

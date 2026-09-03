@@ -188,6 +188,8 @@ test.beforeEach(async ({ page }) => {
         } })
         return
       }
+      const eventStart = new Date(Date.now() + 60_000)
+      const eventEnd = new Date(eventStart.getTime() + 30 * 60_000)
       await route.fulfill({ json: {
         events: [{
           id: 'school-drop-off',
@@ -195,8 +197,8 @@ test.beforeEach(async ({ page }) => {
           calendarName: 'Family',
           title: 'School drop-off',
           isAllDay: false,
-          start: '2026-08-18T12:00:00Z',
-          end: '2026-08-18T12:30:00Z',
+          start: eventStart.toISOString(),
+          end: eventEnd.toISOString(),
           timeZone: 'America/New_York',
           location: null,
           color: '#73b49a',
@@ -736,12 +738,19 @@ test('an adult can schedule a daily chore as up for grabs', async ({ page }) => 
   await expect(page.getByText('Every day · Due 08:00')).toBeVisible()
 })
 
-test('calendar navigation and household source selection work with touch-sized controls', async ({ page }) => {
+test('calendar navigation and household source selection work with touch-sized controls', async ({ page }, testInfo) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Calendar', exact: true }).click()
   await expect(page).toHaveURL(/\/calendar$/)
   await expect(page.getByRole('heading', { name: 'Family calendar' })).toBeVisible()
-  await expect(page.getByText('School drop-off')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Calendar month' })).toBeVisible()
+  if (testInfo.project.name === 'phone') {
+    await expect(page.locator('.calendar-mobile-agenda').getByText('School drop-off')).toBeVisible()
+    await expect(page.locator('.calendar-month')).toBeHidden()
+  } else {
+    await expect(page.locator('.calendar-month').getByText('School drop-off')).toBeVisible()
+    await expect(page.locator('.calendar-day-agenda')).toBeVisible()
+  }
 
   await page.getByRole('link', { name: 'Calendar settings' }).click()
   await expect(page.getByRole('heading', { name: 'Google Calendar' })).toBeVisible()

@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useAuthentication } from '../authentication/AuthenticationContext'
 import {
   ApiError,
@@ -11,6 +11,7 @@ import {
 } from '../../lib/api'
 import { CalendarStatusBanner } from './CalendarStatusBanner'
 import { MemberPicker } from '../../components/MemberPicker'
+import { parseDateKey } from './calendarDates'
 
 function localDateTime(date: Date) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -36,19 +37,24 @@ function dayAfter(value: string) {
 export function CreateCalendarEventPage() {
   const { state } = useAuthentication()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedDate = searchParams.get('date')
   const household = state.status === 'authenticated'
     ? state.currentUser.households.find((item) => item.id === state.currentUser.selectedHouseholdId)
     : undefined
   const isSharedDisplay = state.status === 'authenticated'
     && state.currentUser.session?.isSharedDisplay === true
   const defaults = useMemo(() => {
+    if (requestedDate && parseDateKey(requestedDate)) {
+      return { start: `${requestedDate}T09:00`, end: `${requestedDate}T10:00` }
+    }
     const start = new Date()
     start.setMinutes(0, 0, 0)
     start.setHours(start.getHours() + 1)
     const end = new Date(start)
     end.setHours(end.getHours() + 1)
     return { start: localDateTime(start), end: localDateTime(end) }
-  }, [])
+  }, [requestedDate])
   const [target, setTarget] = useState<CalendarEventCreationTargetResponse | null>(null)
   const [members, setMembers] = useState<HouseholdMemberResponse[]>([])
   const [loading, setLoading] = useState(true)

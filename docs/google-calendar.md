@@ -24,7 +24,7 @@ Administrative routes require an active adult membership. Private adult sessions
 - `PUT /api/households/{householdId}/calendar/sources`
 - `POST /api/households/{householdId}/calendar/disconnect`
 
-Routine `GET /api/households/{householdId}/calendar/events?from=...&to=...&cursor=...` requires only active household membership. It therefore remains available on a locked shared display. Ranges must be positive and no longer than 31 days. Event pagination uses a short-lived, Data-Protection-protected opaque cursor; raw Google page tokens never reach JavaScript.
+Routine `GET /api/households/{householdId}/calendar/events?from=...&to=...&cursor=...` requires only active household membership. It therefore remains available on a locked shared display. Ranges must be positive and no longer than 32 days; the extra day accommodates a 31-day household-local month containing a daylight-saving fallback hour. Event pagination uses a short-lived, Data-Protection-protected opaque cursor; raw Google page tokens never reach JavaScript.
 
 Unsafe requests use the existing credentialed cookie, exact-origin CORS, and `X-CSRF-TOKEN` antiforgery boundary. Calendar callback state is purpose-protected, expires after ten minutes, and is bound to the initiating application account, session, household, nonce, and validated local return path. A `Secure`, `HttpOnly`, callback-path-scoped, `SameSite=Lax` correlation cookie contains only a SHA-256 state digest and is deleted on callback. The callback redirects to a clean frontend URL and never places OAuth codes, tokens, provider errors, or personal calendar data in it.
 
@@ -40,13 +40,15 @@ Each API replica uses a disposable in-memory cache: two minutes fresh and up to 
 
 ## Frontend behavior
 
-- `/calendar` is a routine, touch-first seven-day view available to household members.
+- `/calendar` is a routine month calendar available to household members. Wall displays, tablets, and desktops use a seven-column grid plus a selected-day agenda; phones use an explicit date-grouped agenda. Dates, weekday order, event placement, and times use the household locale, time zone, and configured week start.
 - The dashboard `Today` card reads the selected household's configured calendars.
 - `/households/{householdId}/calendars` is an adult administrative screen inside the existing parent-access gate.
 - Adults connect or reconnect, see the connected Google email, choose household-visible calendars, see sources supplied by other adults, and confirm global disconnect.
 - Loading, empty, disconnected, consent-denied, reauthorization, partial, stale, provider-failure, and success states use semantic status/alert feedback.
 
 Controls retain large touch targets, visible focus, keyboard operation, screen-reader labels, responsive phone layout, and mouse support. The shared wall display may show personal plans, so adults must deliberately choose only calendars appropriate for household visibility.
+
+The month UI follows provider pagination up to a defensive eight-page display ceiling, groups all-day events before timed events, respects Google's exclusive all-day end date, and repeats cross-midnight or multi-day plans on each affected household-local date. Crowded cells show three plans and a `+N more` action; selecting a date exposes full times, calendar, location, and existing eligible-event management. The Add Event route accepts a validated local `date` query only to prefill its form and never sends event data through the URL.
 
 ## Configuration and activation
 

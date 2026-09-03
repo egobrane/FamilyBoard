@@ -1458,6 +1458,156 @@ body[data-touch-keyboard-open="true"] .navigation {
   line-height: 1.5;
 }
 
+.calendar-month-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.calendar-month-toolbar > strong {
+  font-size: clamp(1.35rem, 2.5vw, 2rem);
+  letter-spacing: -0.025em;
+}
+
+.calendar-month-toolbar__buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calendar-month-toolbar__buttons .secondary-action {
+  min-width: var(--touch-target);
+  padding-inline: 1rem;
+}
+
+.calendar-month {
+  overflow: hidden;
+  border: 1px solid rgb(38 49 47 / 13%);
+  border-radius: 1.25rem;
+  background: #f8f7f2;
+}
+
+.calendar-month table {
+  width: 100%;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.calendar-month th {
+  padding: 0.75rem 0.5rem;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.11em;
+  text-align: center;
+  text-transform: uppercase;
+  background: #efeee7;
+}
+
+.calendar-month td {
+  height: clamp(6rem, 5vw, 7rem);
+  padding: 0.45rem;
+  vertical-align: top;
+  background: var(--color-surface);
+  border-top: 1px solid rgb(38 49 47 / 10%);
+  border-left: 1px solid rgb(38 49 47 / 10%);
+}
+
+.calendar-month td:first-child { border-left: 0; }
+.calendar-month__day--outside { background: #f3f1ea !important; }
+.calendar-month__day--selected { box-shadow: inset 0 0 0 3px #73b49a; }
+
+.calendar-month__date {
+  display: inline-flex;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 850;
+  background: transparent;
+  border: 0;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.calendar-month__date small {
+  color: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.calendar-month__day--today .calendar-month__date {
+  color: #173a31;
+  background: #bfe3d5;
+}
+
+.calendar-month__outside-date {
+  display: inline-block;
+  padding: 0.55rem;
+  color: var(--color-muted);
+  font-weight: 750;
+}
+
+.calendar-month__events {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calendar-month__events button {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  overflow: hidden;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: left;
+  background: color-mix(in srgb, var(--event-color) 18%, #f5f3ec);
+  border: 0;
+  border-left: 0.3rem solid var(--event-color);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.calendar-month__events button span,
+.calendar-month__events button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-month__events button span { color: var(--color-muted); font-size: 0.65rem; }
+.calendar-month__events .calendar-month__more { background: transparent; border-left-color: transparent; font-weight: 800; }
+
+.calendar-day-agenda {
+  margin-top: 1.25rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  background: #f8f7f2;
+  border: 1px solid rgb(38 49 47 / 10%);
+  border-radius: 1.25rem;
+}
+
+.calendar-day-agenda__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calendar-day-agenda__heading h3 { margin: 0.15rem 0 0.75rem; font-size: clamp(1.25rem, 2.5vw, 1.8rem); }
+.calendar-day-agenda__heading > span { color: var(--color-muted); font-weight: 750; }
+.calendar-mobile-agenda { display: none; }
+
 .calendar-event-list {
   display: grid;
   gap: 0.65rem;
@@ -2171,6 +2321,27 @@ body[data-touch-keyboard-open="true"] .navigation {
 
   .calendar-page__actions,
   .calendar-event-form__actions { align-items: stretch; flex-direction: column; }
+
+  .calendar-month-toolbar {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .calendar-month-toolbar__buttons {
+    display: grid;
+    grid-template-columns: var(--touch-target) 1fr var(--touch-target);
+  }
+
+  .calendar-month { display: none; }
+  .calendar-day-agenda { display: none; }
+  .calendar-mobile-agenda { display: grid; gap: 1rem; }
+  .calendar-mobile-agenda__day {
+    padding: 1rem;
+    background: #f8f7f2;
+    border: 1px solid rgb(38 49 47 / 10%);
+    border-radius: 1rem;
+  }
+  .calendar-mobile-agenda__day h3 { margin: 0 0 0.75rem; font-size: 1.15rem; }
 
   .calendar-event-form__times { grid-template-columns: 1fr; }
 

@@ -601,10 +601,12 @@ public sealed class GoogleCalendarService(
         Guid householdId, DateTimeOffset from, DateTimeOffset to, string? cursor,
         CancellationToken cancellationToken)
     {
-        if (from >= to || to - from > TimeSpan.FromDays(31))
+        // A 31-day household-local month can span 31 days plus one hour when
+        // daylight-saving time ends, so allow the smallest safe calendar window.
+        if (from >= to || to - from > TimeSpan.FromDays(32))
             throw new CalendarOperationException(400,
                 Common.ApiProblemCodes.CalendarRangeInvalid,
-                "Choose a calendar range of no more than 31 days.");
+                "Choose a calendar range of no more than 32 days.");
         CalendarPageCursor? page = null;
         if (cursor is not null && (!stateProtector.TryReadCursor(cursor, out page)
             || page!.HouseholdId != householdId || page.From != from || page.To != to))

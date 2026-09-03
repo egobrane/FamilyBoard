@@ -1,5 +1,12 @@
 # Staging Deployment Proof
 
+## Household-local Calendar month workspace: pending staging
+
+- The full Calendar page now renders a conventional household-local month grid on wall displays, tablets, and desktops. Events occupy their actual dates, crowded cells expose a `+N more` path, and a selected-day agenda retains calendar, location, and eligible Manage details. Phones use date-grouped agenda sections instead of compressing seven columns.
+- Previous, Today, and Next controls retain browser-history-safe month URLs. The Add Event action carries only a validated local date to prefill 9–10 AM; existing provider authorization, household isolation, antiforgery, event attribution, and Google source-of-truth behavior are unchanged.
+- Automated coverage includes locale/week-start behavior, household time zones, daylight-saving month boundaries, all-day exclusive ends, cross-midnight/multi-day placement, responsive rendering, touch and keyboard controls, and accessibility. The API range ceiling increases narrowly from 31 to 32 days to permit a 31-day month containing a fallback hour; no migration, secret, OAuth, Azure resource, or new dependency is required.
+- This section must remain pending until current-commit CI, automatic immutable backend deployment, the matching Netlify PWA, and owner-operated Calendar checks succeed.
+
 ## Wall-display on-screen keyboard deployment and verification: 2026-09-03
 
 - The frontend now supplies an app-native keyboard for editable text, email, URL, telephone, numeric, and multiline fields without adding a runtime dependency or changing the backend, database, Azure resources, or secrets.

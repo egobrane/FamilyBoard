@@ -1,16 +1,12 @@
 import type { CalendarEventResponse } from '../../lib/api'
 import { Link } from 'react-router'
+import { formatEventTime } from './calendarDates'
 
-function eventTime(event: CalendarEventResponse) {
-  if (event.isAllDay) return 'All day'
-  const start = new Date(event.start)
-  const end = new Date(event.end)
-  return `${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(start)}–${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(end)}`
-}
-
-export function CalendarEventList({ events, compact = false }: {
+export function CalendarEventList({ events, compact = false, locale, timeZone }: {
   events: CalendarEventResponse[]
   compact?: boolean
+  locale?: string
+  timeZone?: string
 }) {
   return (
     <ol className={`calendar-event-list${compact ? ' calendar-event-list--compact' : ''}`}>
@@ -23,7 +19,7 @@ export function CalendarEventList({ events, compact = false }: {
           />
           <div>
             <strong>{event.title}</strong>
-            <span>{eventTime(event)} · {event.calendarName}</span>
+            <span>{formatEventTime(event, locale ?? undefined, timeZone ?? event.timeZone ?? undefined)} · {event.calendarName}</span>
             {!compact && event.location && <small>{event.location}</small>}
           </div>
           {!compact && event.canEdit && event.managementId && (

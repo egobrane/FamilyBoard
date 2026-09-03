@@ -26,13 +26,25 @@ function currentUser() {
   }
 }
 
+function household() {
+  return {
+    id: householdId, name: 'Bamford Family', timeZone: 'America/New_York', locale: 'en-US',
+    weekStartsOn: 'Sunday', access: { memberId: currentUser().households[0].memberId, role: 'adult', canAdminister: true },
+  }
+}
+
 afterEach(() => vi.unstubAllGlobals())
 
 describe('calendar integration', () => {
   it('shows normalized read-only events on the family calendar', async () => {
+    const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path === `/api/households/${householdId}`) return jsonResponse(household())
+      if (path.endsWith('/calendar/event-creation-target')) return jsonResponse({
+        isAvailable: false, isAuthorized: false, sourceId: null, name: null, timeZone: null, color: null,
+      })
       if (path.endsWith('/calendar/events')) return jsonResponse({
         events: [{
           id: 'event-1', sourceId: 'source-1', calendarName: 'School', title: 'Fall concert',
@@ -46,13 +58,15 @@ describe('calendar integration', () => {
       })
       throw new Error(`Unexpected request: ${path}`)
     }))
-    render(<MemoryRouter initialEntries={['/calendar']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
+    render(<MemoryRouter initialEntries={['/calendar?month=2026-08']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
 
     expect(await screen.findByRole('heading', { name: 'Family calendar' })).toBeInTheDocument()
-    expect(await screen.findByText('Fall concert')).toBeInTheDocument()
-    expect(screen.getByText('Auditorium')).toBeInTheDocument()
-    expect(screen.getByText(/School/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Manage' })).toHaveAttribute(
+    expect((await screen.findAllByText('Fall concert')).length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: /Thursday, August 20, 1 event/ }))
+    expect(screen.getByRole('heading', { name: 'Thursday, August 20, 2026' })).toBeInTheDocument()
+    expect(screen.getAllByText('Auditorium').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/School/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: 'Manage' })[0]).toHaveAttribute(
       'href', '/calendar/events/60000000-0000-0000-0000-000000000001/edit')
   })
 
@@ -61,6 +75,7 @@ describe('calendar integration', () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path === `/api/households/${householdId}`) return jsonResponse(household())
       if (path === '/api/auth/antiforgery') return jsonResponse({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
       if (path.endsWith('/calendar/connection')) return jsonResponse({
         isAvailable: true, connectionId: '40000000-0000-0000-0000-000000000001',
@@ -108,6 +123,7 @@ describe('calendar integration', () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input)).pathname
       if (path === '/api/auth/me') return jsonResponse(currentUser())
+      if (path === `/api/households/${householdId}`) return jsonResponse(household())
       if (path === '/api/auth/antiforgery') return jsonResponse({ requestToken: 'csrf', headerName: 'X-CSRF-TOKEN' })
       if (path.endsWith('/calendar/event-creation-target')) return jsonResponse({
         isAvailable: true,
@@ -135,8 +151,9 @@ describe('calendar integration', () => {
       throw new Error(`Unexpected request: ${path}`)
     })
     vi.stubGlobal('fetch', fetchMock)
-    render(<MemoryRouter initialEntries={['/calendar/new']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
+    render(<MemoryRouter initialEntries={['/calendar/new?date=2026-09-12']}><AuthenticationProvider><App /></AuthenticationProvider></MemoryRouter>)
 
+    expect(await screen.findByLabelText('Starts')).toHaveValue('2026-09-12T09:00')
     await user.type(await screen.findByLabelText('Event title'), 'Dentist appointment')
     await user.click(screen.getByRole('button', { name: 'Add to calendar' }))
 

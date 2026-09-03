@@ -140,6 +140,23 @@ public sealed class GoogleCalendarServiceTests
         Assert.Equal("refreshed-access-token", dependencies.TokenProtector.Unprotect(
             connection.Id, "access-token", connection.ProtectedAccessToken!));
         Assert.NotNull(connection.LastSuccessfulRefreshAt);
+
+        var daylightSavingMonth = await service.ListEventsAsync(
+            seeded.Household.Id,
+            new DateTimeOffset(2026, 9, 30, 22, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 10, 31, 23, 0, 0, TimeSpan.Zero),
+            null,
+            CancellationToken.None);
+        Assert.Single(daylightSavingMonth.Events);
+
+        var invalidRange = await Assert.ThrowsAsync<CalendarOperationException>(() =>
+            service.ListEventsAsync(
+                seeded.Household.Id,
+                new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 10, 4, 0, 0, 1, TimeSpan.Zero),
+                null,
+                CancellationToken.None));
+        Assert.Equal(ApiProblemCodes.CalendarRangeInvalid, invalidRange.Code);
     }
 
     [PostgreSqlFact]

@@ -24,6 +24,7 @@ public static class DashboardEndpoints
         endpoints.MapGet("/api/households/{householdId:guid}/dashboard-photo/{assetId:guid}/{variant}", GetPhotoAsync)
             .RequireAuthorization();
         endpoints.MapGet("/api/households/{householdId:guid}/weather", GetWeatherAsync).RequireAuthorization();
+        endpoints.MapGet("/api/households/{householdId:guid}/weather/radar", GetWeatherRadarAsync).RequireAuthorization();
         endpoints.MapGet("/api/households/{householdId:guid}/weather-settings", GetWeatherSettingsAsync).RequireAuthorization();
         endpoints.MapPut("/api/households/{householdId:guid}/weather-settings", UpdateWeatherSettingsAsync)
             .RequireAuthorization().RequireFamilyDashboardAntiforgery();
@@ -131,6 +132,22 @@ public static class DashboardEndpoints
         if (denial is not null) return denial;
         var value = await service.GetSettingsAsync(householdId, cancellationToken);
         return value is null ? Results.NoContent() : Results.Ok(WeatherService.Map(value));
+    }
+
+    private static async Task<IResult> GetWeatherRadarAsync(Guid householdId, HttpContext context,
+        IAuthorizationService authorization, WeatherService service, CancellationToken cancellationToken)
+    {
+        if (!await HasAsync(context, authorization, householdId, HouseholdAuthorizationPolicies.Member, cancellationToken))
+            return HouseholdEndpoints.HouseholdNotFound(context);
+        try
+        {
+            return Results.Ok(await service.GetRadarAsync(householdId, cancellationToken));
+        }
+        catch (WeatherRadarUnavailableException)
+        {
+            return Results.Problem(ApiProblems.Create(context, 503, ApiProblemCodes.WeatherRadarUnavailable,
+                "Weather radar is temporarily unavailable."));
+        }
     }
 
     private static async Task<IResult> UpdateWeatherSettingsAsync(Guid householdId, UpdateWeatherSettingsRequest? request,

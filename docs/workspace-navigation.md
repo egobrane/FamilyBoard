@@ -24,6 +24,10 @@ At wide wall-display sizes, Today and Chores occupy seven of twelve dashboard co
 
 No external animation or gesture dependency is used. React Router remains the navigation source of truth, Pointer Events provide touch and mouse parity, and CSS supplies progressive animation.
 
+## Device appearance
+
+The account menu exposes a device-local System, Light, and Dark preference. System follows `prefers-color-scheme`; explicit choices persist in local storage and apply from the inline pre-paint bootstrap before React loads, avoiding a bright first frame on a wall display. Theme state contains no household or account data and does not cross devices. Semantic color tokens cover workspace surfaces, controls, forms, status messages, dialogs, and the optional radar map while interactive elements retain the existing `:focus-visible` treatment.
+
 ## Staging proof
 
 The owner confirmed the cohesive layout, matching white bordered Calendar, Tasks, Chores, and Rewards surfaces, and removal of the page-sized blue focus outline in production. Current-commit CI independently exercises pointer tab selection, mouse drag, browser routes, responsive overflow, vertical-gesture protection, reduced motion, focus movement, and serious automated accessibility checks. Physical touch swipe and subjective transition behavior remain owner-operated checks rather than something inferred from CI alone.

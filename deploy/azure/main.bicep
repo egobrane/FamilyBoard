@@ -57,6 +57,15 @@ param enableHouseholdMedia bool = false
 @description('Enable provider-neutral household weather backed by the US National Weather Service.')
 param enableWeather bool = false
 
+@description('Enable the current NOAA/NWS base-reflectivity radar map.')
+param enableWeatherRadar bool = false
+
+@description('Public NOAA/NWS WMS endpoint used by the authenticated radar view.')
+param weatherRadarWmsUrl string = 'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer'
+
+@description('Public WMS layer identifier for current base reflectivity.')
+param weatherRadarWmsLayer string = '0'
+
 @minValue(1)
 @maxValue(168)
 param choreGenerationHorizonHours int = 36
@@ -155,6 +164,9 @@ module containerApps 'modules/container-apps.bicep' = {
     enableHouseholdMedia: enableHouseholdMedia
     householdPhotosContainerUri: authenticationSecurity.outputs.householdPhotosContainerUri
     enableWeather: enableWeather
+    enableWeatherRadar: enableWeatherRadar
+    weatherRadarWmsUrl: weatherRadarWmsUrl
+    weatherRadarWmsLayer: weatherRadarWmsLayer
     choreGenerationHorizonHours: choreGenerationHorizonHours
     choreGenerationMaximumAssignmentsPerRun: choreGenerationMaximumAssignmentsPerRun
   }

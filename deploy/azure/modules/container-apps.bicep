@@ -33,6 +33,9 @@ param dataProtectionKeyIdentifier string
 param enableHouseholdMedia bool
 param householdPhotosContainerUri string
 param enableWeather bool
+param enableWeatherRadar bool
+param weatherRadarWmsUrl string
+param weatherRadarWmsLayer string
 param choreGenerationHorizonHours int
 param choreGenerationMaximumAssignmentsPerRun int
 
@@ -228,6 +231,18 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             {
               name: 'Weather__Provider'
               value: 'Nws'
+            }
+            {
+              name: 'Weather__RadarEnabled'
+              value: string(enableWeatherRadar)
+            }
+            {
+              name: 'Weather__RadarWmsUrl'
+              value: weatherRadarWmsUrl
+            }
+            {
+              name: 'Weather__RadarWmsLayer'
+              value: weatherRadarWmsLayer
             }
           ], enableGoogleAuthentication ? [
             {

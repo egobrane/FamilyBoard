@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { DashboardCard } from '../../components/DashboardCard'
-import { getDashboardAppearance, getHouseholdWeather, resolveApiUrl, type DashboardAppearanceResponse, type HouseholdWeatherResponse } from '../../lib/api'
+import { getDashboardAppearance, getHouseholdWeather, getHouseholdWeatherRadar, resolveApiUrl, type DashboardAppearanceResponse, type HouseholdWeatherRadarResponse, type HouseholdWeatherResponse } from '../../lib/api'
 import { useAuthentication } from '../authentication/AuthenticationContext'
 import { DashboardCalendarCard } from '../calendar/DashboardCalendarCard'
 import { DashboardChoresCard } from '../chores/DashboardChoresCard'
 import { DashboardRewardsCard } from '../rewards/DashboardRewardsCard'
 import { DashboardTasksCard } from '../tasks/DashboardTasksCard'
 import { demoHouseholdPhotoUrl } from './mockDashboardData'
+
+const WeatherRadar = lazy(() => import('./WeatherRadar').then(module => ({ default: module.WeatherRadar })))
 
 export function DashboardPage() {
   const { state } = useAuthentication()
@@ -49,6 +51,17 @@ export function DashboardPage() {
 
 function WeatherWidget({ failed, householdId, weather }: { failed: boolean; householdId: string | null; weather: HouseholdWeatherResponse | null }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const [panel, setPanel] = useState<'forecast' | 'radar'>('forecast')
+  const [radar, setRadar] = useState<HouseholdWeatherRadarResponse | null>(null)
+  const [radarFailed, setRadarFailed] = useState(false)
+  const openRadar = () => {
+    setPanel('radar')
+    if (!householdId || radar) return
+    setRadarFailed(false)
+    void getHouseholdWeatherRadar(householdId)
+      .then(setRadar)
+      .catch(() => setRadarFailed(true))
+  }
   if (failed) return <div className="weather-preview weather-preview--status" role="status"><WeatherIcon kind="cloudy" /><span><strong>Weather unavailable</strong><small>We’ll try again when this dashboard refreshes.</small></span></div>
   if (!weather) return <div className="weather-preview weather-preview--status" role="status"><WeatherIcon kind="cloudy" /><span><strong>Checking weather…</strong></span></div>
   if (weather.status === 'locationRequired') return <Link className="weather-preview weather-preview--status" to={`/households/${householdId}/settings/weather`}><WeatherIcon kind="clear" /><span><strong>Add local weather</strong><small>Choose an approximate household location.</small></span></Link>
@@ -62,10 +75,19 @@ function WeatherWidget({ failed, householdId, weather }: { failed: boolean; hous
     </button>
     <dialog className="weather-dialog" onClick={(event) => { if (event.target === event.currentTarget) event.currentTarget.close() }} ref={dialog}>
       <div className="weather-dialog__content">
-        <div className="weather-dialog__heading"><div><p className="eyebrow">{weather.locationLabel}</p><h3>Household forecast</h3></div><button aria-label="Close weather forecast" className="dialog-close" onClick={() => dialog.current?.close()} type="button">×</button></div>
-        {weather.isStale && <p className="provider-warning" role="status">Showing the last available forecast while weather service recovers.</p>}
-        <ol className="weather-forecast-list">{weather.forecast?.map(period => <li key={`${period.start}-${period.name}`}><WeatherIcon kind={period.icon} /><span><strong>{period.name}</strong><small>{period.summary}</small></span><b>{period.temperature === null ? '—' : `${period.temperature}°`}</b></li>)}</ol>
-        <p className="weather-attribution">{weather.attribution}</p>
+        <div className="weather-dialog__heading"><div><p className="eyebrow">{weather.locationLabel}</p><h3>Household weather</h3></div><button aria-label="Close household weather" className="dialog-close" onClick={() => dialog.current?.close()} type="button">×</button></div>
+        <div aria-label="Weather view" className="segmented-control weather-dialog__tabs" role="group">
+          <button aria-pressed={panel === 'forecast'} onClick={() => setPanel('forecast')} type="button">Forecast</button>
+          <button aria-pressed={panel === 'radar'} onClick={openRadar} type="button">Radar</button>
+        </div>
+        {panel === 'forecast' ? <>
+          {weather.isStale && <p className="provider-warning" role="status">Showing the last available forecast while weather service recovers.</p>}
+          <ol className="weather-forecast-list">{weather.forecast?.map(period => <li key={`${period.start}-${period.name}`}><WeatherIcon kind={period.icon} /><span><strong>{period.name}</strong><small>{period.summary}</small></span><b>{period.temperature === null ? '—' : `${period.temperature}°`}</b></li>)}</ol>
+          <p className="weather-attribution">{weather.attribution}</p>
+        </> : radarFailed ? <div className="weather-radar__status" role="alert"><strong>Radar is unavailable right now.</strong><button onClick={() => { setRadarFailed(false); setRadar(null); openRadar() }} type="button">Try again</button></div>
+          : !radar ? <div className="weather-radar__status" role="status">Loading current radar…</div>
+            : radar.status === 'locationRequired' ? <div className="weather-radar__status"><strong>Add a household weather location to view radar.</strong></div>
+              : <Suspense fallback={<div className="weather-radar__status" role="status">Preparing radar map…</div>}><WeatherRadar radar={radar} /></Suspense>}
       </div>
     </dialog>
   </>

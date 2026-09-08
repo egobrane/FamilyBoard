@@ -36,6 +36,7 @@ import { HouseholdSetupPage } from '../features/households/HouseholdSetupPage'
 import { configuration } from '../lib/configuration'
 import { lockParentAccess } from '../lib/api'
 import { TouchKeyboardProvider } from '../features/touch-keyboard/TouchKeyboardProvider'
+import { ThemeProvider } from '../features/theme/ThemeProvider'
 
 function formattedTime(date: Date) {
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
@@ -214,5 +215,5 @@ function AppContent() {
 }
 
 export function App() {
-  return <TouchKeyboardProvider><AppContent /></TouchKeyboardProvider>
+  return <ThemeProvider><TouchKeyboardProvider><AppContent /></TouchKeyboardProvider></ThemeProvider>
 }

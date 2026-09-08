@@ -158,6 +158,15 @@ test.beforeEach(async ({ page }) => {
       } : { status: 'locationRequired', attribution: 'Weather data from the National Weather Service' } })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/weather/radar`) {
+      await route.fulfill({ json: {
+        status: 'available', centerLatitude: 40.71, centerLongitude: -74.01,
+        wmsUrl: 'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer',
+        wmsLayer: '0', refreshIntervalSeconds: 300,
+        attribution: 'Radar data from NOAA/National Weather Service',
+      } })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/calendar/display-settings`) {
       await route.fulfill({ json: {
         householdId: authenticatedUser.households[0].id,
@@ -884,6 +893,19 @@ test('account menu supports keyboard access and signs out through the API', asyn
   await expect(page.getByRole('heading', { name: /bring the whole family/i })).toBeVisible()
 })
 
+test('appearance preference persists while interactive focus remains visible', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Account menu for Ryan Bamford' }).click()
+  await page.getByRole('menuitem', { name: /Appearance setting: System/ }).click()
+  await page.getByRole('menuitem', { name: /Appearance setting: Light/ }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.getByRole('button', { name: 'Account menu for Ryan Bamford' }).focus()
+  await expect(page.getByRole('button', { name: 'Account menu for Ryan Bamford' })).toBeFocused()
+})
+
 test('an adult can update settings and add a child with keyboard-accessible controls', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Account menu for Ryan Bamford' }).click()
@@ -960,8 +982,11 @@ test('an adult can personalize the dashboard and configure an accessible weather
   await expect(page.getByText('Dinner is at six.')).toBeVisible()
   await page.getByRole('button', { name: 'Open weather forecast: 72 degrees, Sunny' }).click()
   const dialog = page.getByRole('dialog')
-  await expect(dialog.getByRole('heading', { name: 'Household forecast' })).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: 'Household weather' })).toBeVisible()
   await expect(dialog.getByText('Weather data from the National Weather Service')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Radar' }).click()
+  await expect(dialog.getByLabel('Interactive current weather radar map')).toBeVisible()
+  await expect(dialog.getByText(/Radar data from NOAA\/National Weather Service/)).toBeVisible()
   const results = await new AxeBuilder({ page }).include('.weather-dialog').analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])
   await page.keyboard.press('Escape')

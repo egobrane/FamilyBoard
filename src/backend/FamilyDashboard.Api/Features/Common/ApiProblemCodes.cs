@@ -131,6 +131,7 @@ public static class ApiProblemCodes
     public const string DashboardPreferencesConflict = "dashboard_preferences_conflict";
     public const string WeatherUnavailable = "weather_unavailable";
     public const string WeatherProviderRateLimited = "weather_provider_rate_limited";
+    public const string WeatherRadarUnavailable = "weather_radar_unavailable";
     public const string UnexpectedError = "unexpected_error";
 }
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { MemberAvatar } from './MemberAvatar'
 import type { HouseholdMemberPhotoResponse } from '../lib/api'
 import { useTouchKeyboard, type TouchKeyboardPreference } from '../features/touch-keyboard/TouchKeyboardProvider'
+import { useTheme, type ThemePreference } from '../features/theme/ThemeProvider'
 
 const keyboardPreferenceLabels: Record<TouchKeyboardPreference, string> = {
   auto: 'Auto',
@@ -14,6 +15,18 @@ function nextKeyboardPreference(current: TouchKeyboardPreference): TouchKeyboard
   if (current === 'auto') return 'on'
   if (current === 'on') return 'off'
   return 'auto'
+}
+
+const themePreferenceLabels: Record<ThemePreference, string> = {
+  system: 'System',
+  light: 'Light',
+  dark: 'Dark',
+}
+
+function nextThemePreference(current: ThemePreference): ThemePreference {
+  if (current === 'system') return 'light'
+  if (current === 'light') return 'dark'
+  return 'system'
 }
 
 interface AccountMenuProps {
@@ -44,6 +57,7 @@ export function AccountMenu({
   onLockParentAccess,
 }: AccountMenuProps) {
   const { preference: keyboardPreference, setPreference: setKeyboardPreference } = useTouchKeyboard()
+  const { preference: themePreference, setPreference: setThemePreference } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -98,6 +112,14 @@ export function AccountMenu({
               Parent access
             </Link>
           )}
+          <button
+            aria-label={`Appearance setting: ${themePreferenceLabels[themePreference]}. Activate to change.`}
+            onClick={() => setThemePreference(nextThemePreference(themePreference))}
+            role="menuitem"
+            type="button"
+          >
+            Appearance: {themePreferenceLabels[themePreference]}
+          </button>
           <button
             aria-label={`On-screen keyboard setting: ${keyboardPreferenceLabels[keyboardPreference]}. Activate to change.`}
             onClick={() => setKeyboardPreference(nextKeyboardPreference(keyboardPreference))}

@@ -67,6 +67,9 @@ jobs:
           GOOGLE_TASKS_CLIENT_ID="$(jq -r '.parameters.googleTasksClientId.value' <<< "$parameters")"
           HOUSEHOLD_MEDIA_ENABLED="$(jq -r '.parameters.enableHouseholdMedia.value' <<< "$parameters")"
           WEATHER_ENABLED="$(jq -r '.parameters.enableWeather.value' <<< "$parameters")"
+          WEATHER_RADAR_ENABLED="$(jq -r '.parameters.enableWeatherRadar.value' <<< "$parameters")"
+          WEATHER_RADAR_WMS_URL="$(jq -r '.parameters.weatherRadarWmsUrl.value' <<< "$parameters")"
+          WEATHER_RADAR_WMS_LAYER="$(jq -r '.parameters.weatherRadarWmsLayer.value' <<< "$parameters")"
           CHORE_GENERATION_HORIZON_HOURS="$(jq -r '.parameters.choreGenerationHorizonHours.value' <<< "$parameters")"
           CHORE_GENERATION_MAXIMUM_ASSIGNMENTS="$(jq -r '.parameters.choreGenerationMaximumAssignmentsPerRun.value' <<< "$parameters")"
 
@@ -95,6 +98,9 @@ jobs:
             echo "GOOGLE_TASKS_CLIENT_ID=$GOOGLE_TASKS_CLIENT_ID"
             echo "HOUSEHOLD_MEDIA_ENABLED=$HOUSEHOLD_MEDIA_ENABLED"
             echo "WEATHER_ENABLED=$WEATHER_ENABLED"
+            echo "WEATHER_RADAR_ENABLED=$WEATHER_RADAR_ENABLED"
+            echo "WEATHER_RADAR_WMS_URL=$WEATHER_RADAR_WMS_URL"
+            echo "WEATHER_RADAR_WMS_LAYER=$WEATHER_RADAR_WMS_LAYER"
             echo "CHORE_GENERATION_HORIZON_HOURS=$CHORE_GENERATION_HORIZON_HOURS"
             echo "CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
           } >> "$GITHUB_ENV"
@@ -182,6 +188,9 @@ jobs:
             echo "PREVIOUS_HOUSEHOLD_MEDIA_BLOB_URI=$household_media_blob_uri"
             echo "PREVIOUS_HOUSEHOLD_MEDIA_IDENTITY=$(env_value 'HouseholdMedia__ManagedIdentityClientId')"
             echo "PREVIOUS_WEATHER_ENABLED=$(env_value 'Weather__Enabled')"
+            echo "PREVIOUS_WEATHER_RADAR_ENABLED=$(env_value 'Weather__RadarEnabled')"
+            echo "PREVIOUS_WEATHER_RADAR_WMS_URL=$(env_value 'Weather__RadarWmsUrl')"
+            echo "PREVIOUS_WEATHER_RADAR_WMS_LAYER=$(env_value 'Weather__RadarWmsLayer')"
             echo "MEDIA_STRUCTURAL_READY=$([[ -n "$household_media_blob_uri" ]] && echo true || echo false)"
           } >> "$GITHUB_ENV"
 
@@ -257,6 +266,9 @@ jobs:
             "ChoreGeneration__HorizonHours=$CHORE_GENERATION_HORIZON_HOURS"
             "ChoreGeneration__MaximumAssignmentsPerRun=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
             "Weather__Enabled=$WEATHER_ENABLED"
+            "Weather__RadarEnabled=$WEATHER_RADAR_ENABLED"
+            "Weather__RadarWmsUrl=$WEATHER_RADAR_WMS_URL"
+            "Weather__RadarWmsLayer=$WEATHER_RADAR_WMS_LAYER"
           )
           if [[ "$MEDIA_STRUCTURAL_READY" == "true" ]]; then
             runtime_settings+=("HouseholdMedia__Enabled=$HOUSEHOLD_MEDIA_ENABLED")
@@ -382,6 +394,9 @@ jobs:
           assert_env 'ChoreGeneration__HorizonHours' "$CHORE_GENERATION_HORIZON_HOURS"
           assert_env 'ChoreGeneration__MaximumAssignmentsPerRun' "$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
           assert_env 'Weather__Enabled' "$WEATHER_ENABLED"
+          assert_env 'Weather__RadarEnabled' "$WEATHER_RADAR_ENABLED"
+          assert_env 'Weather__RadarWmsUrl' "$WEATHER_RADAR_WMS_URL"
+          assert_env 'Weather__RadarWmsLayer' "$WEATHER_RADAR_WMS_LAYER"
           if [[ "$MEDIA_STRUCTURAL_READY" == "true" ]]; then
             assert_env 'HouseholdMedia__Enabled' "$HOUSEHOLD_MEDIA_ENABLED"
           fi
@@ -431,7 +446,10 @@ jobs:
               "ChoreGeneration__HorizonHours=$PREVIOUS_CHORE_GENERATION_HORIZON_HOURS" \
               "ChoreGeneration__MaximumAssignmentsPerRun=$PREVIOUS_CHORE_GENERATION_MAXIMUM_ASSIGNMENTS" \
               "HouseholdMedia__Enabled=${PREVIOUS_HOUSEHOLD_MEDIA_ENABLED:-false}" \
-              "Weather__Enabled=${PREVIOUS_WEATHER_ENABLED:-false}"
+              "Weather__Enabled=${PREVIOUS_WEATHER_ENABLED:-false}" \
+              "Weather__RadarEnabled=${PREVIOUS_WEATHER_RADAR_ENABLED:-false}" \
+              "Weather__RadarWmsUrl=${PREVIOUS_WEATHER_RADAR_WMS_URL:-https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer}" \
+              "Weather__RadarWmsLayer=${PREVIOUS_WEATHER_RADAR_WMS_LAYER:-0}"
 
           rollback_revision=""
           for attempt in {1..60}; do

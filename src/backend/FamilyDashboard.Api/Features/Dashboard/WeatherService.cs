@@ -56,6 +56,20 @@ internal sealed class WeatherService(
             result.Current, result.Forecast, result.ObservedAt, result.RetrievedAt, result.IsStale, result.Attribution);
     }
 
+    public async Task<HouseholdWeatherRadarResponse> GetRadarAsync(Guid householdId, CancellationToken cancellationToken)
+    {
+        var settings = await GetSettingsAsync(householdId, cancellationToken);
+        if (settings is null)
+            return new("locationRequired", null, null, null, null, 300, "Radar data from NOAA/National Weather Service");
+        if (!options.Value.Enabled || !options.Value.RadarEnabled)
+            throw new WeatherRadarUnavailableException();
+
+        // Radar only needs a neighborhood-level center. Never return the more precise stored coordinates.
+        return new("available", decimal.Round(settings.Latitude, 2), decimal.Round(settings.Longitude, 2),
+            options.Value.RadarWmsUrl, options.Value.RadarWmsLayer, 300,
+            "Radar data from NOAA/National Weather Service");
+    }
+
     public static WeatherSettingsResponse Map(HouseholdWeatherConfiguration value) =>
         new(value.HouseholdId, value.Latitude, value.Longitude, value.LocationLabel, value.TemperatureUnit, value.Version);
 
@@ -71,3 +85,4 @@ internal sealed class WeatherService(
 }
 
 internal sealed class WeatherUnavailableException : Exception;
+internal sealed class WeatherRadarUnavailableException : Exception;

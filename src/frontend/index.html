@@ -8,6 +8,15 @@
     <meta name="description" content="A calm, touch-first home for family schedules, chores, and rewards." />
     <link rel="icon" href="/icons/app-icon.svg" type="image/svg+xml" />
     <title>Family Dashboard</title>
+    <script>
+      try {
+        const preference = localStorage.getItem('family-dashboard:theme')
+        const dark = preference === 'dark' || (preference !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        document.querySelector('meta[name="theme-color"]').content = dark ? '#151b1a' : '#f6f4ee'
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

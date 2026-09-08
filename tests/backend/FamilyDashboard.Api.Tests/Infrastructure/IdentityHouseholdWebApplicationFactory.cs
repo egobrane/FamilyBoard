@@ -16,6 +16,7 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
     bool enableTasks = false,
     bool enableTaskMutations = false,
     string? householdMediaPath = null,
+    bool enableWeatherRadar = false,
     Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<Program>
 {
@@ -39,6 +40,8 @@ internal sealed class IdentityHouseholdWebApplicationFactory(
         builder.UseSetting("GoogleTasks:CallbackUrl", enableTasks
             ? "https://api.example.test/api/integrations/google-tasks/callback" : "");
         builder.UseSetting("HouseholdMedia:Enabled", (householdMediaPath is not null).ToString());
+        builder.UseSetting("Weather:Enabled", enableWeatherRadar.ToString());
+        builder.UseSetting("Weather:RadarEnabled", enableWeatherRadar.ToString());
         if (householdMediaPath is not null)
         {
             builder.UseSetting("HouseholdMedia:StorageProvider", "FileSystem");
@@ -78,7 +81,7 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
     public FamilyDashboardDbContext DbContext { get; }
     public IdentityHouseholdWebApplicationFactory Factory { get; }
 
-    public static async Task<PostgreSqlTestDatabase> CreateAsync(string? householdMediaPath = null)
+    public static async Task<PostgreSqlTestDatabase> CreateAsync(string? householdMediaPath = null, bool enableWeatherRadar = false)
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!;
         var options = new DbContextOptionsBuilder<FamilyDashboardDbContext>()
@@ -91,7 +94,8 @@ internal sealed class PostgreSqlTestDatabase : IAsyncDisposable
             dbContext,
             new IdentityHouseholdWebApplicationFactory(
                 connectionString,
-                householdMediaPath: householdMediaPath));
+                householdMediaPath: householdMediaPath,
+                enableWeatherRadar: enableWeatherRadar));
     }
 
     public async ValueTask DisposeAsync()

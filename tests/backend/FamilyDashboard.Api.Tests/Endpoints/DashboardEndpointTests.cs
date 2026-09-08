@@ -67,6 +67,35 @@ public sealed class DashboardEndpointTests
             .AnyAsync(value => value.HouseholdId == secondHousehold.Id));
     }
 
+    [PostgreSqlFact]
+    public async Task RadarIsMemberAuthorizedAndReturnsOnlyAnApproximateCenter()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync(enableWeatherRadar: true);
+        var account = new UserAccount { DisplayName = "Radar Adult", PrimaryEmail = "radar@example.test" };
+        var outsider = new UserAccount { DisplayName = "Outsider", PrimaryEmail = "radar-outsider@example.test" };
+        database.DbContext.UserAccounts.AddRange(account, outsider);
+        await database.DbContext.SaveChangesAsync();
+        using var client = Client(database, account.Id);
+        using var outsiderClient = Client(database, outsider.Id);
+        var household = await BootstrapAsync(client, "Radar Household");
+        _ = await BootstrapAsync(outsiderClient, "Other Household");
+        using var settings = await client.PutAsJsonAsync(
+            $"/api/households/{household.Id}/weather-settings",
+            new UpdateWeatherSettingsRequest(40.712812m, -74.006012m, "Near home", "auto", null));
+        Assert.Equal(HttpStatusCode.OK, settings.StatusCode);
+
+        var radar = await client.GetFromJsonAsync<HouseholdWeatherRadarResponse>(
+            $"/api/households/{household.Id}/weather/radar");
+
+        Assert.Equal("available", radar!.Status);
+        Assert.Equal(40.71m, radar.CenterLatitude);
+        Assert.Equal(-74.01m, radar.CenterLongitude);
+        Assert.StartsWith("https://mapservices.weather.noaa.gov/", radar.WmsUrl);
+        Assert.Equal("0", radar.WmsLayer);
+        using var denied = await outsiderClient.GetAsync($"/api/households/{household.Id}/weather/radar");
+        Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
+    }
+
     private static HttpClient Client(PostgreSqlTestDatabase database, Guid accountId)
     {
         var client = database.Factory.CreateClient();

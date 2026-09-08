@@ -57,6 +57,8 @@ afterEach(() => {
 
 describe('App', () => {
   it('renders the authenticated touch-first dashboard with household context', async () => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true,
+      value(this: HTMLDialogElement) { this.setAttribute('open', '') } })
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input)).pathname
@@ -73,6 +75,11 @@ describe('App', () => {
         forecast: [{ name: 'Today', start: '2026-08-31T10:00:00Z', end: '2026-09-01T00:00:00Z', temperature: 76, temperatureUnit: 'fahrenheit', summary: 'Sunny', icon: 'clear', isDaytime: true }],
         observedAt: '2026-08-31T10:00:00Z', retrievedAt: '2026-08-31T10:05:00Z', isStale: false,
         attribution: 'Weather data from the National Weather Service',
+      })
+      if (path.endsWith('/weather/radar')) return jsonResponse({
+        status: 'available', centerLatitude: 40.71, centerLongitude: -74.01,
+        wmsUrl: 'https://mapservices.weather.noaa.gov/example/WMSServer', wmsLayer: '0',
+        refreshIntervalSeconds: 300, attribution: 'Radar data from NOAA/National Weather Service',
       })
       if (path.endsWith('/chores/dashboard')) return jsonResponse({
         overdue: [],
@@ -140,11 +147,19 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /account menu for Ryan Bamford/i }))
     await user.click(screen.getByRole('menuitem', { name: /On-screen keyboard setting: Auto/i }))
     expect(window.localStorage.getItem('family-dashboard:touch-keyboard')).toBe('on')
+    await user.click(screen.getByRole('menuitem', { name: /Appearance setting: System/i }))
+    await user.click(screen.getByRole('menuitem', { name: /Appearance setting: Light/i }))
+    expect(window.localStorage.getItem('family-dashboard:theme')).toBe('dark')
+    expect(document.documentElement.dataset.theme).toBe('dark')
 
     const welcomeCard = screen.getByRole('region', { name: 'Ready for a good day?' })
     expect(welcomeCard.style.getPropertyValue('--household-photo')).toContain('/images/demo-family-photo.jpg')
     expect(await screen.findByText('Make today count.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Open weather forecast: 72 degrees, Sunny/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Open weather forecast: 72 degrees, Sunny/i }))
+    await user.click(screen.getByRole('button', { name: 'Radar' }))
+    expect(await screen.findByLabelText('Interactive current weather radar map')).toBeInTheDocument()
   })
 
   it('shows the signed-out welcome state without flashing dashboard content', async () => {

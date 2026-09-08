@@ -144,7 +144,10 @@ builder.Services.AddOptions<WeatherConfiguration>()
         && !string.IsNullOrWhiteSpace(options.UserAgent)
         && options.Timeout > TimeSpan.Zero
         && options.FreshLifetime > TimeSpan.Zero
-        && options.StaleLifetime >= options.FreshLifetime), "Weather configuration is invalid.")
+        && options.StaleLifetime >= options.FreshLifetime
+        && (!options.RadarEnabled || (Uri.TryCreate(options.RadarWmsUrl, UriKind.Absolute, out var radarUri)
+            && radarUri.Scheme == Uri.UriSchemeHttps
+            && !string.IsNullOrWhiteSpace(options.RadarWmsLayer)))), "Weather configuration is invalid.")
     .ValidateOnStart();
 
 var corsOptions = builder.Configuration

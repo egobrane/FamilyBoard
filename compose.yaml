@@ -64,6 +64,9 @@ services:
       HouseholdMedia__Provider: FileSystem
       HouseholdMedia__LocalPath: /workspace/data/household-photos
       Weather__Enabled: ${Weather__Enabled:-true}
+      Weather__RadarEnabled: ${Weather__RadarEnabled:-true}
+      Weather__RadarWmsUrl: ${Weather__RadarWmsUrl:-https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer}
+      Weather__RadarWmsLayer: ${Weather__RadarWmsLayer:-0}
       Weather__Provider: Nws
     ports:
       - "${API_PORT:-8080}:8080"

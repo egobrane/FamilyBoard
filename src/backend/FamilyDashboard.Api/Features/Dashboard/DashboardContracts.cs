@@ -51,6 +51,15 @@ public sealed record HouseholdWeatherResponse(
     bool IsStale,
     string Attribution);
 
+public sealed record HouseholdWeatherRadarResponse(
+    string Status,
+    decimal? CenterLatitude,
+    decimal? CenterLongitude,
+    string? WmsUrl,
+    string? WmsLayer,
+    int RefreshIntervalSeconds,
+    string Attribution);
+
 public sealed record WeatherCurrentResponse(decimal? Temperature, string Summary, string Icon);
 
 public sealed record WeatherPeriodResponse(

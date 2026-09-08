@@ -321,6 +321,16 @@ export interface HouseholdWeatherResponse {
   attribution: string
 }
 
+export interface HouseholdWeatherRadarResponse {
+  status: 'available' | 'locationRequired'
+  centerLatitude: number | null
+  centerLongitude: number | null
+  wmsUrl: string | null
+  wmsLayer: string | null
+  refreshIntervalSeconds: number
+  attribution: string
+}
+
 export interface HouseholdMemberResponse {
   id: string
   displayName: string
@@ -672,6 +682,12 @@ export function removeDashboardPhoto(householdId: string) {
 
 export function getHouseholdWeather(householdId: string) {
   return request<HouseholdWeatherResponse>(`/api/households/${encodeURIComponent(householdId)}/weather`)
+}
+
+export function getHouseholdWeatherRadar(householdId: string) {
+  return request<HouseholdWeatherRadarResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/weather/radar`,
+  )
 }
 
 export function getWeatherSettings(householdId: string) {

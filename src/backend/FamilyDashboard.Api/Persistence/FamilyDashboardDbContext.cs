@@ -37,6 +37,7 @@ public sealed class FamilyDashboardDbContext(DbContextOptions<FamilyDashboardDbC
     public DbSet<ChoreAssignment> ChoreAssignments => Set<ChoreAssignment>();
     public DbSet<ChoreCompletion> ChoreCompletions => Set<ChoreCompletion>();
     public DbSet<PointTransaction> PointTransactions => Set<PointTransaction>();
+    public DbSet<PointDeductionDefinition> PointDeductionDefinitions => Set<PointDeductionDefinition>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<RewardRedemption> RewardRedemptions => Set<RewardRedemption>();
 

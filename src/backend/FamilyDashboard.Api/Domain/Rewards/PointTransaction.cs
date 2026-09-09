@@ -15,6 +15,7 @@ public sealed class PointTransaction
     public Guid? CreatedByMemberId { get; set; }
     public Guid? ChoreCompletionId { get; set; }
     public Guid? RewardRedemptionId { get; set; }
+    public Guid? PointDeductionDefinitionId { get; set; }
     public Guid? ReversesPointTransactionId { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -23,6 +24,7 @@ public sealed class PointTransaction
     public HouseholdMember? CreatedByMember { get; set; }
     public ChoreCompletion? ChoreCompletion { get; set; }
     public RewardRedemption? RewardRedemption { get; set; }
+    public PointDeductionDefinition? PointDeductionDefinition { get; set; }
     public PointTransaction? ReversesPointTransaction { get; set; }
     public PointTransaction? ReversalTransaction { get; set; }
 }

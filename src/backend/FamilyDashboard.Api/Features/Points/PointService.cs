@@ -48,6 +48,142 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
             hasMore ? Convert.ToBase64String(BitConverter.GetBytes(offset + pageSize)) : null);
     }
 
+    public async Task<IReadOnlyList<PointDeductionDefinitionResponse>> ListDeductionDefinitionsAsync(
+        Guid householdId, CancellationToken cancellationToken) =>
+        await dbContext.PointDeductionDefinitions.AsNoTracking()
+            .Where(item => item.HouseholdId == householdId)
+            .OrderByDescending(item => item.IsActive)
+            .ThenBy(item => item.Title)
+            .Select(item => MapDeductionDefinition(item))
+            .ToListAsync(cancellationToken);
+
+    public async Task<PointOperationResult<PointDeductionDefinitionResponse>>
+        CreateDeductionDefinitionAsync(Guid householdId, Guid actorUserAccountId,
+            CreatePointDeductionDefinitionRequest request, CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.PointDeductionDefinitions.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.HouseholdId == householdId
+                && item.ClientRequestId == request.ClientRequestId, cancellationToken);
+        if (existing is not null)
+            return SameDefinition(existing, request)
+                ? new(PointOperationStatus.Success, MapDeductionDefinition(existing))
+                : new(PointOperationStatus.IdempotencyConflict);
+        var actor = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
+        if (actor is null) return new(PointOperationStatus.MemberNotFound);
+        var now = timeProvider.GetUtcNow();
+        var definition = new PointDeductionDefinition
+        {
+            HouseholdId = householdId,
+            ClientRequestId = request.ClientRequestId,
+            Title = request.Title,
+            DeductionAmount = request.DeductionAmount,
+            CreatedByMemberId = actor.Id,
+            UpdatedByMemberId = actor.Id,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        dbContext.PointDeductionDefinitions.Add(definition);
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException) { return new(PointOperationStatus.ConcurrencyConflict); }
+        return new(PointOperationStatus.Success, MapDeductionDefinition(definition));
+    }
+
+    public async Task<PointOperationResult<PointDeductionDefinitionResponse>>
+        UpdateDeductionDefinitionAsync(Guid householdId, Guid definitionId,
+            Guid actorUserAccountId, UpdatePointDeductionDefinitionRequest request,
+            CancellationToken cancellationToken)
+    {
+        var definition = await dbContext.PointDeductionDefinitions.SingleOrDefaultAsync(item =>
+            item.HouseholdId == householdId && item.Id == definitionId, cancellationToken);
+        if (definition is null) return new(PointOperationStatus.DeductionDefinitionNotFound);
+        if (definition.Version != request.ExpectedVersion)
+            return new(PointOperationStatus.ConcurrencyConflict);
+        var actor = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
+        if (actor is null) return new(PointOperationStatus.MemberNotFound);
+        definition.Title = request.Title;
+        definition.DeductionAmount = request.DeductionAmount;
+        definition.UpdatedByMemberId = actor.Id;
+        definition.UpdatedAt = timeProvider.GetUtcNow();
+        definition.Version++;
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException) { return new(PointOperationStatus.ConcurrencyConflict); }
+        return new(PointOperationStatus.Success, MapDeductionDefinition(definition));
+    }
+
+    public async Task<PointOperationResult<PointDeductionDefinitionResponse>>
+        SetDeductionDefinitionStateAsync(Guid householdId, Guid definitionId,
+            Guid actorUserAccountId, long expectedVersion, bool active,
+            CancellationToken cancellationToken)
+    {
+        var definition = await dbContext.PointDeductionDefinitions.SingleOrDefaultAsync(item =>
+            item.HouseholdId == householdId && item.Id == definitionId, cancellationToken);
+        if (definition is null) return new(PointOperationStatus.DeductionDefinitionNotFound);
+        if (definition.Version != expectedVersion)
+            return new(PointOperationStatus.ConcurrencyConflict);
+        var actor = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
+        if (actor is null) return new(PointOperationStatus.MemberNotFound);
+        definition.IsActive = active;
+        definition.UpdatedByMemberId = actor.Id;
+        definition.UpdatedAt = timeProvider.GetUtcNow();
+        definition.Version++;
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException) { return new(PointOperationStatus.ConcurrencyConflict); }
+        return new(PointOperationStatus.Success, MapDeductionDefinition(definition));
+    }
+
+    public async Task<PointOperationResult<PointTransactionResponse>> ApplyDeductionAsync(
+        Guid householdId, Guid definitionId, Guid actorUserAccountId,
+        ApplyPointDeductionRequest request, CancellationToken cancellationToken)
+    {
+        await using var databaseTransaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await ledgerLock.AcquireAsync(householdId, request.HouseholdMemberId, cancellationToken);
+        var key = $"deduction:{request.ClientRequestId:N}";
+        var existing = await TransactionQuery(householdId)
+            .SingleOrDefaultAsync(item => item.IdempotencyKey == key, cancellationToken);
+        if (existing is not null)
+            return existing.Type == PointTransactionType.Adjustment
+                && existing.HouseholdMemberId == request.HouseholdMemberId
+                && existing.PointDeductionDefinitionId == definitionId
+                ? new(PointOperationStatus.Success, MapTransaction(existing))
+                : new(PointOperationStatus.IdempotencyConflict);
+        var definition = await dbContext.PointDeductionDefinitions.SingleOrDefaultAsync(item =>
+            item.HouseholdId == householdId && item.Id == definitionId, cancellationToken);
+        if (definition is null) return new(PointOperationStatus.DeductionDefinitionNotFound);
+        if (!definition.IsActive) return new(PointOperationStatus.DeductionDefinitionInactive);
+        if (definition.Version != request.ExpectedDefinitionVersion)
+            return new(PointOperationStatus.ConcurrencyConflict);
+        var member = await dbContext.HouseholdMembers.SingleOrDefaultAsync(item =>
+            item.HouseholdId == householdId && item.Id == request.HouseholdMemberId,
+            cancellationToken);
+        if (member is null) return new(PointOperationStatus.MemberNotFound);
+        if (!member.IsActive) return new(PointOperationStatus.MemberInactive);
+        var actor = await ResolveAdultMemberAsync(householdId, actorUserAccountId, cancellationToken);
+        if (actor is null) return new(PointOperationStatus.MemberNotFound);
+        var transaction = new PointTransaction
+        {
+            HouseholdId = householdId,
+            HouseholdMemberId = member.Id,
+            CreatedByMemberId = actor.Id,
+            Amount = -definition.DeductionAmount,
+            Type = PointTransactionType.Adjustment,
+            Description = definition.Title,
+            IdempotencyKey = key,
+            PointDeductionDefinitionId = definition.Id,
+            CreatedAt = timeProvider.GetUtcNow(),
+            HouseholdMember = member,
+            CreatedByMember = actor,
+            PointDeductionDefinition = definition,
+        };
+        dbContext.PointTransactions.Add(transaction);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await databaseTransaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateException) { return new(PointOperationStatus.ConcurrencyConflict); }
+        return new(PointOperationStatus.Success, MapTransaction(transaction));
+    }
+
     public async Task<PointOperationResult<PointTransactionResponse>> AdjustAsync(
         Guid householdId, Guid actorUserAccountId, CreatePointAdjustmentRequest request,
         CancellationToken cancellationToken)
@@ -164,7 +300,16 @@ public sealed class PointService(FamilyDashboardDbContext dbContext, TimeProvide
     private static PointTransactionResponse MapTransaction(PointTransaction item) =>
         new(item.Id, MapMember(item.HouseholdMember), item.Amount,
             item.Type.ToString()[..1].ToLowerInvariant() + item.Type.ToString()[1..],
-            item.Description, item.ChoreCompletionId, item.RewardRedemptionId, item.ReversesPointTransactionId,
+            item.Description, item.ChoreCompletionId, item.RewardRedemptionId,
+            item.PointDeductionDefinitionId, item.ReversesPointTransactionId,
             item.CreatedByMember is null ? null : MapMember(item.CreatedByMember), item.CreatedAt,
             item.ReversalTransaction is not null);
+
+    private static PointDeductionDefinitionResponse MapDeductionDefinition(
+        PointDeductionDefinition item) => new(item.Id, item.Title, item.DeductionAmount,
+            item.IsActive, item.Version, item.CreatedAt, item.UpdatedAt);
+
+    private static bool SameDefinition(PointDeductionDefinition definition,
+        CreatePointDeductionDefinitionRequest request) =>
+        definition.Title == request.Title && definition.DeductionAmount == request.DeductionAmount;
 }

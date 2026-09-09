@@ -16,7 +16,115 @@ public static class PointEndpoints
         group.MapPost("/point-adjustments", AdjustAsync).RequireFamilyDashboardAntiforgery();
         group.MapPost("/point-transactions/{transactionId:guid}/reverse", ReverseAsync)
             .RequireFamilyDashboardAntiforgery();
+        group.MapGet("/point-deduction-definitions", ListDeductionDefinitionsAsync);
+        group.MapPost("/point-deduction-definitions", CreateDeductionDefinitionAsync)
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPatch("/point-deduction-definitions/{definitionId:guid}",
+            UpdateDeductionDefinitionAsync).RequireFamilyDashboardAntiforgery();
+        group.MapPost("/point-deduction-definitions/{definitionId:guid}/activate",
+            (Guid householdId, Guid definitionId,
+                ChangePointDeductionDefinitionStateRequest? request, HttpContext context,
+                IAuthorizationService authorization, HouseholdService households,
+                PointService points, CancellationToken cancellationToken) =>
+                ChangeDeductionDefinitionStateAsync(householdId, definitionId, true, request,
+                    context, authorization, households, points, cancellationToken))
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPost("/point-deduction-definitions/{definitionId:guid}/deactivate",
+            (Guid householdId, Guid definitionId,
+                ChangePointDeductionDefinitionStateRequest? request, HttpContext context,
+                IAuthorizationService authorization, HouseholdService households,
+                PointService points, CancellationToken cancellationToken) =>
+                ChangeDeductionDefinitionStateAsync(householdId, definitionId, false, request,
+                    context, authorization, households, points, cancellationToken))
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPost("/point-deduction-definitions/{definitionId:guid}/applications",
+            ApplyDeductionAsync).RequireFamilyDashboardAntiforgery();
         return endpoints;
+    }
+
+    private static async Task<IResult> ListDeductionDefinitionsAsync(Guid householdId,
+        HttpContext context, IAuthorizationService authorization, HouseholdService households,
+        PointService points, CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        return failure ?? Results.Ok(await points.ListDeductionDefinitionsAsync(
+            householdId, cancellationToken));
+    }
+
+    private static async Task<IResult> CreateDeductionDefinitionAsync(Guid householdId,
+        CreatePointDeductionDefinitionRequest? request, HttpContext context,
+        IAuthorizationService authorization, HouseholdService households, PointService points,
+        CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (request is null)
+            return Validation(context, new Dictionary<string, string[]>
+                { ["deductionDefinition"] = ["Deduction definition data is required."] });
+        if (!PointValidation.TryDeductionDefinition(request.ClientRequestId,
+                request.Title, request.DeductionAmount, out var clean, out var errors))
+            return Validation(context, errors);
+        return Result(context, await points.CreateDeductionDefinitionAsync(householdId, actor,
+            clean!, cancellationToken), true);
+    }
+
+    private static async Task<IResult> UpdateDeductionDefinitionAsync(Guid householdId,
+        Guid definitionId, UpdatePointDeductionDefinitionRequest? request, HttpContext context,
+        IAuthorizationService authorization, HouseholdService households, PointService points,
+        CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (request is null || request.ExpectedVersion < 1)
+            return Validation(context, new Dictionary<string, string[]>
+                { ["deductionDefinition"] = ["Deduction definition data and a valid version are required."] });
+        if (!PointValidation.TryDeductionDefinition(Guid.NewGuid(), request.Title,
+                request.DeductionAmount, out var clean, out var errors))
+            return Validation(context, errors);
+        var update = new UpdatePointDeductionDefinitionRequest(request.ExpectedVersion,
+            clean!.Title, clean.DeductionAmount);
+        return Result(context, await points.UpdateDeductionDefinitionAsync(householdId,
+            definitionId, actor, update, cancellationToken), false);
+    }
+
+    private static async Task<IResult> ChangeDeductionDefinitionStateAsync(Guid householdId,
+        Guid definitionId, bool active, ChangePointDeductionDefinitionStateRequest? request,
+        HttpContext context, IAuthorizationService authorization, HouseholdService households,
+        PointService points, CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (request is null || request.ExpectedVersion < 1)
+            return Validation(context, new Dictionary<string, string[]>
+                { ["expectedVersion"] = ["A valid version is required."] });
+        return Result(context, await points.SetDeductionDefinitionStateAsync(householdId,
+            definitionId, actor, request.ExpectedVersion, active, cancellationToken), false);
+    }
+
+    private static async Task<IResult> ApplyDeductionAsync(Guid householdId, Guid definitionId,
+        ApplyPointDeductionRequest? request, HttpContext context,
+        IAuthorizationService authorization, HouseholdService households, PointService points,
+        CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (!PointValidation.TryDeductionApplication(request, out var errors))
+            return Validation(context, errors);
+        return Result(context, await points.ApplyDeductionAsync(householdId, definitionId,
+            actor, request!, cancellationToken), true);
     }
 
     private static async Task<IResult> GetSummaryAsync(Guid householdId, HttpContext context,
@@ -92,14 +200,20 @@ public static class PointEndpoints
         return null;
     }
 
-    private static IResult Result(HttpContext context,
-        PointOperationResult<PointTransactionResponse> result, bool created) => result.Status switch
+    private static IResult Result<T>(HttpContext context,
+        PointOperationResult<T> result, bool created) => result.Status switch
     {
         PointOperationStatus.Success when created => Results.Json(result.Value,
             statusCode: StatusCodes.Status201Created),
         PointOperationStatus.Success => Results.Ok(result.Value),
         PointOperationStatus.MemberNotFound => Problem(context, 404,
             ApiProblemCodes.PointMemberNotFound, "The household member was not found."),
+        PointOperationStatus.MemberInactive => Problem(context, 409,
+            ApiProblemCodes.PointMemberInactive, "Select an active household member."),
+        PointOperationStatus.DeductionDefinitionNotFound => Problem(context, 404,
+            ApiProblemCodes.PointDeductionDefinitionNotFound, "The point deduction was not found."),
+        PointOperationStatus.DeductionDefinitionInactive => Problem(context, 409,
+            ApiProblemCodes.PointDeductionDefinitionInactive, "That point deduction is inactive."),
         PointOperationStatus.TransactionNotFound => Problem(context, 404,
             ApiProblemCodes.PointTransactionNotFound, "The point transaction was not found."),
         PointOperationStatus.IdempotencyConflict => Problem(context, 409,

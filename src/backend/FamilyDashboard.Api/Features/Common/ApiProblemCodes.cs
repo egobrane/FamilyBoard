@@ -115,6 +115,9 @@ public static class ApiProblemCodes
     public const string PointTransactionAlreadyReversed = "point_transaction_already_reversed";
     public const string PointTransactionNotReversible = "point_transaction_not_reversible";
     public const string PointConcurrencyConflict = "point_concurrency_conflict";
+    public const string PointDeductionDefinitionNotFound = "point_deduction_definition_not_found";
+    public const string PointDeductionDefinitionInactive = "point_deduction_definition_inactive";
+    public const string PointMemberInactive = "point_member_inactive";
     public const string RewardNotFound = "reward_not_found";
     public const string RewardMemberNotFound = "reward_member_not_found";
     public const string RewardInactive = "reward_inactive";

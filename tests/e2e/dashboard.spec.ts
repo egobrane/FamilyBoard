@@ -67,6 +67,8 @@ let rewardRedemptions: Array<Record<string, unknown>> = []
 let taskStatusRequests: Array<Record<string, unknown>> = []
 let choreCompletionRequests: Array<Record<string, unknown>> = []
 let choreClaimRequests: Array<Record<string, unknown>> = []
+let pointDeductionDefinitions: Array<Record<string, unknown>> = []
+let pointDeductionApplications: Array<Record<string, unknown>> = []
 let claimedOpenChoreMemberId: string | null = null
 let dashboardAppearance = {
   householdId: authenticatedUser.households[0].id,
@@ -99,6 +101,8 @@ test.beforeEach(async ({ page }) => {
   taskStatusRequests = []
   choreCompletionRequests = []
   choreClaimRequests = []
+  pointDeductionDefinitions = []
+  pointDeductionApplications = []
   claimedOpenChoreMemberId = null
   dashboardAppearance = { ...dashboardAppearance, greetingTitle: null, greetingMessage: null, version: 1 }
   weatherSettings = undefined
@@ -521,6 +525,31 @@ test.beforeEach(async ({ page }) => {
       })), recentTransactions: [] } })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-deduction-definitions`) {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON() as { title: string; deductionAmount: number }
+        const definition = { id: 'point-deduction-1', title: body.title,
+          deductionAmount: body.deductionAmount, isActive: true, version: 1,
+          createdAt: '2026-09-09T20:00:00Z', updatedAt: '2026-09-09T20:00:00Z' }
+        pointDeductionDefinitions = [definition]
+        await route.fulfill({ status: 201, json: definition })
+        return
+      }
+      await route.fulfill({ json: pointDeductionDefinitions })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-deduction-definitions/point-deduction-1/applications`) {
+      const body = route.request().postDataJSON() as Record<string, unknown>
+      pointDeductionApplications.push(body)
+      await route.fulfill({ status: 201, json: {
+        id: 'point-transaction-1', householdMember: householdMembers[0], amount: -500,
+        type: 'adjustment', description: 'Hitting someone', choreCompletionId: null,
+        rewardRedemptionId: null, pointDeductionDefinitionId: 'point-deduction-1',
+        reversesPointTransactionId: null, createdByMember: householdMembers[0],
+        createdAt: '2026-09-09T20:01:00Z', isReversed: false,
+      } })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/rewards`) {
       await route.fulfill({ json: { rewards: [{ id: 'reward-1', title: 'Movie night', description: 'Choose the movie',
         pointCost: 20, isActive: true, version: 1, createdAt: '2026-08-25T12:00:00Z', updatedAt: '2026-08-25T12:00:00Z' }],
@@ -941,6 +970,27 @@ test('an adult can update settings and add a child with keyboard-accessible cont
   await expect(page.getByRole('button', { name: 'Deactivate' })).toHaveCount(1)
 
   const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+    .toEqual([])
+})
+
+test('an adult can define and deliberately apply a touch-friendly point deduction', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/points`)
+  const panel = page.locator('.point-deduction-panel')
+  await panel.getByLabel('Reason').fill('Hitting someone')
+  await panel.getByLabel('Points to deduct').fill('500')
+  await panel.getByRole('button', { name: 'Create deduction' }).click()
+  await expect(page.getByText('Quick deduction created.')).toBeVisible()
+
+  await page.getByRole('button', { name: /Hitting someone.*500 points/ }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: /Deduct 500 points from Ryan Bamford/ })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Deduct 500 points' }).click()
+  await expect(page.getByText('Point deduction recorded.')).toBeVisible()
+  expect(pointDeductionApplications).toHaveLength(1)
+  expect(pointDeductionApplications[0].householdMemberId).toBe(authenticatedUser.households[0].memberId)
+
+  const results = await new AxeBuilder({ page }).include('.point-deduction-panel').analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
 })

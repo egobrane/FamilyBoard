@@ -456,6 +456,7 @@ export interface PointTransactionResponse {
   description: string
   choreCompletionId: string | null
   rewardRedemptionId: string | null
+  pointDeductionDefinitionId: string | null
   reversesPointTransactionId: string | null
   createdByMember: PointMemberResponse | null
   createdAt: string
@@ -488,6 +489,16 @@ export interface HouseholdPointSummaryResponse {
 export interface PointTransactionListResponse {
   items: PointTransactionResponse[]
   nextCursor: string | null
+}
+
+export interface PointDeductionDefinitionResponse {
+  id: string
+  title: string
+  deductionAmount: number
+  isActive: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ChoreRecurrenceRequest {
@@ -919,6 +930,50 @@ export function createPointAdjustment(householdId: string, body: {
 }) {
   return unsafeRequest<PointTransactionResponse>(
     `/api/households/${encodeURIComponent(householdId)}/point-adjustments`, 'POST', body,
+  )
+}
+
+export function listPointDeductionDefinitions(householdId: string) {
+  return request<PointDeductionDefinitionResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/point-deduction-definitions`,
+  )
+}
+
+export function createPointDeductionDefinition(householdId: string, body: {
+  clientRequestId: string
+  title: string
+  deductionAmount: number
+}) {
+  return unsafeRequest<PointDeductionDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-deduction-definitions`,
+    'POST', body,
+  )
+}
+
+export function updatePointDeductionDefinition(householdId: string,
+  definition: PointDeductionDefinitionResponse, body: { title: string; deductionAmount: number }) {
+  return unsafeRequest<PointDeductionDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-deduction-definitions/${encodeURIComponent(definition.id)}`,
+    'PATCH', { ...body, expectedVersion: definition.version },
+  )
+}
+
+export function setPointDeductionDefinitionActive(householdId: string,
+  definition: PointDeductionDefinitionResponse, active: boolean) {
+  return unsafeRequest<PointDeductionDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-deduction-definitions/${encodeURIComponent(definition.id)}/${active ? 'activate' : 'deactivate'}`,
+    'POST', { expectedVersion: definition.version },
+  )
+}
+
+export function applyPointDeduction(householdId: string,
+  definition: PointDeductionDefinitionResponse, body: {
+    clientRequestId: string
+    householdMemberId: string
+  }) {
+  return unsafeRequest<PointTransactionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-deduction-definitions/${encodeURIComponent(definition.id)}/applications`,
+    'POST', { ...body, expectedDefinitionVersion: definition.version },
   )
 }
 

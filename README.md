@@ -39,6 +39,7 @@ The migration service runs once before the development API starts. See [developm
 - [Dashboard personalization](docs/dashboard-personalization.md)
 - [Household weather](docs/weather.md)
 - [Chore management](docs/chore-management.md)
+- [Point management](docs/point-management.md)
 - [Reward management](docs/reward-management.md)
 - [Identity and household milestone](docs/identity-household-milestone.md)
 - [Netlify deployment](docs/deployment/netlify.md)
@@ -57,3 +58,5 @@ Health, Google-login initiation, and invitation prepare/inspection endpoints are
 The primary Home, Calendar, Tasks, Chores, and Rewards experience now runs as one cohesive routed workspace with a persistent household shell, pointer and touch gestures, browser-history-safe URLs, reduced-motion support, matching feature surfaces, and keyboard-visible control focus. An app-native on-screen keyboard is available for keyboardless wall displays, with automatic shared-display detection and an explicit Auto/On/Off device preference. A device-local System/Light/Dark appearance preference applies before first paint. Dashboard Personalization and Weather Increment 1 is deployed and staging verified with household-specific greetings, authenticated private photo variants and focal positioning, approximate weather location, NWS current conditions, and an accessible forecast dialog; the next release adds feature-gated, time-enabled NOAA radar with deliberate Play/Pause history. Dashboard Personalization Increment 2 extends the same private, authenticated photo treatment to household-member profiles and attribution surfaces and has been owner-verified in staging. The public demonstration photo remains only a fallback; household and member uploads are private and backend-authorized.
 
 The full Calendar workspace now uses a household-local month grid on wall displays, tablets, and desktops, with events placed on their actual dates and a detailed selected-day agenda. Phones receive an explicit date-grouped agenda. Month navigation, calendar overflow, all-day and cross-midnight placement, household locale/time-zone/week-start preferences, and selected-date event creation remain frontend presentation concerns; Google Calendar is still the event source of truth.
+
+The current source also adds reusable, versioned quick deductions to Points administration. Adults can define, edit, deactivate, reactivate, and deliberately apply a named deduction through the photo-backed member picker. Applications remain idempotent append-only adjustments with snapshotted titles and amounts; mistakes use the existing compensating-reversal workflow. Deployment and owner staging verification remain pending.

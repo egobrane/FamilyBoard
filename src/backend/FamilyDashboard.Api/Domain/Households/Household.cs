@@ -31,4 +31,5 @@ public sealed class Household
     public ICollection<ChoreDefinition> ChoreDefinitions { get; set; } = [];
     public ICollection<ChoreSchedule> ChoreSchedules { get; set; } = [];
     public ICollection<Reward> Rewards { get; set; } = [];
+    public ICollection<PointDeductionDefinition> PointDeductionDefinitions { get; set; } = [];
 }

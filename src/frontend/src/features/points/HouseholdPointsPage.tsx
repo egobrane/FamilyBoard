@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import { ApiError, createPointAdjustment, getPointSummary, listPointTransactions,
-  reversePointTransaction, type HouseholdPointSummaryResponse, type PointTransactionResponse } from '../../lib/api'
+  reversePointTransaction, listPointDeductionDefinitions, createPointDeductionDefinition,
+  updatePointDeductionDefinition, setPointDeductionDefinitionActive, applyPointDeduction,
+  type HouseholdPointSummaryResponse, type PointDeductionDefinitionResponse,
+  type PointTransactionResponse } from '../../lib/api'
 import { PointHistoryList } from './PointHistoryList'
+import { PointDeductionPanel } from './PointDeductionPanel'
 
 export function HouseholdPointsPage() {
   const { householdId = '' } = useParams()
   const [summary, setSummary] = useState<HouseholdPointSummaryResponse | null>(null)
   const [transactions, setTransactions] = useState<PointTransactionResponse[]>([])
+  const [definitions, setDefinitions] = useState<PointDeductionDefinitionResponse[]>([])
   const [memberId, setMemberId] = useState('')
   const [amount, setAmount] = useState(0)
   const [reason, setReason] = useState('')
@@ -21,8 +26,12 @@ export function HouseholdPointsPage() {
   const reversalRequestId = useRef(crypto.randomUUID())
   const load = useCallback(async () => {
     setLoading(true); setError('')
-    try { const [nextSummary, history] = await Promise.all([getPointSummary(householdId), listPointTransactions(householdId)])
-      setSummary(nextSummary); setTransactions(history.items); if (!memberId && nextSummary.members[0]) setMemberId(nextSummary.members[0].memberId) }
+    try { const [nextSummary, history, nextDefinitions] = await Promise.all([
+      getPointSummary(householdId), listPointTransactions(householdId),
+      listPointDeductionDefinitions(householdId),
+    ])
+      setSummary(nextSummary); setTransactions(history.items); setDefinitions(nextDefinitions)
+      if (!memberId && nextSummary.members[0]) setMemberId(nextSummary.members[0].memberId) }
     catch (cause) { setError(cause instanceof ApiError ? cause.problem.title : 'Point administration could not be loaded.') }
     finally { setLoading(false) }
   }, [householdId, memberId])
@@ -42,10 +51,33 @@ export function HouseholdPointsPage() {
     catch (cause) { setError(cause instanceof ApiError ? cause.problem.title : 'The reversal could not be recorded.') }
     finally { setBusy(false) }
   }
+  async function perform(operation: () => Promise<unknown>, message: string,
+    fallback: string) {
+    setBusy(true); setError(''); setSuccess('')
+    try { await operation(); setSuccess(message); await load(); return true }
+    catch (cause) { setError(cause instanceof ApiError ? cause.problem.title : fallback); return false }
+    finally { setBusy(false) }
+  }
   if (loading) return <p role="status">Loading point administration…</p>
   if (!summary) return <section className="admin-status" role="alert"><p>{error || 'Point administration is unavailable.'}</p><button onClick={() => void load()} type="button">Try again</button></section>
 
-  return <div className="point-admin-grid"><form className="admin-form" onSubmit={(event) => void adjust(event)}>
+  return <div className="point-admin-grid">
+  <PointDeductionPanel busy={busy} definitions={definitions} members={summary.members}
+    onCreate={(clientRequestId, title, deductionAmount) => perform(
+      () => createPointDeductionDefinition(householdId, { clientRequestId, title, deductionAmount }),
+      'Quick deduction created.', 'The quick deduction could not be created.')}
+    onUpdate={(definition, title, deductionAmount) => perform(
+      () => updatePointDeductionDefinition(householdId, definition, { title, deductionAmount }),
+      'Quick deduction updated.', 'The quick deduction could not be updated.')}
+    onToggle={(definition, active) => perform(
+      () => setPointDeductionDefinitionActive(householdId, definition, active),
+      active ? 'Quick deduction reactivated.' : 'Quick deduction deactivated.',
+      'The quick deduction could not be changed.')}
+    onApply={(definition, selectedMemberId, clientRequestId) => perform(
+      () => applyPointDeduction(householdId, definition, {
+        clientRequestId, householdMemberId: selectedMemberId,
+      }), 'Point deduction recorded.', 'The point deduction could not be recorded.')} />
+  <form className="admin-form point-advanced-correction" onSubmit={(event) => void adjust(event)}>
     <h3>Record a correction</h3><p>Corrections add an immutable ledger entry. Use a negative amount to remove points.</p>
     <label>Household member<select onChange={(event) => { setMemberId(event.target.value); requestId.current = crypto.randomUUID() }} required value={memberId}>
       {summary.members.map((member) => <option key={member.memberId} value={member.memberId}>{member.displayName}{!member.isActive ? ' (inactive)' : ''}</option>)}</select></label>

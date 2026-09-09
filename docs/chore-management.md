@@ -96,6 +96,8 @@ Each definition has a point value from 0 through 10,000. One-time and generated 
 
 Point history is append-only. Household and member balances are derived by summing signed transactions instead of trusting a client or mutable balance column. Adults may record signed administrative adjustments, and may reverse a chore award or adjustment through an exact compensating transaction. Original entries remain visible. Routine balance/history reads remain available on a locked shared display, while review, adjustment, and reversal require parent elevation there. Inactive members retain their history and balance.
 
+Points administration also supports retained reusable quick-deduction definitions. Applying one to an active member snapshots its current title and negative amount into the same ledger; editing or deactivating the definition never rewrites history. See [Point management](point-management.md).
+
 The Home reward widget lists every active member in descending balance order. Exact point totals remain the authoritative values; the accompanying filled bars are a display-only comparison against the current household leader and do not persist a second balance.
 
 ## Increment 3 staging result

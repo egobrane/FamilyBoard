@@ -16,6 +16,7 @@ public sealed record PointTransactionResponse(
     string Description,
     Guid? ChoreCompletionId,
     Guid? RewardRedemptionId,
+    Guid? PointDeductionDefinitionId,
     Guid? ReversesPointTransactionId,
     PointMemberResponse? CreatedByMember,
     DateTimeOffset CreatedAt,
@@ -38,12 +39,41 @@ public sealed record CreatePointAdjustmentRequest(
 
 public sealed record ReversePointTransactionRequest(Guid ClientRequestId, string Reason);
 
+public sealed record CreatePointDeductionDefinitionRequest(
+    Guid ClientRequestId,
+    string Title,
+    int DeductionAmount);
+
+public sealed record UpdatePointDeductionDefinitionRequest(
+    long ExpectedVersion,
+    string Title,
+    int DeductionAmount);
+
+public sealed record ChangePointDeductionDefinitionStateRequest(long ExpectedVersion);
+
+public sealed record ApplyPointDeductionRequest(
+    Guid ClientRequestId,
+    Guid HouseholdMemberId,
+    long ExpectedDefinitionVersion);
+
+public sealed record PointDeductionDefinitionResponse(
+    Guid Id,
+    string Title,
+    int DeductionAmount,
+    bool IsActive,
+    long Version,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
 public sealed record PointOperationResult<T>(PointOperationStatus Status, T? Value = default);
 
 public enum PointOperationStatus
 {
     Success,
     MemberNotFound,
+    MemberInactive,
+    DeductionDefinitionNotFound,
+    DeductionDefinitionInactive,
     TransactionNotFound,
     IdempotencyConflict,
     AlreadyReversed,

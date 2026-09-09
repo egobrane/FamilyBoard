@@ -91,7 +91,7 @@ public sealed class DashboardEndpointTests
         Assert.Equal(40.71m, radar.CenterLatitude);
         Assert.Equal(-74.01m, radar.CenterLongitude);
         Assert.StartsWith("https://mapservices.weather.noaa.gov/", radar.WmsUrl);
-        Assert.Equal("0", radar.WmsLayer);
+        Assert.Equal("radar_base_reflectivity_time", radar.WmsLayer);
         using var denied = await outsiderClient.GetAsync($"/api/households/{household.Id}/weather/radar");
         Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
     }

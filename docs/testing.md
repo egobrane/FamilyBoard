@@ -30,7 +30,7 @@ npm test
 npm run build
 ```
 
-Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation and managed-event navigation, chore-list completion states, recurring-schedule summaries and weekday controls, real point-history semantics, dashboard semantics, and keyboard and pointer navigation.
+Vitest and React Testing Library cover authentication states, first-household setup, multi-household selection, invitation creation and fragment removal, shared-display PIN entry, credentialed/antiforgery API behavior, Calendar events/source selection, controlled event creation and managed-event navigation, chore-list completion and expired-history states, recurring-schedule summaries and weekday controls, real point-history semantics, leader-relative standings bars, dashboard semantics, and keyboard and pointer navigation.
 
 ## Browser tests
 
@@ -51,7 +51,7 @@ The UI Cohesion and Workspace Navigation increment passed 39 frontend component 
 dotnet test FamilyDashboard.sln
 ```
 
-The liveness, return-URL, Google option, Calendar token/state protection, invitation-token, parent-PIN hashing, chore due-time/DST and recurrence calculations, CORS, and production fail-closed authentication tests can run without PostgreSQL. Migration, chore lifecycle/idempotency/history, schedule generation and duplicate prevention, endpoint, Calendar constraints/household isolation/event-creation idempotency and concurrency, atomic-bootstrap-and-selection, per-session household selection and elevation, concurrent last-adult, invitation isolation/revocation/email binding/concurrent acceptance, PIN cooldown/audit/administration, Google identity mapping, session renewal/revocation/expiration, disabled-account, and antiforgery tests run when `TEST_POSTGRES_CONNECTION_STRING` points to a dedicated disposable test database. These tests delete and recreate that database, so it must never target shared or production data.
+The liveness, return-URL, Google option, Calendar token/state protection, invitation-token, parent-PIN hashing, chore due-time/DST and recurrence calculations, CORS, and production fail-closed authentication tests can run without PostgreSQL. Migration, chore lifecycle/idempotency/history, open-chore cutoff filtering and claim rejection, atomic expiration, schedule generation and duplicate prevention, endpoint, Calendar constraints/household isolation/event-creation idempotency and concurrency, atomic-bootstrap-and-selection, per-session household selection and elevation, concurrent last-adult, invitation isolation/revocation/email binding/concurrent acceptance, PIN cooldown/audit/administration, Google identity mapping, session renewal/revocation/expiration, disabled-account, and antiforgery tests run when `TEST_POSTGRES_CONNECTION_STRING` points to a dedicated disposable test database. These tests delete and recreate that database, so it must never target shared or production data.
 
 CI supplies an ephemeral PostgreSQL service, then restores, builds, tests, builds production containers, and renders the K3s manifests. Builds or required tests must be green before a milestone is considered complete.
 

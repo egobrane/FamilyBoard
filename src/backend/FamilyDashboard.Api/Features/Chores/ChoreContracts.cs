@@ -91,6 +91,8 @@ public sealed record ChoreAssignmentResponse(
     string AssignmentMode,
     ChoreParticipantResponse? AssignedMember,
     DateTimeOffset? ClaimedAt,
+    DateTimeOffset? ClaimExpiresAt,
+    DateTimeOffset? ExpiredAt,
     DateOnly? DueLocalDate,
     TimeOnly? DueLocalTime,
     DateTimeOffset? DueAt,

@@ -69,4 +69,9 @@ public sealed class ChoreDueTimeService(TimeProvider timeProvider)
         dueAt = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(local, timeZone), TimeSpan.Zero);
         return true;
     }
+
+    public bool TryResolveOpenClaimExpiration(DateOnly dueLocalDate, string timeZoneId,
+        out DateTimeOffset expiresAt, out string? error) =>
+        TryResolveRecurring(dueLocalDate.AddDays(1), TimeOnly.MinValue, timeZoneId,
+            out expiresAt, out _, out error);
 }

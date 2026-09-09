@@ -395,12 +395,14 @@ export interface ChoreAssignmentResponse {
   assignmentMode: 'assigned' | 'open'
   assignedMember: ChoreParticipantResponse | null
   claimedAt: string | null
+  claimExpiresAt: string | null
+  expiredAt: string | null
   dueLocalDate: string | null
   dueLocalTime: string | null
   dueAt: string | null
   dueTimeZone: string | null
   dueHasExplicitTime: boolean
-  status: 'pending' | 'awaitingReview' | 'completed' | 'skipped'
+  status: 'pending' | 'awaitingReview' | 'completed' | 'skipped' | 'expired'
   isOverdue: boolean
   version: number
   pendingCompletion: ChoreCompletionResponse | null

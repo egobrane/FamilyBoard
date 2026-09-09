@@ -275,6 +275,7 @@ public sealed class ChoreEndpointTests
             .SingleAsync(item => item.ChoreScheduleId == schedule.Id);
         Assert.Equal(ChoreAssignmentMode.Open, assignment.AssignmentMode);
         Assert.Null(assignment.HouseholdMemberId);
+        Assert.NotNull(assignment.ClaimExpiresAt);
 
         var now = DateTimeOffset.UtcNow;
         var session = new UserSession
@@ -309,6 +310,82 @@ public sealed class ChoreEndpointTests
         var stored = await database.DbContext.ChoreAssignments.AsNoTracking().SingleAsync(item => item.Id == assignment.Id);
         Assert.Equal(claimed.AssignedMember.Id, stored.HouseholdMemberId);
         Assert.True(stored.ClaimedFromSharedDisplay);
+    }
+
+    [PostgreSqlFact]
+    public async Task ExpiredOpenChoreIsHiddenCannotBeClaimedAndIsRetainedInHistory()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount
+        {
+            DisplayName = "Expiration Adult",
+            PrimaryEmail = "expiration-chores@example.test",
+        };
+        database.DbContext.UserAccounts.Add(account);
+        await database.DbContext.SaveChangesAsync();
+        using var setupClient = Client(database.Factory, account.Id);
+        var household = await BootstrapAsync(setupClient);
+        var child = (await (await setupClient.PostAsJsonAsync($"/api/households/{household.Id}/members",
+            new CreateChildMemberRequest("Casey", "mint"))).Content
+            .ReadFromJsonAsync<HouseholdMemberResponse>())!;
+        var definition = (await (await setupClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-definitions",
+            new CreateChoreDefinitionRequest(Guid.NewGuid(), "Wipe the table", null, 5)))
+            .Content.ReadFromJsonAsync<ChoreDefinitionResponse>())!;
+        var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).Date);
+        var createResponse = await setupClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-assignments",
+            new CreateChoreAssignmentRequest(Guid.NewGuid(), definition.Id, "open", null,
+                localToday, new TimeOnly(8, 0)));
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var assignment = (await createResponse.Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
+        Assert.NotNull(assignment.ClaimExpiresAt);
+
+        await database.DbContext.ChoreAssignments.Where(item => item.Id == assignment.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(item => item.ClaimExpiresAt, DateTimeOffset.UtcNow.AddMinutes(-1)));
+        database.DbContext.ChangeTracker.Clear();
+
+        var dashboard = await setupClient.GetFromJsonAsync<ChoreDashboardResponse>(
+            $"/api/households/{household.Id}/chores/dashboard");
+        Assert.Empty(dashboard!.Open);
+        var active = await setupClient.GetFromJsonAsync<ChoreListResponse>(
+            $"/api/households/{household.Id}/chore-assignments?view=active");
+        Assert.DoesNotContain(active!.Items, item => item.Id == assignment.Id);
+
+        var now = DateTimeOffset.UtcNow;
+        var session = new UserSession
+        {
+            UserAccountId = account.Id,
+            SelectedHouseholdId = household.Id,
+            IsSharedDisplay = true,
+            CreatedAt = now,
+            LastSeenAt = now,
+            ExpiresAt = now.AddDays(1),
+            AbsoluteExpiresAt = now.AddDays(2),
+        };
+        database.DbContext.UserSessions.Add(session);
+        await database.DbContext.SaveChangesAsync();
+        using var sharedClient = Client(database.Factory, account.Id, session.Id);
+        var claim = await sharedClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-assignments/{assignment.Id}/claim",
+            new ClaimChoreAssignmentRequest(Guid.NewGuid(), assignment.Version, child.Id));
+        Assert.Equal(HttpStatusCode.Conflict, claim.StatusCode);
+        Assert.Equal(ApiProblemCodes.ChoreAssignmentNotActionable, await ProblemCodeAsync(claim));
+
+        await using (var scope = database.Factory.Services.CreateAsyncScope())
+        {
+            var result = await scope.ServiceProvider.GetRequiredService<ChoreAssignmentGenerator>()
+                .GenerateAsync(CancellationToken.None);
+            Assert.Equal(1, result.AssignmentsExpired);
+        }
+
+        var history = await setupClient.GetFromJsonAsync<ChoreListResponse>(
+            $"/api/households/{household.Id}/chore-assignments?view=history");
+        var expired = Assert.Single(history!.Items, item => item.Id == assignment.Id);
+        Assert.Equal("expired", expired.Status);
+        Assert.NotNull(expired.ExpiredAt);
     }
 
     private static async Task<HouseholdResponse> BootstrapAsync(HttpClient client)

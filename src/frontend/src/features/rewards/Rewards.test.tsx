@@ -38,5 +38,11 @@ describe('Rewards', () => {
 
     const names = screen.getAllByRole('listitem').map((item) => item.querySelector('strong')?.textContent)
     expect(names).toEqual(['Jayden', 'Ella', 'Ryan', 'Zoey', 'Annie', 'Liam'])
+    expect(screen.getByRole('progressbar', { name: 'Jayden: 1100 points, 100% of the household leader' }))
+      .toHaveAttribute('aria-valuenow', '100')
+    expect(screen.getByRole('progressbar', { name: 'Ella: 30 points, 3% of the household leader' }))
+      .toHaveAttribute('aria-valuenow', '3')
+    expect(screen.getByRole('progressbar', { name: 'Annie: 0 points, 0% of the household leader' }))
+      .toHaveAttribute('aria-valuenow', '0')
   })
 })

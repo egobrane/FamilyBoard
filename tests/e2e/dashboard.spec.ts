@@ -440,7 +440,7 @@ test.beforeEach(async ({ page }) => {
       id: '60000000-0000-0000-0000-000000000001',
       choreDefinitionId: '61000000-0000-0000-0000-000000000001',
       title: 'Feed Milo', description: 'Before dinner', pointValue: 10,
-      assignmentMode: 'assigned', claimedAt: null,
+      assignmentMode: 'assigned', claimedAt: null, claimExpiresAt: null, expiredAt: null,
       assignedMember: householdMembers[0], dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00',
       dueAt: '2026-08-22T22:00:00Z', dueTimeZone: 'America/New_York', dueHasExplicitTime: true,
       status: 'pending', isOverdue: false, version: 1, pendingCompletion: null,
@@ -454,6 +454,7 @@ test.beforeEach(async ({ page }) => {
       assignedMember: claimedOpenChoreMemberId
         ? householdMembers.find((member) => member.id === claimedOpenChoreMemberId) ?? null : null,
       claimedAt: claimedOpenChoreMemberId ? '2026-09-02T19:00:00Z' : null,
+      claimExpiresAt: '2026-09-03T04:00:00Z', expiredAt: null,
       version: claimedOpenChoreMemberId ? 2 : 1,
     }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/chores/dashboard`) {

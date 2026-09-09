@@ -6,7 +6,7 @@ Chore Management Increment 1 implements product-owned chore definitions, one-tim
 
 - Adults create, edit, activate, and deactivate reusable household chore definitions.
 - Adults assign an active definition once to any active household member with a required household-local due date and optional time.
-- One-time and recurring work may instead be marked `open`. Open assignments appear under **Up for grabs** until an active household member claims them; claiming moves them into the assigned lane without changing their historical open origin.
+- One-time and recurring work may instead be marked `open`. Open assignments appear under **Up for grabs** until an active household member claims them. Unclaimed work stops being actionable at midnight after its household-local due date and is retained as `expired` history by the next generator run; it never enters the overdue lane. Claiming before the cutoff moves it into the assigned lane without changing its historical open origin.
 - Definition and due-date details are snapshotted onto the assignment so historical meaning does not change when settings or definitions change.
 - Routine completion is available to authenticated household members. A private adult session defaults attribution to that adult; the full Chores page requires an explicit active-member choice on a shared display. Home-dashboard completion preselects the chore's assigned member and keeps the choice visible and changeable before submission.
 - Completion moves the assignment to `awaitingReview`. An adult may approve it, making the assignment complete, or reject it, preserving the attempt and returning the assignment to pending.
@@ -40,6 +40,8 @@ All unsafe requests require the credentialed application session and antiforgery
 Definitions, assignments, and completions use explicit versions. Stale writes return a conflict rather than overwriting newer state. Client-generated UUID request IDs make definition creation, assignment creation, and completion retryable; reuse with a different payload is rejected. A database constraint permits only one pending completion per assignment.
 
 Open-chore claiming is also versioned and idempotent. PostgreSQL permits exactly one household-scoped claim request ID, and competing claims converge on one assigned member. A locked shared display may claim routine work only after an active member is explicitly selected; creating or changing open schedules remains parent-PIN-gated administration.
+
+Each open assignment persists its absolute claim cutoff. Active and dashboard reads enforce that cutoff even if the hourly generator has not run yet, claims fail closed at or after it, and the generator atomically records the terminal `expired` state. Retry and overlap safety come from the existing PostgreSQL advisory lock, assignment concurrency version, and idempotent occurrence key. Assigned chores have no claim cutoff and retain the normal overdue workflow.
 
 ## Time zones
 
@@ -80,7 +82,7 @@ Administrative routes are:
 
 The portable generator command is `FamilyDashboard.Api --generate-chore-assignments`. Docker Compose exposes it through the opt-in `tools` profile, K3s uses an hourly CronJob with `concurrencyPolicy: Forbid`, and Azure uses an hourly Consumption scheduled job. A PostgreSQL advisory lock and a unique schedule-occurrence index make overlapping and retried runs safe without Hangfire, Quartz, or another scheduler database.
 
-Missed active occurrences are generated late in batches of at most 100 rather than silently discarded. Spring-forward gaps shift to the first valid local time; fall-back ambiguity chooses the earlier instant. Existing generated assignments remain unchanged after a household time-zone edit. Schedules may target a specific active member or remain open. Open daily, weekday, weekly, and interval schedules generate unassigned occurrences that are not blocked by a later member deactivation. Claiming records the member, time, request ID, and shared-display context; completion, adult review, and point awarding then use the existing retained workflow.
+Missed active occurrences are generated late in batches of at most 100 rather than silently discarded. A caught-up open occurrence whose local-day cutoff has already passed is created directly as expired history, never briefly exposed as actionable work. Spring-forward gaps shift to the first valid local time; fall-back ambiguity chooses the earlier instant. Existing generated assignments remain unchanged after a household time-zone edit. Schedules may target a specific active member or remain open. Open daily, weekday, weekly, and interval schedules generate unassigned occurrences that are not blocked by a later member deactivation. Claiming records the member, time, request ID, and shared-display context; completion, adult review, and point awarding then use the existing retained workflow.
 
 ## Increment 2 staging result
 
@@ -93,6 +95,8 @@ The job runs `--generate-chore-assignments` on schedule `7 * * * *`, uses the sa
 Each definition has a point value from 0 through 10,000. One-time and generated assignments snapshot that value, and each completion attempt snapshots it again. Definition edits therefore affect only future assignments. Approval and the assignment status update commit in the same PostgreSQL transaction as at most one normal point award; rejection and zero-point approval create no award. Previously approved completions are not awarded retroactively.
 
 Point history is append-only. Household and member balances are derived by summing signed transactions instead of trusting a client or mutable balance column. Adults may record signed administrative adjustments, and may reverse a chore award or adjustment through an exact compensating transaction. Original entries remain visible. Routine balance/history reads remain available on a locked shared display, while review, adjustment, and reversal require parent elevation there. Inactive members retain their history and balance.
+
+The Home reward widget lists every active member in descending balance order. Exact point totals remain the authoritative values; the accompanying filled bars are a display-only comparison against the current household leader and do not persist a second balance.
 
 ## Increment 3 staging result
 

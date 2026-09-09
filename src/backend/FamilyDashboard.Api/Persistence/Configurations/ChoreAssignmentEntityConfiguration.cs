@@ -13,6 +13,10 @@ public sealed class ChoreAssignmentEntityConfiguration : IEntityTypeConfiguratio
             table.HasCheckConstraint("CK_ChoreAssignments_PointValueSnapshot", "\"PointValueSnapshot\" BETWEEN 0 AND 10000");
             table.HasCheckConstraint("CK_ChoreAssignments_AssignmentModeMember",
                 "(\"AssignmentMode\" = 'Assigned' AND \"HouseholdMemberId\" IS NOT NULL) OR \"AssignmentMode\" = 'Open'");
+            table.HasCheckConstraint("CK_ChoreAssignments_OpenClaimExpiry",
+                "(\"AssignmentMode\" = 'Assigned' AND \"ClaimExpiresAt\" IS NULL) OR (\"AssignmentMode\" = 'Open' AND \"ClaimExpiresAt\" IS NOT NULL)");
+            table.HasCheckConstraint("CK_ChoreAssignments_ExpiredAt",
+                "\"ExpiredAt\" IS NULL OR (\"Status\" = 'Skipped' AND \"AssignmentMode\" = 'Open' AND \"ClaimedAt\" IS NULL)");
         });
         builder.HasKey(assignment => assignment.Id);
         builder.Property(assignment => assignment.Status).HasConversion<string>().HasMaxLength(24);
@@ -35,6 +39,8 @@ public sealed class ChoreAssignmentEntityConfiguration : IEntityTypeConfiguratio
             assignment.ScheduleOccurrenceLocalDate }).IsUnique()
             .HasFilter("\"ChoreScheduleId\" IS NOT NULL");
         builder.HasIndex(assignment => new { assignment.HouseholdId, assignment.Status, assignment.DueAt });
+        builder.HasIndex(assignment => new { assignment.HouseholdId, assignment.Status,
+            assignment.AssignmentMode, assignment.ClaimExpiresAt });
         builder.HasIndex(assignment => new { assignment.HouseholdId, assignment.HouseholdMemberId, assignment.Status, assignment.DueAt });
         builder.HasOne(assignment => assignment.ChoreDefinition)
             .WithMany(chore => chore.Assignments)

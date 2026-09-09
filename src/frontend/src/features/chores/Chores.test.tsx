@@ -19,7 +19,7 @@ afterEach(() => vi.unstubAllGlobals())
 const assignment: ChoreAssignmentResponse = {
   id: 'assignment-1', choreDefinitionId: 'definition-1', title: 'Feed Milo',
   description: 'Before dinner', pointValue: 10,
-  assignmentMode: 'assigned', claimedAt: null,
+  assignmentMode: 'assigned', claimedAt: null, claimExpiresAt: null, expiredAt: null,
   assignedMember: { id: 'member-1', displayName: 'Zoey', role: 'child', avatarColor: 'mint', photo: null },
   dueLocalDate: '2026-08-22', dueLocalTime: '18:00:00', dueAt: '2026-08-22T22:00:00Z',
   dueTimeZone: 'America/New_York', dueHasExplicitTime: true, status: 'pending', isOverdue: true,
@@ -40,6 +40,15 @@ describe('ChoreList', () => {
   it('prevents a second completion while adult review is pending', () => {
     render(<ChoreList assignments={[{ ...assignment, status: 'awaitingReview', isOverdue: false }]} onComplete={vi.fn()} />)
     expect(screen.getByText('Waiting for review')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Mark done' })).not.toBeInTheDocument()
+  })
+
+  it('renders an unclaimed expired chore as non-actionable history', () => {
+    render(<ChoreList assignments={[{ ...assignment, assignmentMode: 'open', assignedMember: null,
+      status: 'expired', isOverdue: false, claimExpiresAt: '2026-08-23T04:00:00Z',
+      expiredAt: '2026-08-23T04:07:00Z' }]} onClaim={vi.fn()} onComplete={vi.fn()} />)
+    expect(screen.getByText('Expired — not claimed')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'I’ll do it' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Mark done' })).not.toBeInTheDocument()
   })
 
@@ -84,7 +93,7 @@ describe('ChoreList', () => {
       value(this: HTMLDialogElement) { this.setAttribute('open', '') } })
     const member = assignment.assignedMember!
     const openAssignment: ChoreAssignmentResponse = { ...assignment, id: 'open-assignment',
-      assignmentMode: 'open', assignedMember: null }
+      assignmentMode: 'open', assignedMember: null, claimExpiresAt: '2026-08-23T04:00:00Z' }
     const currentUser = { user: { id: 'user-1', displayName: 'Ryan', primaryEmail: 'ryan@example.test' },
       households: [{ id: householdId, name: 'Family', memberId: 'adult-1', role: 'adult' }],
       selectedHouseholdId: householdId, session: { expiresAt: '2026-09-03T00:00:00Z',

@@ -25,12 +25,14 @@ public sealed class ChoreAssignment
     public ChoreDueTimeResolution DueTimeResolution { get; set; } = ChoreDueTimeResolution.Exact;
     public ChoreAssignmentStatus Status { get; set; } = ChoreAssignmentStatus.Pending;
     public DateTimeOffset? ClaimedAt { get; set; }
+    public DateTimeOffset? ClaimExpiresAt { get; set; }
     public Guid? ClaimedByMemberId { get; set; }
     public Guid? ClaimClientRequestId { get; set; }
     public bool? ClaimedFromSharedDisplay { get; set; }
     public DateTimeOffset? SkippedAt { get; set; }
     public Guid? SkippedByMemberId { get; set; }
     public string? SkipReason { get; set; }
+    public DateTimeOffset? ExpiredAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
     public long Version { get; set; } = 1;

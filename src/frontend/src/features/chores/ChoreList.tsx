@@ -14,15 +14,17 @@ export function ChoreList({ assignments, onComplete, onClaim }: {
             ? <MemberAvatar className="chore__member-avatar" member={assignment.assignedMember} />
             : <span aria-hidden="true" className="chore__open-mark">✦</span>}
           <div className="chore-board-item__details">
-            <p className="eyebrow">{assignment.isOverdue ? 'Overdue' : assignment.dueLocalDate ?? 'No due date'}</p>
+            <p className="eyebrow">{assignment.status === 'expired'
+              ? 'Expired — not claimed'
+              : assignment.isOverdue ? 'Overdue' : assignment.dueLocalDate ?? 'No due date'}</p>
             <h3>{assignment.title}</h3>
             <p>{assignment.assignedMember?.displayName ?? 'Up for grabs'}{assignment.dueLocalTime ? ` · ${assignment.dueLocalTime.slice(0, 5)}` : ''}</p>
           </div>
           {assignment.status === 'awaitingReview' ? (
             <span className="status-pill status-pill--mint">Waiting for review</span>
-          ) : assignment.assignedMember === null && onClaim ? (
+          ) : assignment.status === 'pending' && assignment.assignedMember === null && onClaim ? (
             <button className="primary-action" onClick={() => onClaim(assignment)} type="button">I’ll do it</button>
-          ) : onComplete ? (
+          ) : assignment.status === 'pending' && onComplete ? (
             <button className="primary-action" onClick={() => onComplete(assignment)} type="button">Mark done</button>
           ) : null}
         </li>

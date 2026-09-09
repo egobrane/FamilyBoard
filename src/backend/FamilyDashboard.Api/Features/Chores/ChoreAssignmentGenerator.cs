@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 namespace FamilyDashboard.Api.Features.Chores;
 
 public sealed record ChoreGenerationResult(int SchedulesExamined, int AssignmentsGenerated,
-    int SchedulesBlocked, bool AlreadyRunning);
+    int AssignmentsExpired, int SchedulesBlocked, bool AlreadyRunning);
 
 public sealed class ChoreAssignmentGenerator(
     FamilyDashboardDbContext dbContext,
@@ -22,10 +22,10 @@ public sealed class ChoreAssignmentGenerator(
     private static readonly Action<ILogger, Exception?> GenerationAlreadyRunning =
         LoggerMessage.Define(LogLevel.Information, new EventId(1, nameof(GenerationAlreadyRunning)),
             "Chore generation skipped because another generator owns the lock.");
-    private static readonly Action<ILogger, int, int, int, Exception?> GenerationCompleted =
-        LoggerMessage.Define<int, int, int>(LogLevel.Information,
+    private static readonly Action<ILogger, int, int, int, int, Exception?> GenerationCompleted =
+        LoggerMessage.Define<int, int, int, int>(LogLevel.Information,
             new EventId(2, nameof(GenerationCompleted)),
-            "Chore generation completed. Schedules={SchedulesExamined}, Generated={AssignmentsGenerated}, Blocked={SchedulesBlocked}");
+            "Chore generation completed. Schedules={SchedulesExamined}, Generated={AssignmentsGenerated}, Expired={AssignmentsExpired}, Blocked={SchedulesBlocked}");
 
     public async Task<ChoreGenerationResult> GenerateAsync(CancellationToken cancellationToken)
     {
@@ -36,11 +36,23 @@ public sealed class ChoreAssignmentGenerator(
         if (!acquired)
         {
             GenerationAlreadyRunning(logger, null);
-            return new(0, 0, 0, true);
+            return new(0, 0, 0, 0, true);
         }
 
         var settings = options.Value;
         var now = timeProvider.GetUtcNow();
+        var expired = await dbContext.ChoreAssignments
+            .Where(item => item.Status == ChoreAssignmentStatus.Pending
+                && item.AssignmentMode == ChoreAssignmentMode.Open
+                && item.HouseholdMemberId == null
+                && item.ClaimExpiresAt != null
+                && item.ClaimExpiresAt <= now)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(item => item.Status, ChoreAssignmentStatus.Skipped)
+                .SetProperty(item => item.ExpiredAt, now)
+                .SetProperty(item => item.SkipReason, "Expired unclaimed at the end of its due day.")
+                .SetProperty(item => item.UpdatedAt, now)
+                .SetProperty(item => item.Version, item => item.Version + 1), cancellationToken);
         var horizon = now.AddHours(settings.HorizonHours);
         var schedules = await dbContext.ChoreSchedules
             .Include(item => item.ChoreDefinition).Include(item => item.HouseholdMember)
@@ -93,14 +105,31 @@ public sealed class ChoreAssignmentGenerator(
                     break;
                 }
                 if (dueAt > horizon) break;
+                DateTimeOffset? claimExpiresAt = null;
+                if (schedule.AssignmentMode == ChoreAssignmentMode.Open)
+                {
+                    if (!dueTimeService.TryResolveOpenClaimExpiration(next.Value, zone,
+                            out var resolvedClaimExpiresAt, out _))
+                    {
+                        schedule.Status = ChoreScheduleStatus.Blocked;
+                        schedule.BlockedReason = "claimExpirationUnavailable";
+                        schedule.UpdatedAt = now;
+                        schedule.Version++;
+                        blocked++;
+                        break;
+                    }
+                    claimExpiresAt = resolvedClaimExpiresAt;
+                }
 
                 var occurrence = next.Value;
+                var isExpiredOpenOccurrence = claimExpiresAt is not null && claimExpiresAt <= now;
                 dbContext.ChoreAssignments.Add(new ChoreAssignment
                 {
                     HouseholdId = schedule.HouseholdId,
                     ChoreDefinitionId = schedule.ChoreDefinitionId,
                     HouseholdMemberId = schedule.HouseholdMemberId,
                     AssignmentMode = schedule.AssignmentMode,
+                    ClaimExpiresAt = claimExpiresAt,
                     CreatedByMemberId = schedule.CreatedByMemberId,
                     ChoreScheduleId = schedule.Id,
                     ClientRequestId = OccurrenceRequestId(schedule.Id, occurrence),
@@ -115,10 +144,18 @@ public sealed class ChoreAssignmentGenerator(
                     ScheduleOccurrenceLocalDate = occurrence,
                     GeneratedAt = now,
                     DueTimeResolution = resolution,
+                    Status = isExpiredOpenOccurrence
+                        ? ChoreAssignmentStatus.Skipped
+                        : ChoreAssignmentStatus.Pending,
+                    ExpiredAt = isExpiredOpenOccurrence ? now : null,
+                    SkipReason = isExpiredOpenOccurrence
+                        ? "Expired unclaimed at the end of its due day."
+                        : null,
                     CreatedAt = now,
                     UpdatedAt = now,
                 });
                 generated++;
+                if (isExpiredOpenOccurrence) expired++;
                 schedule.LastGeneratedOccurrenceLocalDate = occurrence;
                 next = recurrenceCalculator.FindNext(schedule.RecurrenceKind, schedule.Interval,
                     schedule.DaysOfWeekMask, schedule.StartLocalDate, schedule.EndLocalDate,
@@ -134,8 +171,8 @@ public sealed class ChoreAssignmentGenerator(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        GenerationCompleted(logger, schedules.Count, generated, blocked, null);
-        return new(schedules.Count, generated, blocked, false);
+        GenerationCompleted(logger, schedules.Count, generated, expired, blocked, null);
+        return new(schedules.Count, generated, expired, blocked, false);
     }
 
     private static Guid OccurrenceRequestId(Guid scheduleId, DateOnly date)

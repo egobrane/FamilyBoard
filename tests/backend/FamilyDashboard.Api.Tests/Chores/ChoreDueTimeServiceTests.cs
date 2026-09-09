@@ -41,6 +41,18 @@ public sealed class ChoreDueTimeServiceTests
         Assert.Equal(new DateTimeOffset(2026, 11, 1, 5, 30, 0, TimeSpan.Zero), ambiguous);
     }
 
+    [Fact]
+    public void OpenClaimExpirationIsMidnightAfterTheHouseholdLocalDueDate()
+    {
+        var service = new ChoreDueTimeService(Time);
+
+        Assert.True(service.TryResolveOpenClaimExpiration(new DateOnly(2026, 8, 23),
+            "America/New_York", out var expiresAt, out var error));
+
+        Assert.Null(error);
+        Assert.Equal(new DateTimeOffset(2026, 8, 24, 4, 0, 0, TimeSpan.Zero), expiresAt);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => value;

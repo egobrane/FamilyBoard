@@ -49,7 +49,7 @@ export function ChoresPage() {
       </div>
       {loading && <p role="status">Loading household chores…</p>}
       {error && <div className="admin-status" role="alert"><p>{error}</p><button onClick={() => void load()} type="button">Try again</button></div>}
-      {!loading && !error && assignments.length === 0 && <section className="empty-state"><h3>{view === 'active' ? 'All clear!' : 'No chore history yet'}</h3><p>{view === 'active' ? 'There are no active chores right now.' : 'Completed and skipped chores will appear here.'}</p></section>}
+      {!loading && !error && assignments.length === 0 && <section className="empty-state"><h3>{view === 'active' ? 'All clear!' : 'No chore history yet'}</h3><p>{view === 'active' ? 'There are no active chores right now.' : 'Completed, skipped, and expired chores will appear here.'}</p></section>}
       <p aria-live="polite" className="visually-hidden">{announcement}</p>
       {!loading && assignments.length > 0 && <ChoreList assignments={assignments}
         onClaim={view === 'active' ? setSelectedClaim : undefined}

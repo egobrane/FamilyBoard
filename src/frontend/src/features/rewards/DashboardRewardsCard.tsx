@@ -11,12 +11,20 @@ export function RewardMemberStandings({ members }: { members: PointMemberBalance
     .sort((left, right) => right.balance - left.balance
       || left.displayName.localeCompare(right.displayName, undefined, { sensitivity: 'base' })
       || left.memberId.localeCompare(right.memberId))
+  const leaderBalance = Math.max(0, ...standings.map((member) => member.balance))
 
   return <ol aria-label="Household point standings" className="member-grid member-grid--standings">
-    {standings.map((member) => <li className="member" key={member.memberId}>
+    {standings.map((member) => {
+      const percentage = leaderBalance > 0 ? Math.max(0, Math.round((member.balance / leaderBalance) * 100)) : 0
+      return <li className="member member--standing" key={member.memberId}>
       <MemberAvatar className="member__avatar" member={member} />
-      <span><strong>{member.displayName}</strong><small>{member.balance} points</small></span>
-    </li>)}
+      <span className="member-standing__details"><span><strong>{member.displayName}</strong><small>{member.balance} points</small></span>
+        <span aria-label={`${member.displayName}: ${member.balance} points, ${percentage}% of the household leader`}
+          aria-valuemax={100} aria-valuemin={0} aria-valuenow={percentage} className="member-standing__track" role="progressbar">
+          <span className="member-standing__fill" style={{ width: `${percentage}%` }} />
+        </span>
+      </span>
+    </li>})}
   </ol>
 }
 

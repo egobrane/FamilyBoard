@@ -44,6 +44,9 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Property<Guid?>("ClaimClientRequestId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ClaimExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("ClaimedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -90,6 +93,9 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Property<string>("DueTimeZone")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("ExpiredAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("GeneratedAt")
                         .HasColumnType("timestamp with time zone");
@@ -162,9 +168,15 @@ namespace FamilyDashboard.Api.Persistence.Migrations
 
                     b.HasIndex("HouseholdId", "HouseholdMemberId", "Status", "DueAt");
 
+                    b.HasIndex("HouseholdId", "Status", "AssignmentMode", "ClaimExpiresAt");
+
                     b.ToTable("ChoreAssignments", null, t =>
                         {
                             t.HasCheckConstraint("CK_ChoreAssignments_AssignmentModeMember", "(\"AssignmentMode\" = 'Assigned' AND \"HouseholdMemberId\" IS NOT NULL) OR \"AssignmentMode\" = 'Open'");
+
+                            t.HasCheckConstraint("CK_ChoreAssignments_ExpiredAt", "\"ExpiredAt\" IS NULL OR (\"Status\" = 'Skipped' AND \"AssignmentMode\" = 'Open' AND \"ClaimedAt\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_ChoreAssignments_OpenClaimExpiry", "(\"AssignmentMode\" = 'Assigned' AND \"ClaimExpiresAt\" IS NULL) OR (\"AssignmentMode\" = 'Open' AND \"ClaimExpiresAt\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_ChoreAssignments_PointValueSnapshot", "\"PointValueSnapshot\" BETWEEN 0 AND 10000");
                         });

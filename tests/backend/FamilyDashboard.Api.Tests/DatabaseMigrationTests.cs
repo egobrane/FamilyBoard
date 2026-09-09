@@ -142,4 +142,56 @@ public sealed class DatabaseMigrationTests
         Assert.Equal(1, redemption.Version); Assert.Null(redemption.PointTransaction);
         Assert.Empty(await context.Database.GetPendingMigrationsAsync());
     }
+
+    [PostgreSqlFact]
+    public async Task OpenChoreExpirationMigrationBackfillsAndExpiresElapsedUnclaimedWork()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!;
+        var options = new DbContextOptionsBuilder<FamilyDashboardDbContext>()
+            .UseNpgsql(connectionString).Options;
+        await using var context = new FamilyDashboardDbContext(options);
+        await context.Database.EnsureDeletedAsync();
+        var migrator = context.Database.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260902195424_AddOpenChoreAssignments");
+        var householdId = Guid.NewGuid();
+        var adultId = Guid.NewGuid();
+        var definitionId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var dueLocalDate = DateOnly.FromDateTime(now.UtcDateTime.AddDays(-2));
+        var dueAt = now.AddDays(-2);
+
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "Households" ("Id", "Name", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({householdId}, {"Expiration Family"}, {true}, {now}, {now});
+            INSERT INTO "HouseholdMembers" ("Id", "HouseholdId", "DisplayName", "Role", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({adultId}, {householdId}, {"Existing Adult"}, {"Adult"}, {true}, {now}, {now});
+            INSERT INTO "ChoreDefinitions" ("Id", "HouseholdId", "ClientRequestId",
+                "Title", "DefaultPointValue", "IsActive", "Version", "CreatedAt", "UpdatedAt")
+            VALUES ({definitionId}, {householdId}, {Guid.NewGuid()},
+                {"Existing Open Chore"}, {7}, {true}, {1L}, {now}, {now});
+            INSERT INTO "ChoreAssignments" ("Id", "HouseholdId", "ChoreDefinitionId",
+                "HouseholdMemberId", "AssignmentMode", "CreatedByMemberId", "ClientRequestId",
+                "TitleSnapshot", "PointValueSnapshot", "DueAt", "DueLocalDate", "DueLocalTime",
+                "DueTimeZone", "DueHasExplicitTime", "DueTimeResolution", "Status", "Version",
+                "CreatedAt", "UpdatedAt")
+            VALUES ({assignmentId}, {householdId}, {definitionId}, NULL, {"Open"}, {adultId},
+                {Guid.NewGuid()}, {"Existing Open Chore"}, {7}, {dueAt}, {dueLocalDate},
+                {new TimeOnly(8, 0)}, {"America/New_York"}, {true}, {"Exact"}, {"Pending"},
+                {1L}, {now}, {now});
+            """);
+
+        await migrator.MigrateAsync();
+        context.ChangeTracker.Clear();
+
+        var assignment = await context.ChoreAssignments.SingleAsync(item => item.Id == assignmentId);
+        var expectedLocalMidnight = dueLocalDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        var expectedExpiry = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(expectedLocalMidnight,
+            TimeZoneInfo.FindSystemTimeZoneById("America/New_York")), TimeSpan.Zero);
+        Assert.Equal(expectedExpiry, assignment.ClaimExpiresAt);
+        Assert.Equal(FamilyDashboard.Api.Domain.Chores.ChoreAssignmentStatus.Skipped, assignment.Status);
+        Assert.NotNull(assignment.ExpiredAt);
+        Assert.Equal(2, assignment.Version);
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync());
+    }
 }

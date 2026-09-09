@@ -448,8 +448,8 @@ jobs:
               "HouseholdMedia__Enabled=${PREVIOUS_HOUSEHOLD_MEDIA_ENABLED:-false}" \
               "Weather__Enabled=${PREVIOUS_WEATHER_ENABLED:-false}" \
               "Weather__RadarEnabled=${PREVIOUS_WEATHER_RADAR_ENABLED:-false}" \
-              "Weather__RadarWmsUrl=${PREVIOUS_WEATHER_RADAR_WMS_URL:-https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer}" \
-              "Weather__RadarWmsLayer=${PREVIOUS_WEATHER_RADAR_WMS_LAYER:-0}"
+              "Weather__RadarWmsUrl=${PREVIOUS_WEATHER_RADAR_WMS_URL:-https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer}" \
+              "Weather__RadarWmsLayer=${PREVIOUS_WEATHER_RADAR_WMS_LAYER:-radar_base_reflectivity_time}"
 
           rollback_revision=""
           for attempt in {1..60}; do

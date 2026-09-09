@@ -14,6 +14,8 @@ Reward Management Increment 1 is deployed and staging verified. The matching fro
 
 Catalog browsing, point-backed requests, and redemption history use household-member authorization. A private adult session defaults an omitted member to the signed-in adult; a shared display requires explicit attribution to an active household member. Definition administration, review, fulfillment, and cancellation require adult administration authorization and therefore parent-PIN elevation on a locked shared display.
 
+The Rewards workspace presents attribution through the shared photo-backed household member picker rather than a native select. Members are ordered by current balance, then name, and the confirmation dialog remains a separately labelled radio group so changing one selection cannot silently alter the other.
+
 Every lookup is household-scoped. Cross-household identifiers return not found. Unsafe requests use the existing credentialed cookie, exact-origin CORS, and antiforgery boundary.
 
 ## Deployment verification

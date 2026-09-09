@@ -78,7 +78,7 @@ describe('App', () => {
       })
       if (path.endsWith('/weather/radar')) return jsonResponse({
         status: 'available', centerLatitude: 40.71, centerLongitude: -74.01,
-        wmsUrl: 'https://mapservices.weather.noaa.gov/example/WMSServer', wmsLayer: '0',
+        wmsUrl: 'https://mapservices.weather.noaa.gov/example/WMSServer', wmsLayer: 'radar_base_reflectivity_time',
         refreshIntervalSeconds: 300, attribution: 'Radar data from NOAA/National Weather Service',
       })
       if (path.endsWith('/chores/dashboard')) return jsonResponse({
@@ -160,6 +160,8 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /Open weather forecast: 72 degrees, Sunny/i }))
     await user.click(screen.getByRole('button', { name: 'Radar' }))
     expect(await screen.findByLabelText('Interactive current weather radar map')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Play radar animation' })).toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: 'Radar animation time' })).toBeInTheDocument()
   })
 
   it('shows the signed-out welcome state without flashing dashboard content', async () => {

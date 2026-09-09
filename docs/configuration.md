@@ -67,9 +67,9 @@ Never place secrets, refresh tokens, connection strings, signing keys, or admini
 | `HouseholdMedia__BlobContainerUri` | Public resource identifier | Private Azure container URI; authorization still uses managed identity |
 | `HouseholdMedia__ManagedIdentityClientId` | Public identifier | Runtime identity used to access private blobs |
 | `Weather__Enabled` | Public feature gate | Enables household-local weather retrieval |
-| `Weather__RadarEnabled` | Public feature gate | Enables member-authorized current NOAA radar without changing forecast access |
-| `Weather__RadarWmsUrl` | Public configuration | Reviewed HTTPS NOAA/NWS base-reflectivity WMS endpoint |
-| `Weather__RadarWmsLayer` | Public configuration | Reviewed current-reflectivity WMS layer identifier; currently `0` |
+| `Weather__RadarEnabled` | Public feature gate | Enables member-authorized NOAA radar and deliberate historical playback without changing forecast access |
+| `Weather__RadarWmsUrl` | Public configuration | Reviewed HTTPS NOAA/NWS time-enabled base-reflectivity WMS endpoint |
+| `Weather__RadarWmsLayer` | Public configuration | Reviewed time-enabled WMS layer identifier; currently `radar_base_reflectivity_time` |
 | `Weather__Provider` | Public configuration | Provider selector; currently `Nws` |
 | `Weather__BaseUrl` | Public configuration | NWS API base URL |
 | `Weather__UserAgent` | Public configuration | Required identifying API User-Agent; contains no secret |

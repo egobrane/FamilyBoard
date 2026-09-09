@@ -161,8 +161,8 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/weather/radar`) {
       await route.fulfill({ json: {
         status: 'available', centerLatitude: 40.71, centerLongitude: -74.01,
-        wmsUrl: 'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer',
-        wmsLayer: '0', refreshIntervalSeconds: 300,
+        wmsUrl: 'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer',
+        wmsLayer: 'radar_base_reflectivity_time', refreshIntervalSeconds: 300,
         attribution: 'Radar data from NOAA/National Weather Service',
       } })
       return
@@ -692,7 +692,8 @@ test('primary feature tabs share the same bordered surface treatment', async ({ 
 
 test('reward redemption requires explicit member attribution and confirms the request', async ({ page }) => {
   await page.goto('/rewards')
-  await page.getByLabel('Points belong to').selectOption(authenticatedUser.households[0].memberId)
+  await page.getByRole('group', { name: 'Whose points are being used?' })
+    .getByRole('radio', { name: /Ryan Bamford/ }).check()
   await page.getByRole('button', { name: 'Redeem reward' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.getByRole('dialog').getByRole('button', { name: 'Request for 20 points' }).click()
@@ -904,6 +905,14 @@ test('appearance preference persists while interactive focus remains visible', a
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await page.getByRole('button', { name: 'Account menu for Ryan Bamford' }).focus()
   await expect(page.getByRole('button', { name: 'Account menu for Ryan Bamford' })).toBeFocused()
+
+  for (const path of ['/', '/calendar', '/tasks', '/chores', '/rewards']) {
+    await page.goto(path)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+      .toEqual([])
+  }
 })
 
 test('an adult can update settings and add a child with keyboard-accessible controls', async ({ page }) => {
@@ -986,6 +995,11 @@ test('an adult can personalize the dashboard and configure an accessible weather
   await expect(dialog.getByText('Weather data from the National Weather Service')).toBeVisible()
   await dialog.getByRole('button', { name: 'Radar' }).click()
   await expect(dialog.getByLabel('Interactive current weather radar map')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Play radar animation' }).click()
+  await expect(dialog.getByRole('button', { name: 'Pause radar animation' })).toBeVisible()
+  await expect(dialog.getByRole('slider', { name: 'Radar animation time' })).toHaveValue('0')
+  await dialog.getByRole('button', { name: 'Pause radar animation' }).click()
+  await expect(dialog.getByRole('slider', { name: 'Radar animation time' })).toBeVisible()
   await expect(dialog.getByText(/Radar data from NOAA\/National Weather Service/)).toBeVisible()
   const results = await new AxeBuilder({ page }).include('.weather-dialog').analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([])

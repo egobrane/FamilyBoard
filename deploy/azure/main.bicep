@@ -61,10 +61,10 @@ param enableWeather bool = false
 param enableWeatherRadar bool = false
 
 @description('Public NOAA/NWS WMS endpoint used by the authenticated radar view.')
-param weatherRadarWmsUrl string = 'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer'
+param weatherRadarWmsUrl string = 'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer'
 
-@description('Public WMS layer identifier for current base reflectivity.')
-param weatherRadarWmsLayer string = '0'
+@description('Public WMS layer identifier for time-enabled base reflectivity.')
+param weatherRadarWmsLayer string = 'radar_base_reflectivity_time'
 
 @minValue(1)
 @maxValue(168)

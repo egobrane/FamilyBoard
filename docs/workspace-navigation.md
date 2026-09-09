@@ -26,7 +26,7 @@ No external animation or gesture dependency is used. React Router remains the na
 
 ## Device appearance
 
-The account menu exposes a device-local System, Light, and Dark preference. System follows `prefers-color-scheme`; explicit choices persist in local storage and apply from the inline pre-paint bootstrap before React loads, avoiding a bright first frame on a wall display. Theme state contains no household or account data and does not cross devices. Semantic color tokens cover workspace surfaces, controls, forms, status messages, dialogs, and the optional radar map while interactive elements retain the existing `:focus-visible` treatment.
+The account menu exposes a device-local System, Light, and Dark preference. System follows `prefers-color-scheme`; explicit choices persist in local storage and apply from the inline pre-paint bootstrap before React loads, avoiding a bright first frame on a wall display. Theme state contains no household or account data and does not cross devices. Semantic color tokens cover workspace surfaces, controls, forms, status messages, calendar chips, dialogs, and the optional radar map while interactive elements retain the existing `:focus-visible` treatment. Automated serious-impact accessibility checks exercise every primary workspace tab in both wall and phone layouts.
 
 ## Staging proof
 

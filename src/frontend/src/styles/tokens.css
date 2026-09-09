@@ -24,6 +24,7 @@
   --color-danger-border: #e6a69d;
   --color-action: #26312f;
   --color-on-action: #ffffff;
+  --color-focus: #1c6f8d;
   --shadow-card: 0 18px 50px rgb(60 70 64 / 8%);
   --radius-large: 2rem;
   --radius-medium: 1.25rem;
@@ -41,7 +42,7 @@
   --color-ink: #edf4f1;
   --color-muted: #b7c3bf;
   --color-line: #394642;
-  --color-mint: #477b6a;
+  --color-mint: #3f705f;
   --color-mint-strong: #91d1ba;
   --color-coral: #f3a58f;
   --color-sky: #86c4df;
@@ -60,5 +61,6 @@
   --color-danger-border: #87564f;
   --color-action: #a8d8c6;
   --color-on-action: #17211e;
+  --color-focus: #79cdea;
   --shadow-card: 0 18px 50px rgb(0 0 0 / 28%);
 }

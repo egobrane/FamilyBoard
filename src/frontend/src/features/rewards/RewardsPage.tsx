@@ -6,6 +6,7 @@ import { ApiError, getRewardCatalog, listRewardRedemptions, requestRewardRedempt
 import { RewardCard } from './RewardCard'
 import { RedeemRewardDialog } from './RedeemRewardDialog'
 import { RedemptionHistoryList } from './RedemptionHistoryList'
+import { MemberPicker } from '../../components/MemberPicker'
 
 export function RewardsPage() {
   const { state } = useAuthentication()
@@ -38,9 +39,11 @@ export function RewardsPage() {
       <div className="form-actions"><Link className="secondary-action" to="/points">Point history</Link>
         {household.role === 'adult' && <Link className="secondary-action" to={`/households/${household.id}/rewards`}>Manage rewards</Link>}</div></header>
     {loading && <p role="status">Loading rewards…</p>}{error && <p role="alert">{error}</p>}{success && <p aria-live="polite" className="success-message">{success}</p>}
-    {!loading && catalog && <><section aria-labelledby="reward-member-heading" className="admin-section"><h3 id="reward-member-heading">Choose a family member</h3>
-      <label>Points belong to<select onChange={(event) => setMemberId(event.target.value)} value={memberId}><option value="">Choose a member</option>
-        {catalog.members.map((member) => <option key={member.memberId} value={member.memberId}>{member.displayName} · {member.balance} points</option>)}</select></label></section>
+    {!loading && catalog && <><section aria-labelledby="reward-member-heading" className="admin-section"><h3 className="sr-only" id="reward-member-heading">Choose a family member</h3>
+      <MemberPicker legend="Whose points are being used?" members={[...catalog.members]
+        .sort((left, right) => right.balance - left.balance || left.displayName.localeCompare(right.displayName))
+        .map((member) => ({ ...member, id: member.memberId, detail: `${member.balance} points` }))}
+        onChange={setMemberId} value={memberId} /></section>
       <section aria-labelledby="reward-catalog-heading"><h3 id="reward-catalog-heading">Reward catalog</h3>
         {catalog.rewards.length === 0 ? <p>No rewards are available yet.</p> : <div className="reward-grid">{catalog.rewards.map((reward) =>
           <RewardCard disabled={!chosen || chosen.balance < reward.pointCost} key={reward.id} onRedeem={() => { setSelected(reward); requestId.current = crypto.randomUUID() }} reward={reward} />)}</div>}</section>

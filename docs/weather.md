@@ -14,10 +14,12 @@ Set `Weather__Enabled=true`, `Weather__Provider=Nws`, and provide a descriptive 
 
 Increment 1 is active and owner verified in Azure staging. The API retains `Weather__Enabled=true` and `Weather__Provider=Nws`; location configuration, compact current conditions, and the forecast presentation remained operational after the household-photo upload correction. NWS still requires no application secret, and forecast content remains disposable rather than persisted in PostgreSQL.
 
-## Current radar
+## Radar and playback
 
-The follow-up radar view uses NOAA/NWS's official current base-reflectivity WMS. It is intentionally current-only: the service updates about every five minutes and is not time-enabled, so animation and historical frames remain deferred. The authenticated API returns only a two-decimal, neighborhood-scale map center plus the reviewed public WMS configuration; it never returns the more precise stored weather coordinates through this routine endpoint.
+The radar view uses NOAA/NWS's official time-enabled base-reflectivity WMS. The default view shows the latest frame; a deliberate Play action steps through approximately the previous two hours in ten-minute increments and stops on the newest frame. Pause and an accessible range control allow manual inspection, and reduced-motion devices use a slower cadence. NOAA remains the source of truth and the application does not persist radar frames.
+
+The authenticated API returns only a two-decimal, neighborhood-scale map center plus the reviewed public WMS configuration; it never returns the more precise stored weather coordinates through this routine endpoint.
 
 The map loads only after a household member selects the Radar tab. Leaflet supplies touch, mouse, keyboard, zoom, and cleanup behavior; OpenStreetMap supplies the attributed basemap. NOAA and OpenStreetMap requests are made directly by the browser, so those providers receive the household device's IP address and map tile bounds. The application does not persist radar imagery, cache tiles for offline use, bulk-download tiles, or provide either service with account identifiers. Radar remains available for routine viewing on a locked shared display, while changing its center continues to use the parent-elevated weather-settings boundary.
 
-Set `Weather__RadarEnabled=true`, `Weather__RadarWmsUrl` to the reviewed HTTPS NOAA endpoint, and `Weather__RadarWmsLayer=0`. Disabling the radar flag removes only the map; forecasts and saved location settings remain available. Radar adds no credential, Azure resource, database migration, polling job, or background synchronization.
+Set `Weather__RadarEnabled=true`, `Weather__RadarWmsUrl` to the reviewed HTTPS NOAA time-enabled ImageServer WMS endpoint, and `Weather__RadarWmsLayer=radar_base_reflectivity_time`. Disabling the radar flag removes only the map; forecasts and saved location settings remain available. Radar adds no credential, Azure resource, database migration, polling job, or background synchronization.

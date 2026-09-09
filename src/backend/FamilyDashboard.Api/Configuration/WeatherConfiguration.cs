@@ -7,8 +7,8 @@ public sealed class WeatherConfiguration
     public bool RadarEnabled { get; set; }
     public string Provider { get; set; } = "Nws";
     public string BaseUrl { get; set; } = "https://api.weather.gov";
-    public string RadarWmsUrl { get; set; } = "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer";
-    public string RadarWmsLayer { get; set; } = "0";
+    public string RadarWmsUrl { get; set; } = "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer";
+    public string RadarWmsLayer { get; set; } = "radar_base_reflectivity_time";
     public string UserAgent { get; set; } = "FamilyDashboard/1.0 (https://family.egobrane.net)";
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(8);
     public TimeSpan FreshLifetime { get; set; } = TimeSpan.FromMinutes(30);

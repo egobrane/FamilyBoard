@@ -1,5 +1,12 @@
 # Staging Deployment Proof
 
+## Dark-mode, radar-playback, and Rewards-picker follow-up: pending staging
+
+- The approved follow-up replaces remaining light-only workspace colors with semantic theme tokens while retaining visible keyboard focus. Automated serious-impact accessibility scans cover all five workspace tabs in dark mode on wall and phone viewports.
+- The radar dialog uses NOAA's time-enabled base-reflectivity WMS and adds deliberate Play/Pause plus manual frame selection across approximately two hours. Playback does not start automatically, respects reduced motion, preserves map position, and stores no radar imagery.
+- Rewards member attribution now uses the same photo-backed touch picker as other household workflows, ordered by balance and then name. Independent radio-group names prevent the page picker and confirmation dialog from interfering with one another.
+- The release changes reviewed non-secret NOAA endpoint/layer defaults only. It introduces no migration, secret, Azure resource, runtime dependency, or provider-owned data store. This section remains pending until CI, immutable deployment, matching Netlify publication, and owner-operated light/dark, radar, and Rewards checks succeed.
+
 ## Household-local Calendar month workspace: pending staging
 
 - The full Calendar page now renders a conventional household-local month grid on wall displays, tablets, and desktops. Events occupy their actual dates, crowded cells expose a `+N more` path, and a selected-day agenda retains calendar, location, and eligible Manage details. Phones use date-grouped agenda sections instead of compressing seven columns.
@@ -23,7 +30,7 @@
 - PostgreSQL Flexible Server `family-dashboard-staging-pg-rwzkcdch6czlm` is Ready on version 18 with public networking disabled. Public `/health/live` and database-backed `/health/ready` both return HTTP 200 `Healthy`.
 - The existing locked-down storage account has public blob access and shared-key authorization disabled. Container `household-photos` reports `publicAccess: None`; the API runtime user-assigned identity has `Storage Blob Data Contributor`, and `HouseholdMedia__BlobContainerUri` is non-secret configuration. No storage credential or SAS is supplied to the API or frontend.
 - `HouseholdMedia__Enabled=true`, `HouseholdMedia__Provider=AzureBlob`, `Weather__Enabled=true`, and `Weather__Provider=Nws` are reconciled. NWS requires no application credential.
-- The next approved release reconciles `Weather__RadarEnabled=true` plus the public NOAA WMS endpoint and layer. It requires no credential or structural provisioning; deployment verification must confirm the flag and reviewed values before owner radar testing.
+- The next approved release reconciles `Weather__RadarEnabled=true` plus the public NOAA time-enabled WMS endpoint and layer. It requires no credential or structural provisioning; deployment verification must confirm the flag and reviewed values before owner radar and playback testing.
 - The public Netlify shell returns HTTP 200 and serves `/assets/index-DodKGfz8.js` with the approved `https://api.egobrane.net` origin and the personalization/weather interfaces. `/sw.js` returns `no-cache,max-age=0,must-revalidate`; Cloudflare reports `DYNAMIC`.
 - The first staging upload exposed a multipart antiforgery metadata conflict: ASP.NET rejected the request before the application’s exact-origin/header antiforgery policy ran. Correction `94dc977` disables only framework form-antiforgery metadata for that endpoint while preserving `RequireFamilyDashboardAntiforgery`; a real-cookie PostgreSQL regression test covers the corrected boundary.
 - After correction, the owner confirmed household photo upload, authenticated delivery, replacement, removal, focal positioning, custom/automatic greeting behavior, and fallback. Weather location configuration and forecast display remained operational.

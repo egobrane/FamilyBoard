@@ -42,7 +42,7 @@ jobs:
       DEPLOY_IMAGE: ${{ inputs.backend_image }}
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read the reviewed release configuration
         env:

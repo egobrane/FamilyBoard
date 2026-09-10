@@ -112,9 +112,11 @@ Burstable PostgreSQL has backup and performance limitations. Increase retention,
 ## Cost categories
 
 - PostgreSQL B1ms compute and 32 GiB storage are the main predictable monthly cost.
-- Container Apps Consumption charges for requests/compute while active; min replicas zero reduces idle compute but introduces cold starts.
+- The staging API keeps one small Consumption replica available (`apiMinimumReplicas = 1`) to avoid discouraging first-action cold starts on the wall display. This adds idle Container Apps usage, subject to the Consumption plan's current free grant and pricing; verify the actual increment in Azure Cost Management after deployment.
 - Log Analytics charges by ingestion and retention.
 - Managed certificate, VNet, private DNS, and OIDC identity are generally low/no direct cost, while data transfer and DNS-provider fees may apply.
-- Standard Key Vault operations, LRS Blob capacity/transactions, and both private endpoints add small ongoing charges even while Container Apps scales to zero.
+- Standard Key Vault operations, LRS Blob capacity/transactions, and both private endpoints add small ongoing charges regardless of API replica activity.
 
 Azure pricing and sponsorship-credit treatment must be checked at deployment time. Budgets and alerts should be configured outside this app-scoped template because the shared resource group contains unrelated workloads.
+
+The minimum API replica count is a reviewed, non-secret Bicep parameter. The protected deployment workflow reconciles it together with the immutable image and approved runtime settings, verifies it before declaring success, and restores the prior count if release verification fails. It does not alter the scheduled chore job, create a new Azure resource, change PostgreSQL capacity, or require a database migration.

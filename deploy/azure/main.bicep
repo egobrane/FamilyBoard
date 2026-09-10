@@ -74,6 +74,11 @@ param choreGenerationHorizonHours int = 36
 @maxValue(1000)
 param choreGenerationMaximumAssignmentsPerRun int = 100
 
+@minValue(0)
+@maxValue(2)
+@description('Minimum continuously available API replicas. Use one for the household wall display to avoid scale-to-zero cold starts.')
+param apiMinimumReplicas int = 0
+
 @description('Exact immutable GitHub Actions OIDC subject for the protected staging environment.')
 param githubOidcSubject string
 
@@ -169,6 +174,7 @@ module containerApps 'modules/container-apps.bicep' = {
     weatherRadarWmsLayer: weatherRadarWmsLayer
     choreGenerationHorizonHours: choreGenerationHorizonHours
     choreGenerationMaximumAssignmentsPerRun: choreGenerationMaximumAssignmentsPerRun
+    apiMinimumReplicas: apiMinimumReplicas
   }
 }
 

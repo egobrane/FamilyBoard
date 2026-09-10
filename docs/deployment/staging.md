@@ -422,6 +422,14 @@ Chore Management Increment 1 is proven end to end in staging. Automatic immutabl
 - Both npm dependency trees report zero known vulnerabilities, and the NuGet transitive vulnerability scan reports none. Docker Compose validation, both K3s renders, all CI-targeted Azure Bicep compilations, both production container builds, and repository whitespace checks passed. No workflow or infrastructure file changed.
 - CI, immutable image publication, migration-before-deployment, Azure API and scheduled-job reconciliation, Netlify publication, and owner staging verification remain pending until this working tree is committed and pushed.
 
+## API warm-start correction local implementation: 2026-09-10
+
+- Household use confirmed that responsiveness is sufficient after startup, while the first action following an idle period is discouraging. Repository inspection found the API configured with `minReplicas` zero; PostgreSQL remains a continuously provisioned `Standard_B1ms` server unless explicitly stopped.
+- Staging now reviews `apiMinimumReplicas = 1` in `staging.bicepparam`, keeping one small 0.25-vCPU/0.5-GiB API replica available. No database tier, schema, application behavior, secret, storage resource, or scheduled-job policy changes.
+- The protected application workflow reads and validates the reviewed count, applies it with the immutable image, requires the deployed count during convergence and final verification, reports it in the release summary, and restores the previous count if deployment verification fails.
+- Azure Bicep and staging-parameter compilation, deployment-workflow YAML parsing, Container Apps CLI option inspection, Docker Compose validation, and both K3s renders passed. Frontend lint, all 60 component tests, the production PWA build, all 54 wall-display/phone Playwright tests, the backend release build, and all 46 database-independent backend tests passed. The 84 PostgreSQL-backed tests were skipped because no local PostgreSQL server or Docker daemon was available; no schema or application code changed. Both npm trees and all NuGet transitive dependencies report no known vulnerabilities.
+- Azure deployment and the post-idle wall-display proof remain pending until this focused change is committed and pushed. After deployment, confirm the API remains at minimum one through the former idle window, test the first household action, and review the actual Container Apps cost increment for at least one week.
+
 ## Reward Management Increment 1 staging verification: 2026-08-25
 
 - Reward UI commit `7db26b197fe16b9c701acef82ff0bf91bb31844c` deployed through Netlify production deploy `6a8dd663285b7d00087e4d79`. Its current bundle `/assets/index-DebLiKFB.js` contains `https://api.egobrane.net`, reward management, and redemption controls.

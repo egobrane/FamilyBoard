@@ -72,6 +72,7 @@ jobs:
           WEATHER_RADAR_WMS_LAYER="$(jq -r '.parameters.weatherRadarWmsLayer.value' <<< "$parameters")"
           CHORE_GENERATION_HORIZON_HOURS="$(jq -r '.parameters.choreGenerationHorizonHours.value' <<< "$parameters")"
           CHORE_GENERATION_MAXIMUM_ASSIGNMENTS="$(jq -r '.parameters.choreGenerationMaximumAssignmentsPerRun.value' <<< "$parameters")"
+          API_MINIMUM_REPLICAS="$(jq -r '.parameters.apiMinimumReplicas.value' <<< "$parameters")"
 
           if [[ ! "$DEPLOY_IMAGE" =~ ^ghcr\.io/egobrane/familyboard-backend@sha256:[0-9a-f]{64}$ ]]; then
             echo "The staging image must be the public Family Dashboard GHCR image pinned by sha256 digest." >&2
@@ -80,6 +81,11 @@ jobs:
 
           if [[ "$FRONTEND_ORIGIN" != "https://family.egobrane.net" || "$API_HOSTNAME" != "api.egobrane.net" ]]; then
             echo "The reviewed staging origins do not match the protected staging environment." >&2
+            exit 1
+          fi
+
+          if [[ ! "$API_MINIMUM_REPLICAS" =~ ^[0-2]$ ]]; then
+            echo "The reviewed API minimum replica count must be between zero and two." >&2
             exit 1
           fi
 
@@ -103,6 +109,7 @@ jobs:
             echo "WEATHER_RADAR_WMS_LAYER=$WEATHER_RADAR_WMS_LAYER"
             echo "CHORE_GENERATION_HORIZON_HOURS=$CHORE_GENERATION_HORIZON_HOURS"
             echo "CHORE_GENERATION_MAXIMUM_ASSIGNMENTS=$CHORE_GENERATION_MAXIMUM_ASSIGNMENTS"
+            echo "API_MINIMUM_REPLICAS=$API_MINIMUM_REPLICAS"
           } >> "$GITHUB_ENV"
 
       - name: Require current main and successful CI
@@ -167,6 +174,7 @@ jobs:
 
           {
             echo "PREVIOUS_IMAGE=$(jq -r '.properties.template.containers[0].image' <<< "$api_json")"
+            echo "PREVIOUS_API_MINIMUM_REPLICAS=$(jq -r '.properties.template.scale.minReplicas // 0' <<< "$api_json")"
             echo "PREVIOUS_FRONTEND_ORIGIN=$(env_value 'Authentication__FrontendOrigin')"
             echo "PREVIOUS_CORS_ORIGIN=$(env_value 'Cors__AllowedOrigins__0')"
             echo "PREVIOUS_GOOGLE_AUTH_ENABLED=$(env_value 'Authentication__Google__Enabled')"
@@ -279,11 +287,13 @@ jobs:
             --resource-group "$RESOURCE_GROUP" \
             --name "$API_NAME" \
             --image "$DEPLOY_IMAGE" \
+            --min-replicas "$API_MINIMUM_REPLICAS" \
             --set-env-vars "${runtime_settings[@]}"
 
           for attempt in {1..60}; do
             api_json="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$API_NAME" --output json)"
             actual_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$api_json")"
+            actual_minimum_replicas="$(jq -r '.properties.template.scale.minReplicas // 0' <<< "$api_json")"
             latest_revision="$(jq -r '.properties.latestRevisionName // empty' <<< "$api_json")"
             latest_ready_revision="$(jq -r '.properties.latestReadyRevisionName // empty' <<< "$api_json")"
 
@@ -305,6 +315,7 @@ jobs:
             echo "API readiness attempt $attempt: latest=${latest_revision:-none}, ready=${latest_ready_revision:-none}, health=$revision_health, provisioning=$revision_provisioning."
 
             if [[ "$actual_image" == "$DEPLOY_IMAGE" && \
+                  "$actual_minimum_replicas" == "$API_MINIMUM_REPLICAS" && \
                   "$revision_image" == "$DEPLOY_IMAGE" && \
                   -n "$latest_revision" && \
                   "$latest_revision" == "$latest_ready_revision" && \
@@ -317,6 +328,7 @@ jobs:
               echo "Azure Container Apps did not converge on the requested release." >&2
               echo "Expected image: $DEPLOY_IMAGE" >&2
               echo "Application image: ${actual_image:-none}" >&2
+              echo "API minimum replicas: ${actual_minimum_replicas:-unknown} (expected $API_MINIMUM_REPLICAS)" >&2
               echo "Latest revision: ${latest_revision:-none}" >&2
               echo "Latest ready revision: ${latest_ready_revision:-none}" >&2
               echo "Latest revision image: ${revision_image:-none}" >&2
@@ -401,6 +413,12 @@ jobs:
             assert_env 'HouseholdMedia__Enabled' "$HOUSEHOLD_MEDIA_ENABLED"
           fi
 
+          actual_minimum_replicas="$(jq -r '.properties.template.scale.minReplicas // 0' <<< "$api_json")"
+          if [[ "$actual_minimum_replicas" != "$API_MINIMUM_REPLICAS" ]]; then
+            echo "API minimum replicas do not match the reviewed staging configuration." >&2
+            exit 1
+          fi
+
           if [[ "$CHORE_GENERATOR_EXISTS" == "true" ]]; then
             az containerapp job update \
               --resource-group "$RESOURCE_GROUP" \
@@ -428,6 +446,7 @@ jobs:
             --resource-group "$RESOURCE_GROUP" \
             --name "$API_NAME" \
             --image "$PREVIOUS_IMAGE" \
+            --min-replicas "${PREVIOUS_API_MINIMUM_REPLICAS:-0}" \
             --set-env-vars \
               "Cors__AllowedOrigins__0=$PREVIOUS_CORS_ORIGIN" \
               "Authentication__FrontendOrigin=$PREVIOUS_FRONTEND_ORIGIN" \
@@ -459,6 +478,7 @@ jobs:
             rollback_health="Unknown"
             rollback_provisioning="Unknown"
             rollback_image=""
+            rollback_minimum_replicas=""
 
             if [[ -n "$rollback_revision" ]]; then
               if rollback_revision_json="$(az containerapp revision show \
@@ -471,10 +491,12 @@ jobs:
                 rollback_image="$(jq -r '.properties.template.containers[0].image // empty' <<< "$rollback_revision_json")"
               fi
             fi
+            rollback_minimum_replicas="$(jq -r '.properties.template.scale.minReplicas // 0' <<< "$rollback_api_json")"
 
             echo "Rollback readiness attempt $attempt: latest=${rollback_revision:-none}, ready=${rollback_ready_revision:-none}, health=$rollback_health, provisioning=$rollback_provisioning."
 
             if [[ "$rollback_image" == "$PREVIOUS_IMAGE" && \
+                  "$rollback_minimum_replicas" == "${PREVIOUS_API_MINIMUM_REPLICAS:-0}" && \
                   -n "$rollback_revision" && \
                   "$rollback_revision" == "$rollback_ready_revision" && \
                   "$rollback_health" == "Healthy" && \
@@ -532,6 +554,7 @@ jobs:
             echo "- Previous image: \`${PREVIOUS_IMAGE:-not captured}\`"
             echo "- Migration execution: \`${{ steps.migration.outputs.execution_name || 'not completed' }}\`"
             echo "- Ready revision: \`${{ steps.deploy.outputs.revision || 'not verified' }}\`"
+            echo "- API minimum replicas: \`${API_MINIMUM_REPLICAS:-not read}\`"
             echo "- Result: \`${{ job.status }}\`"
             echo "- Health: $API_ORIGIN/health/live and $API_ORIGIN/health/ready"
           } >> "$GITHUB_STEP_SUMMARY"

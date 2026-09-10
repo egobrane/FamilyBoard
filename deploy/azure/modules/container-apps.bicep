@@ -38,6 +38,9 @@ param weatherRadarWmsUrl string
 param weatherRadarWmsLayer string
 param choreGenerationHorizonHours int
 param choreGenerationMaximumAssignmentsPerRun int
+@minValue(0)
+@maxValue(2)
+param apiMinimumReplicas int
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: last(split(logAnalyticsWorkspaceId, '/'))
@@ -344,7 +347,7 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: apiMinimumReplicas
         maxReplicas: 2
         rules: [
           {

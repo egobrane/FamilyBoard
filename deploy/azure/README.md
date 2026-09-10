@@ -152,6 +152,8 @@ az containerapp job start \
 
 The normal GitHub release path requires no image input or digest commit. A backend-relevant `main` push publishes the image, captures buildx's exact digest, and calls the reusable protected workflow. That workflow confirms matching CI and current `main`, supplies the digest transiently while compiling reviewed public parameters, migrates, reconciles the API and provisioned chore-generator image, verifies configuration/traffic/health, and restores the prior application release if verification fails. Manual dispatch retains an immutable digest input only for deliberate rollback or redeployment. The workflow does not deploy Bicep infrastructure, retrieve secrets, or modify unrelated `ryan-dev` resources.
 
+Staging deliberately sets `apiMinimumReplicas = 1`. The protected application workflow applies and verifies that reviewed value and restores the previous value during an automatic rollback. Keeping one 0.25-vCPU/0.5-GiB API replica available prevents the wall display's first action after an idle period from waiting for Container Apps scale-to-zero startup; PostgreSQL remains on `Standard_B1ms`. Set the parameter back to zero only when accepting cold starts in exchange for the lower idle Container Apps cost.
+
 ## GitHub environment configuration
 
 Create a protected GitHub environment named `staging`, require an approver if available, and add these non-secret environment variables from the Bicep outputs:

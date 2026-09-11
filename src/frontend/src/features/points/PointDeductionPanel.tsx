@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react'
-import { MemberPicker } from '../../components/MemberPicker'
 import type { PointDeductionDefinitionResponse, PointMemberBalanceResponse } from '../../lib/api'
 
 export function PointDeductionPanel({ definitions, members, busy, onCreate, onUpdate,
-  onToggle, onApply }: {
+  onToggle, onApply, selectedMemberId }: {
   definitions: PointDeductionDefinitionResponse[]
   members: PointMemberBalanceResponse[]
   busy: boolean
+  selectedMemberId: string
   onCreate: (requestId: string, title: string, amount: number) => Promise<boolean>
   onUpdate: (definition: PointDeductionDefinitionResponse, title: string,
     amount: number) => Promise<boolean>
@@ -16,16 +16,12 @@ export function PointDeductionPanel({ definitions, members, busy, onCreate, onUp
 }) {
   const activeMembers = members.filter((member) => member.isActive)
   const activeDefinitions = definitions.filter((definition) => definition.isActive)
-  const [memberId, setMemberId] = useState(activeMembers[0]?.memberId ?? '')
   const [editing, setEditing] = useState<PointDeductionDefinitionResponse | null>(null)
   const [confirming, setConfirming] = useState<PointDeductionDefinitionResponse | null>(null)
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState(0)
   const createRequestId = useRef(crypto.randomUUID())
   const applicationRequestId = useRef(crypto.randomUUID())
-
-  const selectedMemberId = activeMembers.some((member) => member.memberId === memberId)
-    ? memberId : activeMembers[0]?.memberId ?? ''
 
   function beginEdit(definition: PointDeductionDefinitionResponse) {
     setEditing(definition)
@@ -65,13 +61,6 @@ export function PointDeductionPanel({ definitions, members, busy, onCreate, onUp
       <div><p className="eyebrow">Reusable point corrections</p><h3 id="quick-deductions-heading">Quick deductions</h3>
         <p>Choose a family member, then select a reason. Every deduction remains in the point ledger and can be reversed.</p></div>
     </div>
-
-    {activeMembers.length > 0
-      ? <MemberPicker legend="Who should lose points?" members={activeMembers.map((member) => ({
-          id: member.memberId, displayName: member.displayName, avatarColor: member.avatarColor,
-          photo: member.photo, detail: `${member.balance.toLocaleString()} points`,
-        }))} value={selectedMemberId} onChange={setMemberId} />
-      : <p className="empty-state">Add or reactivate a household member before applying a deduction.</p>}
 
     {activeDefinitions.length > 0
       ? <div className="point-deduction-grid">{activeDefinitions.map((definition) =>

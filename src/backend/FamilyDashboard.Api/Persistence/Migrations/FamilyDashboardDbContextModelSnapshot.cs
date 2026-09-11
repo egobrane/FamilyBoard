@@ -1642,6 +1642,72 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.ToTable("HouseholdTaskListSources", (string)null);
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointAdditionDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AdditionAmount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid?>("CreatedByMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("HouseholdId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid?>("UpdatedByMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "ClientRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("HouseholdId", "CreatedByMemberId");
+
+                    b.HasIndex("HouseholdId", "UpdatedByMemberId");
+
+                    b.HasIndex("HouseholdId", "IsActive", "Title");
+
+                    b.ToTable("PointAdditionDefinitions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PointAdditionDefinitions_Amount", "\"AdditionAmount\" BETWEEN 1 AND 10000");
+
+                            t.HasCheckConstraint("CK_PointAdditionDefinitions_ClientRequestId", "\"ClientRequestId\" <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_PointAdditionDefinitions_Version", "\"Version\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointDeductionDefinition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1741,6 +1807,9 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
+                    b.Property<Guid?>("PointAdditionDefinitionId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("PointDeductionDefinitionId")
                         .HasColumnType("uuid");
 
@@ -1772,6 +1841,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"IdempotencyKey\" IS NOT NULL");
 
+                    b.HasIndex("HouseholdId", "PointAdditionDefinitionId");
+
                     b.HasIndex("HouseholdId", "PointDeductionDefinitionId");
 
                     b.HasIndex("HouseholdId", "ReversesPointTransactionId")
@@ -1784,6 +1855,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
 
                     b.ToTable("PointTransactions", null, t =>
                         {
+                            t.HasCheckConstraint("CK_PointTransactions_AdditionDefinitionLink", "\"PointAdditionDefinitionId\" IS NULL OR (\"Type\" = 'Adjustment' AND \"Amount\" > 0)");
+
                             t.HasCheckConstraint("CK_PointTransactions_Amount", "\"Amount\" <> 0");
 
                             t.HasCheckConstraint("CK_PointTransactions_ChoreCompletionLink", "\"Type\" <> 'ChoreCompletion' OR (\"ChoreCompletionId\" IS NOT NULL AND \"Amount\" > 0)");
@@ -2598,6 +2671,33 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Navigation("WriteTargetConfiguredByUserAccount");
                 });
 
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointAdditionDefinition", b =>
+                {
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.Household", "Household")
+                        .WithMany("PointAdditionDefinitions")
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.HouseholdMember", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId", "CreatedByMemberId")
+                        .HasPrincipalKey("HouseholdId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FamilyDashboard.Api.Domain.Households.HouseholdMember", "UpdatedByMember")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId", "UpdatedByMemberId")
+                        .HasPrincipalKey("HouseholdId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("Household");
+
+                    b.Navigation("UpdatedByMember");
+                });
+
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointDeductionDefinition", b =>
                 {
                     b.HasOne("FamilyDashboard.Api.Domain.Households.Household", "Household")
@@ -2652,6 +2752,12 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("FamilyDashboard.Api.Domain.Rewards.PointAdditionDefinition", "PointAdditionDefinition")
+                        .WithMany("Applications")
+                        .HasForeignKey("HouseholdId", "PointAdditionDefinitionId")
+                        .HasPrincipalKey("HouseholdId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("FamilyDashboard.Api.Domain.Rewards.PointDeductionDefinition", "PointDeductionDefinition")
                         .WithMany("Applications")
                         .HasForeignKey("HouseholdId", "PointDeductionDefinitionId")
@@ -2677,6 +2783,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
                     b.Navigation("Household");
 
                     b.Navigation("HouseholdMember");
+
+                    b.Navigation("PointAdditionDefinition");
 
                     b.Navigation("PointDeductionDefinition");
 
@@ -2824,6 +2932,8 @@ namespace FamilyDashboard.Api.Persistence.Migrations
 
                     b.Navigation("PhotoAssets");
 
+                    b.Navigation("PointAdditionDefinitions");
+
                     b.Navigation("PointDeductionDefinitions");
 
                     b.Navigation("Preferences");
@@ -2931,6 +3041,11 @@ namespace FamilyDashboard.Api.Persistence.Migrations
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Integrations.HouseholdTaskListSource", b =>
                 {
                     b.Navigation("MutationReceipts");
+                });
+
+            modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointAdditionDefinition", b =>
+                {
+                    b.Navigation("Applications");
                 });
 
             modelBuilder.Entity("FamilyDashboard.Api.Domain.Rewards.PointDeductionDefinition", b =>

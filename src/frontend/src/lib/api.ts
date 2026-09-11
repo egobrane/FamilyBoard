@@ -456,6 +456,7 @@ export interface PointTransactionResponse {
   description: string
   choreCompletionId: string | null
   rewardRedemptionId: string | null
+  pointAdditionDefinitionId: string | null
   pointDeductionDefinitionId: string | null
   reversesPointTransactionId: string | null
   createdByMember: PointMemberResponse | null
@@ -495,6 +496,16 @@ export interface PointDeductionDefinitionResponse {
   id: string
   title: string
   deductionAmount: number
+  isActive: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PointAdditionDefinitionResponse {
+  id: string
+  title: string
+  additionAmount: number
   isActive: boolean
   version: number
   createdAt: string
@@ -930,6 +941,50 @@ export function createPointAdjustment(householdId: string, body: {
 }) {
   return unsafeRequest<PointTransactionResponse>(
     `/api/households/${encodeURIComponent(householdId)}/point-adjustments`, 'POST', body,
+  )
+}
+
+export function listPointAdditionDefinitions(householdId: string) {
+  return request<PointAdditionDefinitionResponse[]>(
+    `/api/households/${encodeURIComponent(householdId)}/point-addition-definitions`,
+  )
+}
+
+export function createPointAdditionDefinition(householdId: string, body: {
+  clientRequestId: string
+  title: string
+  additionAmount: number
+}) {
+  return unsafeRequest<PointAdditionDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-addition-definitions`,
+    'POST', body,
+  )
+}
+
+export function updatePointAdditionDefinition(householdId: string,
+  definition: PointAdditionDefinitionResponse, body: { title: string; additionAmount: number }) {
+  return unsafeRequest<PointAdditionDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-addition-definitions/${encodeURIComponent(definition.id)}`,
+    'PATCH', { ...body, expectedVersion: definition.version },
+  )
+}
+
+export function setPointAdditionDefinitionActive(householdId: string,
+  definition: PointAdditionDefinitionResponse, active: boolean) {
+  return unsafeRequest<PointAdditionDefinitionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-addition-definitions/${encodeURIComponent(definition.id)}/${active ? 'activate' : 'deactivate'}`,
+    'POST', { expectedVersion: definition.version },
+  )
+}
+
+export function applyPointAddition(householdId: string,
+  definition: PointAdditionDefinitionResponse, body: {
+    clientRequestId: string
+    householdMemberId: string
+  }) {
+  return unsafeRequest<PointTransactionResponse>(
+    `/api/households/${encodeURIComponent(householdId)}/point-addition-definitions/${encodeURIComponent(definition.id)}/applications`,
+    'POST', { ...body, expectedDefinitionVersion: definition.version },
   )
 }
 

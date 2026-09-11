@@ -34,6 +34,7 @@ public sealed class DatabaseModelTests
         Assert.NotNull(model.FindEntityType(typeof(ChoreAssignment)));
         Assert.NotNull(model.FindEntityType(typeof(ChoreCompletion)));
         Assert.NotNull(model.FindEntityType(typeof(PointTransaction)));
+        Assert.NotNull(model.FindEntityType(typeof(PointAdditionDefinition)));
         Assert.NotNull(model.FindEntityType(typeof(Reward)));
         Assert.NotNull(model.FindEntityType(typeof(RewardRedemption)));
     }

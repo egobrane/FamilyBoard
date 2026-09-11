@@ -16,6 +16,29 @@ public static class PointEndpoints
         group.MapPost("/point-adjustments", AdjustAsync).RequireFamilyDashboardAntiforgery();
         group.MapPost("/point-transactions/{transactionId:guid}/reverse", ReverseAsync)
             .RequireFamilyDashboardAntiforgery();
+        group.MapGet("/point-addition-definitions", ListAdditionDefinitionsAsync);
+        group.MapPost("/point-addition-definitions", CreateAdditionDefinitionAsync)
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPatch("/point-addition-definitions/{definitionId:guid}",
+            UpdateAdditionDefinitionAsync).RequireFamilyDashboardAntiforgery();
+        group.MapPost("/point-addition-definitions/{definitionId:guid}/activate",
+            (Guid householdId, Guid definitionId,
+                ChangePointAdditionDefinitionStateRequest? request, HttpContext context,
+                IAuthorizationService authorization, HouseholdService households,
+                PointService points, CancellationToken cancellationToken) =>
+                ChangeAdditionDefinitionStateAsync(householdId, definitionId, true, request,
+                    context, authorization, households, points, cancellationToken))
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPost("/point-addition-definitions/{definitionId:guid}/deactivate",
+            (Guid householdId, Guid definitionId,
+                ChangePointAdditionDefinitionStateRequest? request, HttpContext context,
+                IAuthorizationService authorization, HouseholdService households,
+                PointService points, CancellationToken cancellationToken) =>
+                ChangeAdditionDefinitionStateAsync(householdId, definitionId, false, request,
+                    context, authorization, households, points, cancellationToken))
+            .RequireFamilyDashboardAntiforgery();
+        group.MapPost("/point-addition-definitions/{definitionId:guid}/applications",
+            ApplyAdditionAsync).RequireFamilyDashboardAntiforgery();
         group.MapGet("/point-deduction-definitions", ListDeductionDefinitionsAsync);
         group.MapPost("/point-deduction-definitions", CreateDeductionDefinitionAsync)
             .RequireFamilyDashboardAntiforgery();
@@ -40,6 +63,91 @@ public static class PointEndpoints
         group.MapPost("/point-deduction-definitions/{definitionId:guid}/applications",
             ApplyDeductionAsync).RequireFamilyDashboardAntiforgery();
         return endpoints;
+    }
+
+    private static async Task<IResult> ListAdditionDefinitionsAsync(Guid householdId,
+        HttpContext context, IAuthorizationService authorization, HouseholdService households,
+        PointService points, CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        return failure ?? Results.Ok(await points.ListAdditionDefinitionsAsync(
+            householdId, cancellationToken));
+    }
+
+    private static async Task<IResult> CreateAdditionDefinitionAsync(Guid householdId,
+        CreatePointAdditionDefinitionRequest? request, HttpContext context,
+        IAuthorizationService authorization, HouseholdService households, PointService points,
+        CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (request is null)
+            return Validation(context, new Dictionary<string, string[]>
+                { ["additionDefinition"] = ["Addition definition data is required."] });
+        if (!PointValidation.TryAdditionDefinition(request.ClientRequestId,
+                request.Title, request.AdditionAmount, out var clean, out var errors))
+            return Validation(context, errors);
+        return Result(context, await points.CreateAdditionDefinitionAsync(householdId, actor,
+            clean!, cancellationToken), true);
+    }
+
+    private static async Task<IResult> UpdateAdditionDefinitionAsync(Guid householdId,
+        Guid definitionId, UpdatePointAdditionDefinitionRequest? request, HttpContext context,
+        IAuthorizationService authorization, HouseholdService households, PointService points,
+        CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (request is null || request.ExpectedVersion < 1)
+            return Validation(context, new Dictionary<string, string[]>
+                { ["additionDefinition"] = ["Addition definition data and a valid version are required."] });
+        if (!PointValidation.TryAdditionDefinition(Guid.NewGuid(), request.Title,
+                request.AdditionAmount, out var clean, out var errors))
+            return Validation(context, errors);
+        var update = new UpdatePointAdditionDefinitionRequest(request.ExpectedVersion,
+            clean!.Title, clean.AdditionAmount);
+        return Result(context, await points.UpdateAdditionDefinitionAsync(householdId,
+            definitionId, actor, update, cancellationToken), false);
+    }
+
+    private static async Task<IResult> ChangeAdditionDefinitionStateAsync(Guid householdId,
+        Guid definitionId, bool active, ChangePointAdditionDefinitionStateRequest? request,
+        HttpContext context, IAuthorizationService authorization, HouseholdService households,
+        PointService points, CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (request is null || request.ExpectedVersion < 1)
+            return Validation(context, new Dictionary<string, string[]>
+                { ["expectedVersion"] = ["A valid version is required."] });
+        return Result(context, await points.SetAdditionDefinitionStateAsync(householdId,
+            definitionId, actor, request.ExpectedVersion, active, cancellationToken), false);
+    }
+
+    private static async Task<IResult> ApplyAdditionAsync(Guid householdId, Guid definitionId,
+        ApplyPointAdditionRequest? request, HttpContext context,
+        IAuthorizationService authorization, HouseholdService households, PointService points,
+        CancellationToken cancellationToken)
+    {
+        var failure = await AuthorizeAsync(householdId, true, context, authorization,
+            households, cancellationToken);
+        if (failure is not null) return failure;
+        if (!context.User.TryGetUserAccountId(out var actor))
+            return HouseholdEndpoints.AccountUnavailable(context);
+        if (!PointValidation.TryAdditionApplication(request, out var errors))
+            return Validation(context, errors);
+        return Result(context, await points.ApplyAdditionAsync(householdId, definitionId,
+            actor, request!, cancellationToken), true);
     }
 
     private static async Task<IResult> ListDeductionDefinitionsAsync(Guid householdId,
@@ -210,6 +318,10 @@ public static class PointEndpoints
             ApiProblemCodes.PointMemberNotFound, "The household member was not found."),
         PointOperationStatus.MemberInactive => Problem(context, 409,
             ApiProblemCodes.PointMemberInactive, "Select an active household member."),
+        PointOperationStatus.AdditionDefinitionNotFound => Problem(context, 404,
+            ApiProblemCodes.PointAdditionDefinitionNotFound, "The point addition was not found."),
+        PointOperationStatus.AdditionDefinitionInactive => Problem(context, 409,
+            ApiProblemCodes.PointAdditionDefinitionInactive, "That point addition is inactive."),
         PointOperationStatus.DeductionDefinitionNotFound => Problem(context, 404,
             ApiProblemCodes.PointDeductionDefinitionNotFound, "The point deduction was not found."),
         PointOperationStatus.DeductionDefinitionInactive => Problem(context, 409,

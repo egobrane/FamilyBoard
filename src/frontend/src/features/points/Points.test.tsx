@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { PointTransactionResponse } from '../../lib/api'
 import { PointHistoryList } from './PointHistoryList'
+import { PointAdditionPanel } from './PointAdditionPanel'
 import { PointDeductionPanel } from './PointDeductionPanel'
 
 const transaction: PointTransactionResponse = {
@@ -13,6 +14,7 @@ const transaction: PointTransactionResponse = {
   description: 'Completed Feed Milo',
   choreCompletionId: 'completion-1',
   rewardRedemptionId: null,
+  pointAdditionDefinitionId: null,
   pointDeductionDefinitionId: null,
   reversesPointTransactionId: null,
   createdByMember: { id: 'adult-1', displayName: 'Ryan', role: 'adult', avatarColor: null, isActive: true, photo: null },
@@ -43,6 +45,45 @@ describe('PointHistoryList', () => {
       pointDeductionDefinitionId: 'deduction-1' }]} />)
     expect(screen.getByText(/Quick deduction · Hitting someone/)).toBeInTheDocument()
   })
+
+  it('identifies reusable addition applications in retained history', () => {
+    render(<PointHistoryList transactions={[{ ...transaction, amount: 100,
+      type: 'adjustment', description: 'Homework on time', choreCompletionId: null,
+      pointAdditionDefinitionId: 'addition-1' }]} />)
+    expect(screen.getByText(/Quick addition · Homework on time/)).toBeInTheDocument()
+  })
+})
+
+describe('PointAdditionPanel', () => {
+  const definition = { id: 'addition-1', title: 'Homework on time', additionAmount: 100,
+    isActive: true, version: 2, createdAt: '2026-09-10T12:00:00Z',
+    updatedAt: '2026-09-10T12:00:00Z' }
+  const member = { memberId: 'member-1', displayName: 'Zoey', role: 'child' as const,
+    avatarColor: 'mint', isActive: true, balance: 800, photo: null }
+
+  it('confirms the selected member before applying a preset', async () => {
+    const onApply = vi.fn().mockResolvedValue(true)
+    render(<PointAdditionPanel busy={false} definitions={[definition]} members={[member]}
+      selectedMemberId="member-1" onApply={onApply} onCreate={vi.fn()} onToggle={vi.fn()}
+      onUpdate={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /Homework on time.*100 points/ }))
+    expect(screen.getByRole('heading', { name: 'Add 100 points to Zoey?' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Add 100 points' }))
+    expect(onApply).toHaveBeenCalledWith(definition, 'member-1', expect.any(String))
+  })
+
+  it('creates positive-magnitude addition definitions', async () => {
+    const onCreate = vi.fn().mockResolvedValue(true)
+    render(<PointAdditionPanel busy={false} definitions={[]} members={[member]}
+      selectedMemberId="member-1" onApply={vi.fn()} onCreate={onCreate} onToggle={vi.fn()}
+      onUpdate={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Reason' }), 'Finished homework')
+    await userEvent.type(screen.getByRole('spinbutton', { name: 'Points to add' }), '125')
+    await userEvent.click(screen.getByRole('button', { name: 'Create addition' }))
+    expect(onCreate).toHaveBeenCalledWith(expect.any(String), 'Finished homework', 125)
+  })
 })
 
 describe('PointDeductionPanel', () => {
@@ -55,9 +96,9 @@ describe('PointDeductionPanel', () => {
   it('uses the touch member picker and confirms before applying a preset', async () => {
     const onApply = vi.fn().mockResolvedValue(true)
     render(<PointDeductionPanel busy={false} definitions={[definition]} members={[member]}
+      selectedMemberId="member-1"
       onApply={onApply} onCreate={vi.fn()} onToggle={vi.fn()} onUpdate={vi.fn()} />)
 
-    expect(screen.getByRole('radio', { name: /Zoey/ })).toBeChecked()
     await userEvent.click(screen.getByRole('button', { name: /Hitting someone.*500 points/ }))
     expect(screen.getByRole('heading', { name: 'Deduct 500 points from Zoey?' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Deduct 500 points' }))
@@ -67,6 +108,7 @@ describe('PointDeductionPanel', () => {
   it('creates positive-magnitude definitions while presenting them as deductions', async () => {
     const onCreate = vi.fn().mockResolvedValue(true)
     render(<PointDeductionPanel busy={false} definitions={[]} members={[member]}
+      selectedMemberId="member-1"
       onApply={vi.fn()} onCreate={onCreate} onToggle={vi.fn()} onUpdate={vi.fn()} />)
 
     await userEvent.type(screen.getByRole('textbox', { name: 'Reason' }), 'Unsafe behavior')

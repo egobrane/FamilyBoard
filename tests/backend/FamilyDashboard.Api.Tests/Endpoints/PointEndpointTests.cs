@@ -16,6 +16,108 @@ namespace FamilyDashboard.Api.Tests.Endpoints;
 public sealed class PointEndpointTests
 {
     [PostgreSqlFact]
+    public async Task AdditionDefinitionsAreVersionedAndApplicationsSnapshotAndReplaySafely()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        var account = new UserAccount { DisplayName = "Addition Adult", PrimaryEmail = "additions@example.test" };
+        database.DbContext.UserAccounts.Add(account);
+        await database.DbContext.SaveChangesAsync();
+        using var client = Client(database.Factory, account.Id);
+        var household = await BootstrapAsync(client, "Addition Family");
+        var childResponse = await client.PostAsJsonAsync($"/api/households/{household.Id}/members",
+            new CreateChildMemberRequest("Alex", "mint"));
+        var child = (await childResponse.Content.ReadFromJsonAsync<HouseholdMemberResponse>())!;
+
+        var definitionRequest = new CreatePointAdditionDefinitionRequest(
+            Guid.NewGuid(), "Homework completed on time", 100);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions", definitionRequest);
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var definition = (await createResponse.Content
+            .ReadFromJsonAsync<PointAdditionDefinitionResponse>())!;
+
+        var replayCreate = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions", definitionRequest);
+        Assert.Equal(definition.Id, (await replayCreate.Content
+            .ReadFromJsonAsync<PointAdditionDefinitionResponse>())!.Id);
+        var conflictingCreate = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions",
+            definitionRequest with { AdditionAmount = 75 });
+        Assert.Equal(HttpStatusCode.Conflict, conflictingCreate.StatusCode);
+
+        var updateResponse = await client.PatchAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}",
+            new UpdatePointAdditionDefinitionRequest(definition.Version, "Homework on time", 100));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        definition = (await updateResponse.Content.ReadFromJsonAsync<PointAdditionDefinitionResponse>())!;
+
+        var applicationRequest = new ApplyPointAdditionRequest(
+            Guid.NewGuid(), child.Id, definition.Version);
+        var applicationResponse = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/applications",
+            applicationRequest);
+        Assert.Equal(HttpStatusCode.Created, applicationResponse.StatusCode);
+        var application = (await applicationResponse.Content.ReadFromJsonAsync<PointTransactionResponse>())!;
+        Assert.Equal(100, application.Amount);
+        Assert.Equal("Homework on time", application.Description);
+        Assert.Equal(definition.Id, application.PointAdditionDefinitionId);
+
+        var secondUpdate = await client.PatchAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}",
+            new UpdatePointAdditionDefinitionRequest(definition.Version, "Great homework", 125));
+        definition = (await secondUpdate.Content.ReadFromJsonAsync<PointAdditionDefinitionResponse>())!;
+        var replayApplication = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/applications",
+            applicationRequest);
+        Assert.Equal(application.Id, (await replayApplication.Content
+            .ReadFromJsonAsync<PointTransactionResponse>())!.Id);
+
+        var nextApplication = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/applications",
+            new ApplyPointAdditionRequest(Guid.NewGuid(), child.Id, definition.Version));
+        var nextTransaction = (await nextApplication.Content.ReadFromJsonAsync<PointTransactionResponse>())!;
+        Assert.Equal(125, nextTransaction.Amount);
+        Assert.Equal("Great homework", nextTransaction.Description);
+
+        var deactivate = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/deactivate",
+            new ChangePointAdditionDefinitionStateRequest(definition.Version));
+        definition = (await deactivate.Content.ReadFromJsonAsync<PointAdditionDefinitionResponse>())!;
+        var inactiveApplication = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/applications",
+            new ApplyPointAdditionRequest(Guid.NewGuid(), child.Id, definition.Version));
+        Assert.Equal(HttpStatusCode.Conflict, inactiveApplication.StatusCode);
+        Assert.Equal(ApiProblemCodes.PointAdditionDefinitionInactive,
+            await ProblemCodeAsync(inactiveApplication));
+
+        var reactivate = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/activate",
+            new ChangePointAdditionDefinitionStateRequest(definition.Version));
+        Assert.Equal(HttpStatusCode.OK, reactivate.StatusCode);
+        definition = (await reactivate.Content.ReadFromJsonAsync<PointAdditionDefinitionResponse>())!;
+        var deactivateMember = await client.PatchAsJsonAsync(
+            $"/api/households/{household.Id}/members/{child.Id}",
+            new UpdateHouseholdMemberRequest(null, null, false));
+        Assert.Equal(HttpStatusCode.OK, deactivateMember.StatusCode);
+        var inactiveMemberApplication = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-addition-definitions/{definition.Id}/applications",
+            new ApplyPointAdditionRequest(Guid.NewGuid(), child.Id, definition.Version));
+        Assert.Equal(HttpStatusCode.Conflict, inactiveMemberApplication.StatusCode);
+        Assert.Equal(ApiProblemCodes.PointMemberInactive,
+            await ProblemCodeAsync(inactiveMemberApplication));
+
+        var reversal = await client.PostAsJsonAsync(
+            $"/api/households/{household.Id}/point-transactions/{application.Id}/reverse",
+            new ReversePointTransactionRequest(Guid.NewGuid(), "Applied by mistake"));
+        Assert.Equal(HttpStatusCode.Created, reversal.StatusCode);
+        var summary = await client.GetFromJsonAsync<HouseholdPointSummaryResponse>(
+            $"/api/households/{household.Id}/points/summary");
+        Assert.Equal(125, summary!.Members.Single(item => item.MemberId == child.Id).Balance);
+        Assert.Equal(1, await database.DbContext.PointAdditionDefinitions.CountAsync());
+        Assert.Equal(3, await database.DbContext.PointTransactions.CountAsync());
+    }
+
+    [PostgreSqlFact]
     public async Task DeductionDefinitionsAreVersionedAndApplicationsSnapshotAndReplaySafely()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();
@@ -194,6 +296,9 @@ public sealed class PointEndpointTests
         using var isolatedDefinitions = await secondClient.GetAsync(
             $"/api/households/{firstHousehold.Id}/point-deduction-definitions");
         Assert.Equal(HttpStatusCode.NotFound, isolatedDefinitions.StatusCode);
+        using var isolatedAdditions = await secondClient.GetAsync(
+            $"/api/households/{firstHousehold.Id}/point-addition-definitions");
+        Assert.Equal(HttpStatusCode.NotFound, isolatedAdditions.StatusCode);
 
         var now = DateTimeOffset.UtcNow;
         var session = new UserSession
@@ -214,6 +319,10 @@ public sealed class PointEndpointTests
             $"/api/households/{firstHousehold.Id}/point-deduction-definitions");
         Assert.Equal(HttpStatusCode.Forbidden, definitions.StatusCode);
         Assert.Equal(ApiProblemCodes.ParentElevationRequired, await ProblemCodeAsync(definitions));
+        var additions = await shared.GetAsync(
+            $"/api/households/{firstHousehold.Id}/point-addition-definitions");
+        Assert.Equal(HttpStatusCode.Forbidden, additions.StatusCode);
+        Assert.Equal(ApiProblemCodes.ParentElevationRequired, await ProblemCodeAsync(additions));
     }
 
     private static async Task<HouseholdResponse> BootstrapAsync(HttpClient client, string name)

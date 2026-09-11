@@ -144,6 +144,50 @@ public sealed class DatabaseMigrationTests
     }
 
     [PostgreSqlFact]
+    public async Task PointAdditionMigrationPreservesExistingDeductionsAndLedgerHistory()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!;
+        var options = new DbContextOptionsBuilder<FamilyDashboardDbContext>()
+            .UseNpgsql(connectionString).Options;
+        await using var context = new FamilyDashboardDbContext(options);
+        await context.Database.EnsureDeletedAsync();
+        var migrator = context.Database.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260909204303_AddPointDeductionDefinitions");
+        var householdId = Guid.NewGuid();
+        var memberId = Guid.NewGuid();
+        var definitionId = Guid.NewGuid();
+        var transactionId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "Households" ("Id", "Name", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({householdId}, {"Existing Points Family"}, {true}, {now}, {now});
+            INSERT INTO "HouseholdMembers" ("Id", "HouseholdId", "DisplayName", "Role", "IsActive", "CreatedAt", "UpdatedAt")
+            VALUES ({memberId}, {householdId}, {"Existing Child"}, {"Child"}, {true}, {now}, {now});
+            INSERT INTO "PointDeductionDefinitions" ("Id", "HouseholdId", "ClientRequestId",
+                "Title", "DeductionAmount", "IsActive", "Version", "CreatedAt", "UpdatedAt")
+            VALUES ({definitionId}, {householdId}, {Guid.NewGuid()}, {"Existing deduction"},
+                {50}, {true}, {1L}, {now}, {now});
+            INSERT INTO "PointTransactions" ("Id", "HouseholdId", "HouseholdMemberId", "Amount",
+                "Type", "Description", "IdempotencyKey", "PointDeductionDefinitionId", "CreatedAt")
+            VALUES ({transactionId}, {householdId}, {memberId}, {-50}, {"Adjustment"},
+                {"Existing deduction"}, {"deduction:existing"}, {definitionId}, {now});
+            """);
+
+        await migrator.MigrateAsync();
+        context.ChangeTracker.Clear();
+
+        var definition = await context.PointDeductionDefinitions.SingleAsync();
+        var transaction = await context.PointTransactions.SingleAsync();
+        Assert.Equal("Existing deduction", definition.Title);
+        Assert.Equal(-50, transaction.Amount);
+        Assert.Equal(definitionId, transaction.PointDeductionDefinitionId);
+        Assert.Null(transaction.PointAdditionDefinitionId);
+        Assert.Empty(context.PointAdditionDefinitions);
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync());
+    }
+
+    [PostgreSqlFact]
     public async Task OpenChoreExpirationMigrationBackfillsAndExpiresElapsedUnclaimedWork()
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_POSTGRES_CONNECTION_STRING")!;

@@ -2,6 +2,42 @@ namespace FamilyDashboard.Api.Features.Points;
 
 public static class PointValidation
 {
+    public static bool TryAdditionDefinition(Guid requestId, string? title, int additionAmount,
+        out CreatePointAdditionDefinitionRequest? clean,
+        out Dictionary<string, string[]> errors)
+    {
+        errors = [];
+        var normalizedTitle = title?.Trim() ?? string.Empty;
+        if (requestId == Guid.Empty)
+            errors["clientRequestId"] = ["A request ID is required."];
+        if (normalizedTitle.Length is < 1 or > 120)
+            errors["title"] = ["Title must be between 1 and 120 characters."];
+        if (additionAmount is < 1 or > 10000)
+            errors["additionAmount"] = ["Addition amount must be between 1 and 10,000 points."];
+        clean = errors.Count == 0
+            ? new CreatePointAdditionDefinitionRequest(requestId, normalizedTitle, additionAmount)
+            : null;
+        return clean is not null;
+    }
+
+    public static bool TryAdditionApplication(ApplyPointAdditionRequest? request,
+        out Dictionary<string, string[]> errors)
+    {
+        errors = [];
+        if (request is null)
+        {
+            errors["addition"] = ["Addition application data is required."];
+            return false;
+        }
+        if (request.ClientRequestId == Guid.Empty)
+            errors["clientRequestId"] = ["A client request ID is required."];
+        if (request.HouseholdMemberId == Guid.Empty)
+            errors["householdMemberId"] = ["An active household member is required."];
+        if (request.ExpectedDefinitionVersion < 1)
+            errors["expectedDefinitionVersion"] = ["A valid definition version is required."];
+        return errors.Count == 0;
+    }
+
     public static bool TryDeductionDefinition(Guid requestId, string? title, int deductionAmount,
         out CreatePointDeductionDefinitionRequest? clean,
         out Dictionary<string, string[]> errors)

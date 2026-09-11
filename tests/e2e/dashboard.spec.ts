@@ -67,6 +67,8 @@ let rewardRedemptions: Array<Record<string, unknown>> = []
 let taskStatusRequests: Array<Record<string, unknown>> = []
 let choreCompletionRequests: Array<Record<string, unknown>> = []
 let choreClaimRequests: Array<Record<string, unknown>> = []
+let pointAdditionDefinitions: Array<Record<string, unknown>> = []
+let pointAdditionApplications: Array<Record<string, unknown>> = []
 let pointDeductionDefinitions: Array<Record<string, unknown>> = []
 let pointDeductionApplications: Array<Record<string, unknown>> = []
 let claimedOpenChoreMemberId: string | null = null
@@ -101,6 +103,8 @@ test.beforeEach(async ({ page }) => {
   taskStatusRequests = []
   choreCompletionRequests = []
   choreClaimRequests = []
+  pointAdditionDefinitions = []
+  pointAdditionApplications = []
   pointDeductionDefinitions = []
   pointDeductionApplications = []
   claimedOpenChoreMemberId = null
@@ -525,6 +529,31 @@ test.beforeEach(async ({ page }) => {
       })), recentTransactions: [] } })
       return
     }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-addition-definitions`) {
+      if (route.request().method() === 'POST') {
+        const body = route.request().postDataJSON() as { title: string; additionAmount: number }
+        const definition = { id: 'point-addition-1', title: body.title,
+          additionAmount: body.additionAmount, isActive: true, version: 1,
+          createdAt: '2026-09-10T20:00:00Z', updatedAt: '2026-09-10T20:00:00Z' }
+        pointAdditionDefinitions = [definition]
+        await route.fulfill({ status: 201, json: definition })
+        return
+      }
+      await route.fulfill({ json: pointAdditionDefinitions })
+      return
+    }
+    if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-addition-definitions/point-addition-1/applications`) {
+      const body = route.request().postDataJSON() as Record<string, unknown>
+      pointAdditionApplications.push(body)
+      await route.fulfill({ status: 201, json: {
+        id: 'point-addition-transaction-1', householdMember: householdMembers[0], amount: 100,
+        type: 'adjustment', description: 'Homework on time', choreCompletionId: null,
+        rewardRedemptionId: null, pointAdditionDefinitionId: 'point-addition-1',
+        pointDeductionDefinitionId: null, reversesPointTransactionId: null,
+        createdByMember: householdMembers[0], createdAt: '2026-09-10T20:01:00Z', isReversed: false,
+      } })
+      return
+    }
     if (url.pathname === `/api/households/${authenticatedUser.households[0].id}/point-deduction-definitions`) {
       if (route.request().method() === 'POST') {
         const body = route.request().postDataJSON() as { title: string; deductionAmount: number }
@@ -544,7 +573,8 @@ test.beforeEach(async ({ page }) => {
       await route.fulfill({ status: 201, json: {
         id: 'point-transaction-1', householdMember: householdMembers[0], amount: -500,
         type: 'adjustment', description: 'Hitting someone', choreCompletionId: null,
-        rewardRedemptionId: null, pointDeductionDefinitionId: 'point-deduction-1',
+        rewardRedemptionId: null, pointAdditionDefinitionId: null,
+        pointDeductionDefinitionId: 'point-deduction-1',
         reversesPointTransactionId: null, createdByMember: householdMembers[0],
         createdAt: '2026-09-09T20:01:00Z', isReversed: false,
       } })
@@ -991,6 +1021,27 @@ test('an adult can define and deliberately apply a touch-friendly point deductio
   expect(pointDeductionApplications[0].householdMemberId).toBe(authenticatedUser.households[0].memberId)
 
   const results = await new AxeBuilder({ page }).include('.point-deduction-panel').analyze()
+  expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
+    .toEqual([])
+})
+
+test('an adult can define and deliberately apply a touch-friendly point addition', async ({ page }) => {
+  await page.goto(`/households/${authenticatedUser.households[0].id}/points`)
+  const panel = page.locator('.point-addition-panel')
+  await panel.getByLabel('Reason').fill('Homework on time')
+  await panel.getByLabel('Points to add').fill('100')
+  await panel.getByRole('button', { name: 'Create addition' }).click()
+  await expect(page.getByText('Quick addition created.')).toBeVisible()
+
+  await panel.getByRole('button', { name: /Homework on time.*100 points/ }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: /Add 100 points to Ryan Bamford/ })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Add 100 points' }).click()
+  await expect(page.getByText('Point addition recorded.')).toBeVisible()
+  expect(pointAdditionApplications).toHaveLength(1)
+  expect(pointAdditionApplications[0].householdMemberId).toBe(authenticatedUser.households[0].memberId)
+
+  const results = await new AxeBuilder({ page }).include('.point-addition-panel').analyze()
   expect(results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? '')))
     .toEqual([])
 })

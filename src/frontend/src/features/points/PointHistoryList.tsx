@@ -3,7 +3,10 @@ import { MemberAvatar } from '../../components/MemberAvatar'
 
 function transactionLabel(item: PointTransactionResponse) {
   if (item.type === 'choreCompletion') return 'Chore approved'
-  if (item.type === 'adjustment') return item.pointDeductionDefinitionId ? 'Quick deduction' : 'Adjustment'
+  if (item.type === 'adjustment') {
+    if (item.pointAdditionDefinitionId) return 'Quick addition'
+    return item.pointDeductionDefinitionId ? 'Quick deduction' : 'Adjustment'
+  }
   if (item.type === 'reversal') return 'Reversal'
   return 'Reward redemption'
 }

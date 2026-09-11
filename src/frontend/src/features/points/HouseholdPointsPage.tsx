@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router'
 import { ApiError, createPointAdjustment, getPointSummary, listPointTransactions,
+  listPointAdditionDefinitions, createPointAdditionDefinition,
+  updatePointAdditionDefinition, setPointAdditionDefinitionActive, applyPointAddition,
   reversePointTransaction, listPointDeductionDefinitions, createPointDeductionDefinition,
   updatePointDeductionDefinition, setPointDeductionDefinitionActive, applyPointDeduction,
-  type HouseholdPointSummaryResponse, type PointDeductionDefinitionResponse,
+  type HouseholdPointSummaryResponse, type PointAdditionDefinitionResponse,
+  type PointDeductionDefinitionResponse,
   type PointTransactionResponse } from '../../lib/api'
+import { MemberPicker } from '../../components/MemberPicker'
+import { PointAdditionPanel } from './PointAdditionPanel'
 import { PointHistoryList } from './PointHistoryList'
 import { PointDeductionPanel } from './PointDeductionPanel'
 
@@ -12,7 +17,9 @@ export function HouseholdPointsPage() {
   const { householdId = '' } = useParams()
   const [summary, setSummary] = useState<HouseholdPointSummaryResponse | null>(null)
   const [transactions, setTransactions] = useState<PointTransactionResponse[]>([])
+  const [additionDefinitions, setAdditionDefinitions] = useState<PointAdditionDefinitionResponse[]>([])
   const [definitions, setDefinitions] = useState<PointDeductionDefinitionResponse[]>([])
+  const [quickMemberId, setQuickMemberId] = useState('')
   const [memberId, setMemberId] = useState('')
   const [amount, setAmount] = useState(0)
   const [reason, setReason] = useState('')
@@ -26,11 +33,13 @@ export function HouseholdPointsPage() {
   const reversalRequestId = useRef(crypto.randomUUID())
   const load = useCallback(async () => {
     setLoading(true); setError('')
-    try { const [nextSummary, history, nextDefinitions] = await Promise.all([
+    try { const [nextSummary, history, nextAdditionDefinitions, nextDefinitions] = await Promise.all([
       getPointSummary(householdId), listPointTransactions(householdId),
+      listPointAdditionDefinitions(householdId),
       listPointDeductionDefinitions(householdId),
     ])
-      setSummary(nextSummary); setTransactions(history.items); setDefinitions(nextDefinitions)
+      setSummary(nextSummary); setTransactions(history.items)
+      setAdditionDefinitions(nextAdditionDefinitions); setDefinitions(nextDefinitions)
       if (!memberId && nextSummary.members[0]) setMemberId(nextSummary.members[0].memberId) }
     catch (cause) { setError(cause instanceof ApiError ? cause.problem.title : 'Point administration could not be loaded.') }
     finally { setLoading(false) }
@@ -60,9 +69,39 @@ export function HouseholdPointsPage() {
   }
   if (loading) return <p role="status">Loading point administration…</p>
   if (!summary) return <section className="admin-status" role="alert"><p>{error || 'Point administration is unavailable.'}</p><button onClick={() => void load()} type="button">Try again</button></section>
+  const activeMembers = summary.members.filter((member) => member.isActive)
+  const selectedQuickMemberId = activeMembers.some((member) => member.memberId === quickMemberId)
+    ? quickMemberId : activeMembers[0]?.memberId ?? ''
 
   return <div className="point-admin-grid">
+  <section className="point-quick-actions admin-section" aria-labelledby="quick-point-actions-heading">
+    <div><p className="eyebrow">Fast household recognition</p><h2 id="quick-point-actions-heading">Quick point actions</h2>
+      <p>Choose a family member once, then add or deduct points using a saved reason.</p></div>
+    {activeMembers.length > 0
+      ? <MemberPicker legend="Who are these points for?" members={activeMembers.map((member) => ({
+          id: member.memberId, displayName: member.displayName, avatarColor: member.avatarColor,
+          photo: member.photo, detail: `${member.balance.toLocaleString()} points`,
+        }))} value={selectedQuickMemberId} onChange={setQuickMemberId} />
+      : <p className="empty-state">Add or reactivate a household member before recording quick points.</p>}
+    <div className="point-quick-actions__columns">
+  <PointAdditionPanel busy={busy} definitions={additionDefinitions} members={summary.members}
+    selectedMemberId={selectedQuickMemberId}
+    onCreate={(clientRequestId, title, additionAmount) => perform(
+      () => createPointAdditionDefinition(householdId, { clientRequestId, title, additionAmount }),
+      'Quick addition created.', 'The quick addition could not be created.')}
+    onUpdate={(definition, title, additionAmount) => perform(
+      () => updatePointAdditionDefinition(householdId, definition, { title, additionAmount }),
+      'Quick addition updated.', 'The quick addition could not be updated.')}
+    onToggle={(definition, active) => perform(
+      () => setPointAdditionDefinitionActive(householdId, definition, active),
+      active ? 'Quick addition reactivated.' : 'Quick addition deactivated.',
+      'The quick addition could not be changed.')}
+    onApply={(definition, selectedMemberId, clientRequestId) => perform(
+      () => applyPointAddition(householdId, definition, {
+        clientRequestId, householdMemberId: selectedMemberId,
+      }), 'Point addition recorded.', 'The point addition could not be recorded.')} />
   <PointDeductionPanel busy={busy} definitions={definitions} members={summary.members}
+    selectedMemberId={selectedQuickMemberId}
     onCreate={(clientRequestId, title, deductionAmount) => perform(
       () => createPointDeductionDefinition(householdId, { clientRequestId, title, deductionAmount }),
       'Quick deduction created.', 'The quick deduction could not be created.')}
@@ -77,6 +116,8 @@ export function HouseholdPointsPage() {
       () => applyPointDeduction(householdId, definition, {
         clientRequestId, householdMemberId: selectedMemberId,
       }), 'Point deduction recorded.', 'The point deduction could not be recorded.')} />
+    </div>
+  </section>
   <form className="admin-form point-advanced-correction" onSubmit={(event) => void adjust(event)}>
     <h3>Record a correction</h3><p>Corrections add an immutable ledger entry. Use a negative amount to remove points.</p>
     <label>Household member<select onChange={(event) => { setMemberId(event.target.value); requestId.current = crypto.randomUUID() }} required value={memberId}>

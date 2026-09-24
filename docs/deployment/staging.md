@@ -440,6 +440,12 @@ Chore Management Increment 1 is proven end to end in staging. Automatic immutabl
 - Frontend lint, all 63 component tests, the production PWA build, and all 56 wall-display/phone Playwright scenarios passed. Both npm trees and all transitive NuGet packages report no known vulnerabilities. Docker Compose validation, both K3s renders, all CI-targeted Azure Bicep compilations, and repository whitespace checks passed.
 - Production container builds, CI, immutable-image publication, migration-before-deployment, Azure API and scheduled-job reconciliation, Netlify publication, and owner staging verification remain pending until this working tree is committed and pushed.
 
+## Open-chore scheduled-day visibility correction: 2026-09-24
+
+- Real household use confirmed that the original expiration boundary prevented indefinite post-midnight availability, but the active list still exposed advance-generated future occurrences and labeled a same-day unclaimed occurrence overdue after its configured time. This made the list appear to accumulate even when old rows were not necessarily crossing the midnight cutoff.
+- The corrected backend returns an unclaimed open occurrence only on its household-local scheduled date, reports it as not overdue for that entire day, and rejects a claim before that date. At local midnight it remains hidden and unclaimable immediately; the existing hourly generator then records retained expired history. Claimed open work and originally assigned work retain normal overdue behavior.
+- No migration, provider, secret, scheduled-job cadence, infrastructure resource, or dependency changes. Release build, 47 database-independent backend tests, frontend lint, all 64 component tests, the production PWA build, and all 56 wall-display/phone Playwright scenarios pass locally. The PostgreSQL endpoint regression remains a required CI check before deployment because no local PostgreSQL service is available.
+
 ## Reward Management Increment 1 staging verification: 2026-08-25
 
 - Reward UI commit `7db26b197fe16b9c701acef82ff0bf91bb31844c` deployed through Netlify production deploy `6a8dd663285b7d00087e4d79`. Its current bundle `/assets/index-DebLiKFB.js` contains `https://api.egobrane.net`, reward management, and redemption controls.

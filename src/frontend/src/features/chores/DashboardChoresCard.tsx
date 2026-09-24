@@ -64,7 +64,9 @@ export function DashboardChoresCard() {
           {openItems.length === 0 ? <p className="preview-note">No open chores are waiting.</p> : <ul className="chore-list">
             {openItems.map((chore) => <li className="chore chore--open" key={chore.id}>
               <span aria-hidden="true" className="chore__open-mark">✦</span>
-              <span className="chore__details"><strong>{chore.title}</strong><span>{chore.isOverdue ? 'Overdue' : chore.dueLocalTime ? `Due ${chore.dueLocalTime.slice(0, 5)}` : 'Ready to claim'}{chore.pointValue > 0 ? ` · ${chore.pointValue} points` : ''}</span></span>
+              <span className="chore__details"><strong>{chore.title}</strong><span>{chore.assignmentMode === 'open' && chore.assignedMember === null
+                ? 'Available today'
+                : chore.isOverdue ? 'Overdue' : chore.dueLocalTime ? `Due ${chore.dueLocalTime.slice(0, 5)}` : 'Ready to claim'}{chore.pointValue > 0 ? ` · ${chore.pointValue} points` : ''}</span></span>
               <button className="claim-action" onClick={() => setSelectedClaim(chore)} type="button">I’ll do it</button>
             </li>)}
           </ul>}

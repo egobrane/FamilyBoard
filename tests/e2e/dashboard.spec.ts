@@ -778,6 +778,8 @@ test('an open dashboard chore can be claimed by an explicitly selected member', 
   await page.goto('/')
   const openLane = page.getByRole('region', { name: 'Up for grabs' })
   await expect(openLane.getByText('Unload dishwasher')).toBeVisible()
+  await expect(openLane.getByText('Available today')).toBeVisible()
+  await expect(openLane.getByText('Overdue')).toBeHidden()
   await openLane.getByRole('button', { name: 'I’ll do it' }).click()
   await page.getByRole('group', { name: 'Choose a family member' })
     .getByRole('radio', { name: /Ryan Bamford/ }).check()

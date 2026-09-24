@@ -52,6 +52,15 @@ describe('ChoreList', () => {
     expect(screen.queryByRole('button', { name: 'Mark done' })).not.toBeInTheDocument()
   })
 
+  it('presents an unclaimed open occurrence as available today rather than overdue', () => {
+    render(<ChoreList assignments={[{ ...assignment, assignmentMode: 'open', assignedMember: null,
+      status: 'pending', isOverdue: false, claimExpiresAt: '2026-08-23T04:00:00Z' }]}
+      onClaim={vi.fn()} />)
+    expect(screen.getByText('Available today')).toBeInTheDocument()
+    expect(screen.queryByText('Overdue')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'I’ll do it' })).toBeInTheDocument()
+  })
+
   it('lets a child submit an assigned chore from the dashboard for adult review', async () => {
     Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true,
       value(this: HTMLDialogElement) { this.setAttribute('open', '') } })

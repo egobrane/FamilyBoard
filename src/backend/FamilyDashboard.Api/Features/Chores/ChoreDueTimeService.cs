@@ -4,6 +4,20 @@ using FamilyDashboard.Api.Domain.Chores;
 
 public sealed class ChoreDueTimeService(TimeProvider timeProvider)
 {
+    public bool TryGetLocalDate(DateTimeOffset instant, string timeZoneId,
+        out DateOnly localDate)
+    {
+        localDate = default;
+        try
+        {
+            var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+            localDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, timeZone).Date);
+            return true;
+        }
+        catch (TimeZoneNotFoundException) { return false; }
+        catch (InvalidTimeZoneException) { return false; }
+    }
+
     public bool TryResolve(DateOnly localDate, TimeOnly? localTime, string timeZoneId,
         out DateTimeOffset dueAt, out string? error)
     {

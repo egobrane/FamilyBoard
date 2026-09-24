@@ -53,6 +53,19 @@ public sealed class ChoreDueTimeServiceTests
         Assert.Equal(new DateTimeOffset(2026, 8, 24, 4, 0, 0, TimeSpan.Zero), expiresAt);
     }
 
+    [Fact]
+    public void ResolvesTheHouseholdLocalDateAtUtcBoundaries()
+    {
+        var service = new ChoreDueTimeService(Time);
+
+        Assert.True(service.TryGetLocalDate(
+            new DateTimeOffset(2026, 8, 24, 2, 0, 0, TimeSpan.Zero),
+            "America/New_York", out var localDate));
+
+        Assert.Equal(new DateOnly(2026, 8, 23), localDate);
+        Assert.False(service.TryGetLocalDate(Time.GetUtcNow(), "Not/A-Time-Zone", out _));
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => value;

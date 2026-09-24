@@ -16,6 +16,8 @@ export function ChoreList({ assignments, onComplete, onClaim }: {
           <div className="chore-board-item__details">
             <p className="eyebrow">{assignment.status === 'expired'
               ? 'Expired — not claimed'
+              : assignment.assignmentMode === 'open' && assignment.assignedMember === null
+                ? 'Available today'
               : assignment.isOverdue ? 'Overdue' : assignment.dueLocalDate ?? 'No due date'}</p>
             <h3>{assignment.title}</h3>
             <p>{assignment.assignedMember?.displayName ?? 'Up for grabs'}{assignment.dueLocalTime ? ` · ${assignment.dueLocalTime.slice(0, 5)}` : ''}</p>

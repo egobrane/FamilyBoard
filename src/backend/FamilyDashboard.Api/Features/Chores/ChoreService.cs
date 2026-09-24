@@ -37,6 +37,11 @@ public sealed class ChoreService(
         Guid householdId, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
+        var zone = await dbContext.HouseholdConfigurations.AsNoTracking()
+            .Where(item => item.HouseholdId == householdId).Select(item => item.TimeZone)
+            .SingleAsync(cancellationToken);
+        if (!dueTimeService.TryGetLocalDate(now, zone, out var today))
+            return new([], [], [], [], 0);
         var assignments = await AssignmentQuery(householdId)
             .Where(assignment => assignment.Status == ChoreAssignmentStatus.Pending
                 || assignment.Status == ChoreAssignmentStatus.AwaitingReview)
@@ -49,6 +54,7 @@ public sealed class ChoreService(
             .Where(assignment => assignment.Status == ChoreAssignmentStatus.Pending
                 && assignment.AssignmentMode == ChoreAssignmentMode.Open
                 && assignment.HouseholdMemberId == null
+                && assignment.DueLocalDate == today
                 && assignment.ClaimExpiresAt > now)
             .OrderBy(assignment => assignment.DueAt)
             .ThenBy(assignment => assignment.Id)
@@ -56,11 +62,6 @@ public sealed class ChoreService(
             .ToListAsync(cancellationToken);
         var mapped = assignments.Select(assignment => MapAssignment(assignment, now)).ToList();
         var mappedOpen = openAssignments.Select(assignment => MapAssignment(assignment, now)).ToList();
-        var zone = await dbContext.HouseholdConfigurations.AsNoTracking()
-            .Where(item => item.HouseholdId == householdId).Select(item => item.TimeZone)
-            .SingleAsync(cancellationToken);
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now,
-            TimeZoneInfo.FindSystemTimeZoneById(zone)).Date);
         return new ChoreDashboardResponse(
             mapped.Where(item => item.AssignedMember is not null && item.IsOverdue).Take(5).ToList(),
             mapped.Where(item => item.AssignedMember is not null && !item.IsOverdue && item.DueLocalDate == today).Take(5).ToList(),
@@ -73,16 +74,23 @@ public sealed class ChoreService(
         Guid? memberId, int offset, int pageSize, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
+        var zone = await dbContext.HouseholdConfigurations.AsNoTracking()
+            .Where(item => item.HouseholdId == householdId).Select(item => item.TimeZone)
+            .SingleAsync(cancellationToken);
+        if (!dueTimeService.TryGetLocalDate(now, zone, out var today))
+            return new([], null);
         var query = AssignmentQuery(householdId);
         query = view.Equals("history", StringComparison.OrdinalIgnoreCase)
             ? query.Where(item => item.Status == ChoreAssignmentStatus.Completed
                 || item.Status == ChoreAssignmentStatus.Skipped)
             : query.Where(item => (item.Status == ChoreAssignmentStatus.Pending
                     || item.Status == ChoreAssignmentStatus.AwaitingReview)
-                && !(item.Status == ChoreAssignmentStatus.Pending
-                    && item.AssignmentMode == ChoreAssignmentMode.Open
-                    && item.HouseholdMemberId == null
-                    && item.ClaimExpiresAt <= now));
+                && (!(item.Status == ChoreAssignmentStatus.Pending
+                        && item.AssignmentMode == ChoreAssignmentMode.Open
+                        && item.HouseholdMemberId == null)
+                    || (item.DueLocalDate == today
+                        && item.ClaimExpiresAt != null
+                        && item.ClaimExpiresAt > now)));
         if (memberId is not null) query = query.Where(item => item.HouseholdMemberId == memberId);
         query = view.Equals("history", StringComparison.OrdinalIgnoreCase)
             ? query.OrderByDescending(item => item.UpdatedAt).ThenBy(item => item.Id)
@@ -272,6 +280,10 @@ public sealed class ChoreService(
         if (assignment.HouseholdMemberId is not null) return new(ChoreOperationStatus.AlreadyClaimed);
         var now = timeProvider.GetUtcNow();
         if (assignment.ClaimExpiresAt is null || assignment.ClaimExpiresAt <= now)
+            return new(ChoreOperationStatus.NotActionable);
+        if (assignment.DueLocalDate is null || assignment.DueTimeZone is null
+            || !dueTimeService.TryGetLocalDate(now, assignment.DueTimeZone, out var today)
+            || assignment.DueLocalDate != today)
             return new(ChoreOperationStatus.NotActionable);
         if (assignment.Version != request.ExpectedAssignmentVersion)
             return new(ChoreOperationStatus.ConcurrencyConflict);
@@ -490,7 +502,9 @@ public sealed class ChoreService(
             item.DueLocalDate, item.DueLocalTime, item.DueAt,
             item.DueTimeZone, item.DueHasExplicitTime,
             status[..1].ToLowerInvariant() + status[1..],
-            item.Status == ChoreAssignmentStatus.Pending && item.DueAt < now, item.Version,
+            item.Status == ChoreAssignmentStatus.Pending && item.DueAt < now
+                && !(item.AssignmentMode == ChoreAssignmentMode.Open
+                    && item.HouseholdMemberId is null), item.Version,
             pending is null ? null : MapCompletion(pending), item.CreatedAt, item.UpdatedAt);
     }
 }

@@ -342,6 +342,23 @@ public sealed class ChoreEndpointTests
         var assignment = (await createResponse.Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
         Assert.NotNull(assignment.ClaimExpiresAt);
 
+        var futureResponse = await setupClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-assignments",
+            new CreateChoreAssignmentRequest(Guid.NewGuid(), definition.Id, "open", null,
+                localToday.AddDays(1), new TimeOnly(8, 0)));
+        Assert.Equal(HttpStatusCode.Created, futureResponse.StatusCode);
+        var future = (await futureResponse.Content.ReadFromJsonAsync<ChoreAssignmentResponse>())!;
+
+        var availableDashboard = await setupClient.GetFromJsonAsync<ChoreDashboardResponse>(
+            $"/api/households/{household.Id}/chores/dashboard");
+        var available = Assert.Single(availableDashboard!.Open);
+        Assert.Equal(assignment.Id, available.Id);
+        Assert.False(available.IsOverdue);
+        var availableActive = await setupClient.GetFromJsonAsync<ChoreListResponse>(
+            $"/api/households/{household.Id}/chore-assignments?view=active");
+        Assert.Contains(availableActive!.Items, item => item.Id == assignment.Id && !item.IsOverdue);
+        Assert.DoesNotContain(availableActive.Items, item => item.Id == future.Id);
+
         await database.DbContext.ChoreAssignments.Where(item => item.Id == assignment.Id)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(item => item.ClaimExpiresAt, DateTimeOffset.UtcNow.AddMinutes(-1)));
@@ -368,6 +385,11 @@ public sealed class ChoreEndpointTests
         database.DbContext.UserSessions.Add(session);
         await database.DbContext.SaveChangesAsync();
         using var sharedClient = Client(database.Factory, account.Id, session.Id);
+        var earlyClaim = await sharedClient.PostAsJsonAsync(
+            $"/api/households/{household.Id}/chore-assignments/{future.Id}/claim",
+            new ClaimChoreAssignmentRequest(Guid.NewGuid(), future.Version, child.Id));
+        Assert.Equal(HttpStatusCode.Conflict, earlyClaim.StatusCode);
+        Assert.Equal(ApiProblemCodes.ChoreAssignmentNotActionable, await ProblemCodeAsync(earlyClaim));
         var claim = await sharedClient.PostAsJsonAsync(
             $"/api/households/{household.Id}/chore-assignments/{assignment.Id}/claim",
             new ClaimChoreAssignmentRequest(Guid.NewGuid(), assignment.Version, child.Id));

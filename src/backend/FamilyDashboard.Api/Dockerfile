@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS development
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS development
 WORKDIR /workspace
 COPY global.json Directory.Build.props ./
 COPY src/backend/FamilyDashboard.Api/FamilyDashboard.Api.csproj src/backend/FamilyDashboard.Api/
